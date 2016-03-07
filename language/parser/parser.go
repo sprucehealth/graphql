@@ -185,7 +185,17 @@ func (p *Parser) parseOperationDefinition() (*ast.OperationDefinition, error) {
 	if err != nil {
 		return nil, err
 	}
-	operation := operationToken.Value
+	operation := ""
+	switch operationToken.Value {
+	case "mutation":
+		fallthrough
+	case "subscription":
+		fallthrough
+	case "query":
+		operation = operationToken.Value
+	default:
+		return nil, p.unexpected(operationToken)
+	}
 	name, err := p.parseName()
 	if err != nil {
 		return nil, err
@@ -1168,7 +1178,7 @@ func (p *Parser) skip(Kind int) (bool, error) {
 }
 
 // If the next token is of the given kind, return that token after advancing
-// the parser. Otherwise, do not change the parser state and return false.
+// the parser. Otherwise, do not change the parser state and return error.
 func (p *Parser) expect(kind int) (lexer.Token, error) {
 	token := p.tok
 	if token.Kind == kind {
