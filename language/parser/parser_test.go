@@ -11,6 +11,7 @@ import (
 	"github.com/sprucehealth/graphql/gqlerrors"
 	"github.com/sprucehealth/graphql/language/ast"
 	"github.com/sprucehealth/graphql/language/location"
+	"github.com/sprucehealth/graphql/language/printer"
 	"github.com/sprucehealth/graphql/language/source"
 )
 
@@ -177,6 +178,60 @@ func TestDoesNotAllowNullAsValue(t *testing.T) {
 		false,
 	}
 	testErrorMessage(t, test)
+}
+
+func TestParsesMultiByteCharacters(t *testing.T) {
+	doc := `
+        # This comment has a \u0A0A multi-byte character.
+        { field(arg: "Has a \u0A0A multi-byte character.") }
+	`
+	astDoc := parse(t, doc)
+
+	expectedASTDoc := &ast.Document{
+		Loc: ast.Location{Start: 67, End: 121},
+		Definitions: []ast.Node{
+			&ast.OperationDefinition{
+				Loc:       ast.Location{Start: 67, End: 119},
+				Operation: "query",
+				SelectionSet: &ast.SelectionSet{
+					Loc: ast.Location{Start: 67, End: 119},
+					Selections: []ast.Selection{
+						&ast.Field{
+							Loc: ast.Location{Start: 67, End: 117},
+							Name: &ast.Name{
+								Loc:   ast.Location{Start: 69, End: 74},
+								Value: "field",
+							},
+							Arguments: []*ast.Argument{
+								&ast.Argument{
+									Loc: ast.Location{Start: 75, End: 116},
+									Name: &ast.Name{
+
+										Loc: ast.Location{
+											Start: 75,
+											End:   78,
+										},
+										Value: "arg",
+									},
+									Value: &ast.StringValue{
+										Loc:   ast.Location{Start: 80, End: 116},
+										Value: "Has a \u0A0A multi-byte character.",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	astDocQuery := printer.Print(astDoc)
+	expectedASTDocQuery := printer.Print(expectedASTDoc)
+
+	if !reflect.DeepEqual(astDocQuery, expectedASTDocQuery) {
+		t.Fatalf("unexpected document, expected: %v, got: %v", astDocQuery, expectedASTDocQuery)
+	}
 }
 
 func TestParsesKitchenSink(t *testing.T) {
