@@ -1,13 +1,12 @@
 package graphql_test
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
 	"testing"
-
-	"context"
 
 	"github.com/sprucehealth/graphql"
 	"github.com/sprucehealth/graphql/gqlerrors"
@@ -785,7 +784,7 @@ func TestThrowsIfNoOperationIsProvidedWithMultipleOperations(t *testing.T) {
 }
 
 func TestUsesTheQuerySchemaForQueries(t *testing.T) {
-	doc := `query Q { a } mutation M { c }`
+	doc := `query Q { a } mutation M { c } subscription S { a }`
 	data := map[string]interface{}{
 		"a": "b",
 		"c": "d",
@@ -810,6 +809,14 @@ func TestUsesTheQuerySchemaForQueries(t *testing.T) {
 			Name: "M",
 			Fields: graphql.Fields{
 				"c": &graphql.Field{
+					Type: graphql.String,
+				},
+			},
+		}),
+		Subscription: graphql.NewObject(graphql.ObjectConfig{
+			Name: "S",
+			Fields: graphql.Fields{
+				"a": &graphql.Field{
 					Type: graphql.String,
 				},
 			},
@@ -883,6 +890,61 @@ func TestUsesTheMutationSchemaForMutations(t *testing.T) {
 		AST:           ast,
 		Root:          data,
 		OperationName: "M",
+	}
+	result := testutil.TestExecute(t, ep)
+	if len(result.Errors) > 0 {
+		t.Fatalf("wrong result, unexpected errors: %v", result.Errors)
+	}
+	if !reflect.DeepEqual(expected, result) {
+		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expected, result))
+	}
+}
+
+func TestUsesTheSubscriptionSchemaForSubscriptions(t *testing.T) {
+
+	doc := `query Q { a } subscription S { a }`
+	data := map[string]interface{}{
+		"a": "b",
+		"c": "d",
+	}
+
+	expected := &graphql.Result{
+		Data: map[string]interface{}{
+			"a": "b",
+		},
+	}
+
+	schema, err := graphql.NewSchema(graphql.SchemaConfig{
+		Query: graphql.NewObject(graphql.ObjectConfig{
+			Name: "Q",
+			Fields: graphql.Fields{
+				"a": &graphql.Field{
+					Type: graphql.String,
+				},
+			},
+		}),
+		Subscription: graphql.NewObject(graphql.ObjectConfig{
+			Name: "S",
+			Fields: graphql.Fields{
+				"a": &graphql.Field{
+					Type: graphql.String,
+				},
+			},
+		}),
+	})
+	if err != nil {
+		t.Fatalf("Error in schema %v", err.Error())
+	}
+
+	// parse query
+	ast := testutil.TestParse(t, doc)
+
+	// execute
+	ep := graphql.ExecuteParams{
+		Schema:        schema,
+		AST:           ast,
+		Root:          data,
+		OperationName: "S",
 	}
 	result := testutil.TestExecute(t, ep)
 	if len(result.Errors) > 0 {

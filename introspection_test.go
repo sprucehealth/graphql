@@ -30,7 +30,8 @@ func TestIntrospection_ExecutesAnIntrospectionQuery(t *testing.T) {
 	}
 	expectedDataSubSet := map[string]interface{}{
 		"__schema": map[string]interface{}{
-			"mutationType": nil,
+			"mutationType":     nil,
+			"subscriptionType": nil,
 			"queryType": map[string]interface{}{
 				"name": "QueryRoot",
 			},
@@ -85,6 +86,16 @@ func TestIntrospection_ExecutesAnIntrospectionQuery(t *testing.T) {
 						},
 						map[string]interface{}{
 							"name": "mutationType",
+							"args": []interface{}{},
+							"type": map[string]interface{}{
+								"kind": "OBJECT",
+								"name": "__Type",
+							},
+							"isDeprecated":      false,
+							"deprecationReason": "",
+						},
+						map[string]interface{}{
+							"name": "subscriptionType",
 							"args": []interface{}{},
 							"type": map[string]interface{}{
 								"kind": "OBJECT",
@@ -1257,14 +1268,15 @@ func TestIntrospection_ExposesDescriptionsOnTypesAndFields(t *testing.T) {
         }
       }
     `
+
 	expected := &graphql.Result{
 		Data: map[string]interface{}{
 			"schemaType": map[string]interface{}{
 				"name": "__Schema",
-				"description": `A GraphQL Schema defines the capabilities of a GraphQL
-server. It exposes all available types and directives on
-the server, as well as the entry points for query and
-mutation operations.`,
+				"description": `A GraphQL Schema defines the capabilities of a GraphQL ` +
+					`server. It exposes all available types and directives on ` +
+					`the server, as well as the entry points for query, mutation, ` +
+					`and subscription operations.`,
 				"fields": []interface{}{
 					map[string]interface{}{
 						"name":        "types",
