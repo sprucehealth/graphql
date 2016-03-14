@@ -445,6 +445,14 @@ func init() {
 	})
 	schema, err := graphql.NewSchema(graphql.SchemaConfig{
 		Query: queryRoot,
+		Directives: []*graphql.Directive{
+			graphql.NewDirective(&graphql.Directive{
+				Name:        "operationOnly",
+				OnOperation: true,
+			}),
+			graphql.IncludeDirective,
+			graphql.SkipDirective,
+		},
 	})
 	if err != nil {
 		panic(err)
