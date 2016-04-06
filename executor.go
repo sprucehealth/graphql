@@ -608,7 +608,7 @@ func completeValue(eCtx *ExecutionContext, returnType Type, fieldASTs []*ast.Fie
 			parentTypeName = info.ParentType.Name()
 		}
 		if !resultVal.IsValid() || resultVal.Type().Kind() != reflect.Slice {
-			panic(gqlerrors.NewFormattedError(fmt.Sprintf("User Error: expected iterable, but did not find one for field %v.%v", parentTypeName, info.FieldName)))
+			panic(gqlerrors.NewFormattedError(fmt.Sprintf("User Error: expected iterable, but did not find one for field %v.%v.", parentTypeName, info.FieldName)))
 		}
 
 		itemType := returnType.OfType
