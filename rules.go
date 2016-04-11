@@ -525,7 +525,16 @@ func KnownFragmentNamesRule(context *ValidationContext) *ValidationRuleInstance 
 func KnownTypeNamesRule(context *ValidationContext) *ValidationRuleInstance {
 	return &ValidationRuleInstance{
 		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
-			if node, ok := p.Node.(*ast.Named); ok {
+			switch node := p.Node.(type) {
+			case *ast.ObjectDefinition:
+				return visitor.ActionSkip, nil
+			case *ast.InterfaceDefinition:
+				return visitor.ActionSkip, nil
+			case *ast.UnionDefinition:
+				return visitor.ActionSkip, nil
+			case *ast.InputObjectDefinition:
+				return visitor.ActionSkip, nil
+			case *ast.Named:
 				typeNameValue := ""
 				typeName := node.Name
 				if typeName != nil {
