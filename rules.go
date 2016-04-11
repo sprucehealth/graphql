@@ -608,83 +608,103 @@ func (set *nodeSet) Add(node ast.Node) bool {
 	return true
 }
 
-// NoFragmentCyclesRule ...
-func NoFragmentCyclesRule(context *ValidationContext) *ValidationRuleInstance {
-	// Gather all the fragment spreads ASTs for each fragment definition.
-	// Importantly this does not include inline fragments.
-	definitions := context.Document().Definitions
-	spreadsInFragment := make(map[string][]*ast.FragmentSpread)
-	for _, node := range definitions {
-		if node, ok := node.(*ast.FragmentDefinition); ok {
-			nodeName := ""
-			if node.Name != nil {
-				nodeName = node.Name.Value
-			}
-			spreadsInFragment[nodeName] = gatherSpreads(node)
-		}
+func CycleErrorMessage(fragName string, spreadNames []string) string {
+	via := ""
+	if len(spreadNames) > 0 {
+		via = " via " + strings.Join(spreadNames, ", ")
 	}
-	// Tracks spreads known to lead to cycles to ensure that cycles are not
-	// redundantly reported.
-	knownToLeadToCycle := newNodeSet()
+	return fmt.Sprintf(`Cannot spread fragment "%v" within itself%v.`, fragName, via)
+}
+
+/**
+ * NoFragmentCyclesRule
+ */
+func NoFragmentCyclesRule(context *ValidationContext) *ValidationRuleInstance {
+	// Tracks already visited fragments to maintain O(N) and to ensure that cycles
+	// are not redundantly reported.
+	visitedFrags := make(map[string]bool)
+
+	// Array of AST nodes used to produce meaningful errors
+	var spreadPath []*ast.FragmentSpread
+
+	// Position in the spread path
+	spreadPathIndexByName := make(map[string]int)
+
+	// This does a straight-forward DFS to find cycles.
+	// It does not terminate when a cycle was found but continues to explore
+	// the graph to find all possible cycles.
+	var detectCycleRecursive func(fragment *ast.FragmentDefinition)
+	detectCycleRecursive = func(fragment *ast.FragmentDefinition) {
+		var fragmentName string
+		if fragment.Name != nil {
+			fragmentName = fragment.Name.Value
+		}
+		visitedFrags[fragmentName] = true
+
+		spreadNodes := context.FragmentSpreads(fragment)
+		if len(spreadNodes) == 0 {
+			return
+		}
+
+		spreadPathIndexByName[fragmentName] = len(spreadPath)
+
+		for _, spreadNode := range spreadNodes {
+			spreadName := ""
+			if spreadNode.Name != nil {
+				spreadName = spreadNode.Name.Value
+			}
+			cycleIndex, ok := spreadPathIndexByName[spreadName]
+			if !ok {
+				spreadPath = append(spreadPath, spreadNode)
+				if visited, ok := visitedFrags[spreadName]; !ok || !visited {
+					spreadFragment := context.Fragment(spreadName)
+					if spreadFragment != nil {
+						detectCycleRecursive(spreadFragment)
+					}
+				}
+				spreadPath = spreadPath[:len(spreadPath)-1]
+			} else {
+				cyclePath := spreadPath[cycleIndex:]
+
+				spreadNames := []string{}
+				for _, s := range cyclePath {
+					name := ""
+					if s.Name != nil {
+						name = s.Name.Value
+					}
+					spreadNames = append(spreadNames, name)
+				}
+
+				nodes := []ast.Node{}
+				for _, c := range cyclePath {
+					nodes = append(nodes, c)
+				}
+				nodes = append(nodes, spreadNode)
+
+				context.ReportError(newValidationError(
+					CycleErrorMessage(spreadName, spreadNames),
+					nodes))
+			}
+
+		}
+		delete(spreadPathIndexByName, fragmentName)
+
+	}
 
 	return &ValidationRuleInstance{
 		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
-			if node, ok := p.Node.(*ast.FragmentDefinition); ok && node != nil {
-				var spreadPath []*ast.FragmentSpread
-				initialName := ""
+			switch node := p.Node.(type) {
+			case *ast.OperationDefinition:
+				return visitor.ActionSkip, nil
+			case *ast.FragmentDefinition:
+				nodeName := ""
 				if node.Name != nil {
-					initialName = node.Name.Value
+					nodeName = node.Name.Value
 				}
-				var detectCycleRecursive func(fragmentName string)
-				detectCycleRecursive = func(fragmentName string) {
-					spreadNodes := spreadsInFragment[fragmentName]
-					for _, spreadNode := range spreadNodes {
-						if knownToLeadToCycle.Has(spreadNode) {
-							continue
-						}
-						spreadNodeName := ""
-						if spreadNode.Name != nil {
-							spreadNodeName = spreadNode.Name.Value
-						}
-						if spreadNodeName == initialName {
-							cyclePath := make([]ast.Node, 0, len(spreadPath)+1)
-							for _, path := range spreadPath {
-								cyclePath = append(cyclePath, path)
-							}
-							cyclePath = append(cyclePath, spreadNode)
-							for _, spread := range cyclePath {
-								knownToLeadToCycle.Add(spread)
-							}
-							via := ""
-							spreadNames := make([]string, 0, len(spreadPath))
-							for _, s := range spreadPath {
-								if s.Name != nil {
-									spreadNames = append(spreadNames, s.Name.Value)
-								}
-							}
-							if len(spreadNames) > 0 {
-								via = " via " + strings.Join(spreadNames, ", ")
-							}
-							context.ReportError(newValidationError(
-								fmt.Sprintf(`Cannot spread fragment "%v" within itself%v.`, initialName, via),
-								cyclePath))
-							continue
-						}
-						spreadPathHasCurrentNode := false
-						for _, spread := range spreadPath {
-							if spread == spreadNode {
-								spreadPathHasCurrentNode = true
-							}
-						}
-						if spreadPathHasCurrentNode {
-							continue
-						}
-						spreadPath = append(spreadPath, spreadNode)
-						detectCycleRecursive(spreadNodeName)
-						_, spreadPath = spreadPath[len(spreadPath)-1], spreadPath[:len(spreadPath)-1]
-					}
+				if _, ok := visitedFrags[nodeName]; !ok {
+					detectCycleRecursive(node)
 				}
-				detectCycleRecursive(initialName)
+				return visitor.ActionSkip, nil
 			}
 			return visitor.ActionNoChange, nil
 		},
@@ -1826,23 +1846,4 @@ func isValidLiteralValue(ttype Input, valueAST ast.Value) (bool, []string) {
 	}
 
 	return true, nil
-}
-
-/**
- * Given an operation or fragment AST node, gather all the
- * named spreads defined within the scope of the fragment
- * or operation
- */
-func gatherSpreads(node ast.Node) []*ast.FragmentSpread {
-	var spreadNodes []*ast.FragmentSpread
-	visitorOpts := &visitor.VisitorOptions{
-		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
-			if node, ok := p.Node.(*ast.FragmentSpread); ok && node != nil {
-				spreadNodes = append(spreadNodes, node)
-			}
-			return visitor.ActionNoChange, nil
-		},
-	}
-	visitor.Visit(node, visitorOpts)
-	return spreadNodes
 }

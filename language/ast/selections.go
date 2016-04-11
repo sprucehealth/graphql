@@ -2,6 +2,7 @@ package ast
 
 type Selection interface {
 	Node
+	GetSelectionSet() *SelectionSet
 }
 
 // Ensure that all definition types implements Selection interface
@@ -23,6 +24,10 @@ func (f *Field) GetLoc() Location {
 	return f.Loc
 }
 
+func (f *Field) GetSelectionSet() *SelectionSet {
+	return f.SelectionSet
+}
+
 // FragmentSpread implements Node, Selection
 type FragmentSpread struct {
 	Loc        Location
@@ -32,6 +37,10 @@ type FragmentSpread struct {
 
 func (fs *FragmentSpread) GetLoc() Location {
 	return fs.Loc
+}
+
+func (fs *FragmentSpread) GetSelectionSet() *SelectionSet {
+	return nil
 }
 
 // InlineFragment implements Node, Selection
@@ -44,6 +53,10 @@ type InlineFragment struct {
 
 func (f *InlineFragment) GetLoc() Location {
 	return f.Loc
+}
+
+func (f *InlineFragment) GetSelectionSet() *SelectionSet {
+	return f.SelectionSet
 }
 
 // SelectionSet implements Node
