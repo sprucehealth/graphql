@@ -1738,7 +1738,7 @@ func VariablesInAllowedPositionRule(context *ValidationContext) *ValidationRuleI
 							context.ReportError(newValidationError(
 								fmt.Sprintf(`Variable "$%v" of type "%v" used in position `+
 									`expecting type "%v".`, varName, varType, usage.Type),
-								[]ast.Node{usage.Node, varDef}))
+								[]ast.Node{varDef, usage.Node}))
 						}
 					}
 				}
