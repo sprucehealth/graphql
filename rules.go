@@ -93,6 +93,7 @@ func ArgumentsOfCorrectTypeRule(context *ValidationContext) *ValidationRuleInsta
 						)
 					}
 				}
+				return visitor.ActionSkip, nil
 			}
 			return visitor.ActionNoChange, nil
 		},
@@ -109,13 +110,13 @@ func ArgumentsOfCorrectTypeRule(context *ValidationContext) *ValidationRuleInsta
 func DefaultValuesOfCorrectTypeRule(context *ValidationContext) *ValidationRuleInstance {
 	return &ValidationRuleInstance{
 		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
-			var action = visitor.ActionNoChange
-			if varDefAST, ok := p.Node.(*ast.VariableDefinition); ok {
+			switch node := p.Node.(type) {
+			case *ast.VariableDefinition:
 				name := ""
-				if varDefAST.Variable != nil && varDefAST.Variable.Name != nil {
-					name = varDefAST.Variable.Name.Value
+				if node.Variable != nil && node.Variable.Name != nil {
+					name = node.Variable.Name.Value
 				}
-				defaultValue := varDefAST.DefaultValue
+				defaultValue := node.DefaultValue
 				ttype := context.InputType()
 
 				if ttype, ok := ttype.(*NonNull); ok && defaultValue != nil {
@@ -141,8 +142,13 @@ func DefaultValuesOfCorrectTypeRule(context *ValidationContext) *ValidationRuleI
 						)
 					}
 				}
+				return visitor.ActionSkip, nil
+			case *ast.SelectionSet:
+				return visitor.ActionSkip, nil
+			case *ast.FragmentDefinition:
+				return visitor.ActionSkip, nil
 			}
-			return action, nil
+			return visitor.ActionNoChange, nil
 		},
 	}
 }
@@ -776,72 +782,63 @@ func NoUndefinedVariablesRule(context *ValidationContext) *ValidationRuleInstanc
  */
 func NoUnusedFragmentsRule(context *ValidationContext) *ValidationRuleInstance {
 	var fragmentDefs []*ast.FragmentDefinition
-	var spreadsWithinOperation []map[string]struct{}
-	var fragAdjacencies = make(map[string]map[string]struct{})
-	var spreadNames = make(map[string]struct{})
-
+	var spreadsWithinOperation [][]*ast.FragmentSpread
 	return &ValidationRuleInstance{
 		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
 			switch node := p.Node.(type) {
 			case *ast.OperationDefinition:
-				spreadNames = make(map[string]struct{})
-				spreadsWithinOperation = append(spreadsWithinOperation, spreadNames)
+				spreadsWithinOperation = append(spreadsWithinOperation, context.FragmentSpreads(node))
+				return visitor.ActionSkip, nil
 			case *ast.FragmentDefinition:
-				defName := ""
-				if node.Name != nil {
-					defName = node.Name.Value
+				if def, ok := p.Node.(*ast.FragmentDefinition); ok && def != nil {
+					fragmentDefs = append(fragmentDefs, def)
 				}
-
-				fragmentDefs = append(fragmentDefs, node)
-				spreadNames = make(map[string]struct{})
-				fragAdjacencies[defName] = spreadNames
-			case *ast.FragmentSpread:
-				spreadName := ""
-				if node.Name != nil {
-					spreadName = node.Name.Value
-				}
-				spreadNames[spreadName] = struct{}{}
+				return visitor.ActionSkip, nil
 			}
 			return visitor.ActionNoChange, nil
 		},
 		Leave: func(p visitor.VisitFuncParams) (string, interface{}) {
-			if _, ok := p.Node.(*ast.Document); !ok {
-				return visitor.ActionNoChange, nil
-			}
-			fragmentNameUsed := make(map[string]struct{})
+			switch p.Node.(type) {
+			case *ast.Document:
+				fragmentNameUsed := map[string]interface{}{}
 
-			var reduceSpreadFragments func(spreads map[string]struct{})
-			reduceSpreadFragments = func(spreads map[string]struct{}) {
-				for fragName := range spreads {
-					if _, isFragNameUsed := fragmentNameUsed[fragName]; !isFragNameUsed {
-						fragmentNameUsed[fragName] = struct{}{}
-
-						if adjacencies, ok := fragAdjacencies[fragName]; ok {
-							reduceSpreadFragments(adjacencies)
+				var reduceSpreadFragments func(spreads []*ast.FragmentSpread)
+				reduceSpreadFragments = func(spreads []*ast.FragmentSpread) {
+					for _, spread := range spreads {
+						fragName := ""
+						if spread.Name != nil {
+							fragName = spread.Name.Value
+						}
+						if isFragNameUsed, _ := fragmentNameUsed[fragName]; isFragNameUsed != true {
+							fragmentNameUsed[fragName] = true
+							fragment := context.Fragment(fragName)
+							if fragment != nil {
+								reduceSpreadFragments(context.FragmentSpreads(fragment))
+							}
 						}
 					}
 				}
-			}
-			for _, spreadWithinOperation := range spreadsWithinOperation {
-				reduceSpreadFragments(spreadWithinOperation)
-			}
-			for _, def := range fragmentDefs {
-				defName := ""
-				if def.Name != nil {
-					defName = def.Name.Value
+				for _, spreadWithinOperation := range spreadsWithinOperation {
+					reduceSpreadFragments(spreadWithinOperation)
 				}
+				for _, def := range fragmentDefs {
+					defName := ""
+					if def.Name != nil {
+						defName = def.Name.Value
+					}
 
-				_, isFragNameUsed := fragmentNameUsed[defName]
-				if !isFragNameUsed {
-					context.ReportError(newValidationError(
-						fmt.Sprintf(`Fragment "%v" is never used.`, defName),
-						[]ast.Node{def}))
-
+					isFragNameUsed, ok := fragmentNameUsed[defName]
+					if !ok || isFragNameUsed != true {
+						context.ReportError(newValidationError(
+							fmt.Sprintf(`Fragment "%v" is never used.`, defName),
+							[]ast.Node{def}))
+					}
 				}
 			}
 			return visitor.ActionNoChange, nil
 		},
 	}
+
 }
 
 func UnusedVariableMessage(varName string, opName string) string {
@@ -1562,7 +1559,10 @@ func UniqueFragmentNamesRule(context *ValidationContext) *ValidationRuleInstance
 	knownFragmentNames := make(map[string]*ast.Name)
 	return &ValidationRuleInstance{
 		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
-			if node, ok := p.Node.(*ast.FragmentDefinition); ok && node != nil {
+			switch node := p.Node.(type) {
+			case *ast.OperationDefinition:
+				return visitor.ActionSkip, nil
+			case *ast.FragmentDefinition:
 				fragmentName := ""
 				if node.Name != nil {
 					fragmentName = node.Name.Value
@@ -1574,6 +1574,7 @@ func UniqueFragmentNamesRule(context *ValidationContext) *ValidationRuleInstance
 				} else {
 					knownFragmentNames[fragmentName] = node.Name
 				}
+				return visitor.ActionSkip, nil
 			}
 			return visitor.ActionNoChange, nil
 		},
@@ -1582,20 +1583,38 @@ func UniqueFragmentNamesRule(context *ValidationContext) *ValidationRuleInstance
 
 // UniqueInputFieldNamesRule checks that a GraphQL input object value is only valid if all supplied fields are uniquely named.
 func UniqueInputFieldNamesRule(context *ValidationContext) *ValidationRuleInstance {
+	var knownNameStack []map[string]*ast.Name
+	knownNames := make(map[string]*ast.Name)
+
 	return &ValidationRuleInstance{
 		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
 			switch node := p.Node.(type) {
 			case *ast.ObjectValue:
-				seen := make(map[string]*ast.ObjectField, len(node.Fields))
-				for _, f := range node.Fields {
-					if other, k := seen[f.Name.Value]; k {
-						context.ReportError(newValidationError(
-							fmt.Sprintf(`There can be only one input field named %q.`, f.Name.Value),
-							[]ast.Node{other.Name, f.Name}))
-					} else {
-						seen[f.Name.Value] = f
-					}
+				knownNameStack = append(knownNameStack, knownNames)
+				knownNames = make(map[string]*ast.Name)
+				return visitor.ActionNoChange, nil
+			case *ast.ObjectField:
+				var fieldName string
+				if node.Name != nil {
+					fieldName = node.Name.Value
 				}
+				if knownNameAST, ok := knownNames[fieldName]; ok {
+					context.ReportError(newValidationError(
+						fmt.Sprintf(`There can be only one input field named "%v".`, fieldName),
+						[]ast.Node{knownNameAST, node.Name}))
+					return visitor.ActionNoChange, nil
+				} else {
+					knownNames[fieldName] = node.Name
+				}
+
+				return visitor.ActionSkip, nil
+			}
+			return visitor.ActionNoChange, nil
+		},
+		Leave: func(p visitor.VisitFuncParams) (string, interface{}) {
+			switch p.Node.(type) {
+			case *ast.ObjectValue:
+				knownNames, knownNameStack = knownNameStack[len(knownNameStack)-1], knownNameStack[:len(knownNameStack)-1]
 			}
 			return visitor.ActionNoChange, nil
 		},
@@ -1607,8 +1626,9 @@ func UniqueOperationNamesRule(context *ValidationContext) *ValidationRuleInstanc
 	knownOperationNames := make(map[string]*ast.Name)
 	return &ValidationRuleInstance{
 		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
-			if node, ok := p.Node.(*ast.OperationDefinition); ok && node != nil {
-				operationName := ""
+			switch node := p.Node.(type) {
+			case *ast.OperationDefinition:
+				var operationName string
 				if node.Name != nil {
 					operationName = node.Name.Value
 				}
@@ -1616,9 +1636,13 @@ func UniqueOperationNamesRule(context *ValidationContext) *ValidationRuleInstanc
 					context.ReportError(newValidationError(
 						fmt.Sprintf(`There can only be one operation named "%v".`, operationName),
 						[]ast.Node{nameAST, node.Name}))
+					return visitor.ActionNoChange, nil
 				} else {
 					knownOperationNames[operationName] = node.Name
 				}
+				return visitor.ActionSkip, nil
+			case *ast.FragmentDefinition:
+				return visitor.ActionNoChange, nil
 			}
 			return visitor.ActionNoChange, nil
 		},
