@@ -1547,6 +1547,7 @@ func UniqueArgumentNamesRule(context *ValidationContext) *ValidationRuleInstance
 					)
 				}
 				knownArgNames[argName] = node.Name
+				return visitor.ActionSkip, nil
 			}
 			return visitor.ActionNoChange, nil
 		},
