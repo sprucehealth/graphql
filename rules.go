@@ -1059,7 +1059,22 @@ func sameValue(value1 ast.Value, value2 ast.Value) bool {
 }
 
 func sameType(typeA, typeB Type) bool {
-	return typeA.String() == typeB.String()
+	if typeA == typeB {
+		return true
+	}
+
+	if typeA, ok := typeA.(*List); ok {
+		if typeB, ok := typeB.(*List); ok {
+			return sameType(typeA.OfType, typeB.OfType)
+		}
+	}
+	if typeA, ok := typeA.(*NonNull); ok {
+		if typeB, ok := typeB.(*NonNull); ok {
+			return sameType(typeA.OfType, typeB.OfType)
+		}
+	}
+
+	return false
 }
 
 // OverlappingFieldsCanBeMergedRule
