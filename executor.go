@@ -460,12 +460,10 @@ type resolveFieldResultState struct {
 	hasNoFieldDefs bool
 }
 
-/**
- * Resolves the field on the given source object. In particular, this
- * figures out the value that the field returns by calling its resolve function,
- * then calls completeValue to complete promises, serialize scalars, or execute
- * the sub-selection-set for objects.
- */
+// Resolves the field on the given source object. In particular, this
+// figures out the value that the field returns by calling its resolve function,
+// then calls completeValue to complete promises, serialize scalars, or execute
+// the sub-selection-set for objects.
 func resolveField(eCtx *ExecutionContext, parentType *Object, source interface{}, fieldASTs []*ast.Field) (result interface{}, resultState resolveFieldResultState) {
 	// catch panic from resolveFn
 	var returnType Output
@@ -784,15 +782,13 @@ func defaultResolveFn(p ResolveParams) (interface{}, error) {
 	return nil, nil
 }
 
-/**
- * This method looks up the field on the given type defintion.
- * It has special casing for the two introspection fields, __schema
- * and __typename. __typename is special because it can always be
- * queried as a field, even in situations where no other fields
- * are allowed, like on a Union. __schema could get automatically
- * added to the query type, but that would require mutating type
- * definitions, which would cause issues.
- */
+// This method looks up the field on the given type defintion.
+// It has special casing for the two introspection fields, __schema
+// and __typename. __typename is special because it can always be
+// queried as a field, even in situations where no other fields
+// are allowed, like on a Union. __schema could get automatically
+// added to the query type, but that would require mutating type
+// definitions, which would cause issues.
 func getFieldDef(schema Schema, parentType *Object, fieldName string) *FieldDefinition {
 	if parentType == nil {
 		return nil

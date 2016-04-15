@@ -212,7 +212,7 @@ func (ti *TypeInfo) Leave(node ast.Node) {
 	}
 }
 
-// Not exactly the same as the executor's definition of FieldDef, in this
+// DefaultTypeInfoFieldDef Not exactly the same as the executor's definition of FieldDef, in this
 // statically evaluated environment we do not always have an Object type,
 // and need to handle Interface and Union types.
 func DefaultTypeInfoFieldDef(schema *Schema, parentType Type, fieldAST *ast.Field) *FieldDefinition {

@@ -46,10 +46,11 @@ func ValidateDocument(schema *Schema, astDoc *ast.Document, rules []ValidationRu
 
 // VisitUsingRules This uses a specialized visitor which runs multiple visitors in parallel,
 // while maintaining the visitor skip and break API.
+//
 // @internal
 // Had to expose it to unit test experimental customizable validation feature,
 // but not meant for public consumption
-func VisitUsingRules(schema *Schema, typeInfo *TypeInfo, astDoc *ast.Document, rules []ValidationRuleFn) (errors []gqlerrors.FormattedError) {
+func VisitUsingRules(schema *Schema, typeInfo *TypeInfo, astDoc *ast.Document, rules []ValidationRuleFn) []gqlerrors.FormattedError {
 	context := NewValidationContext(schema, astDoc, typeInfo)
 
 	var visitInstance func(astNode ast.Node, instance *ValidationRuleInstance)

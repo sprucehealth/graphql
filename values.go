@@ -298,16 +298,15 @@ func isValidInputValue(value interface{}, ttype Input) (bool, []string) {
 		parsedVal := ttype.ParseValue(value)
 		if isNullish(parsedVal) {
 			return false, []string{fmt.Sprintf(`Expected type "%v", found "%v".`, ttype.Name(), value)}
-		} else {
-			return true, nil
 		}
+		return true, nil
+
 	case *Enum:
 		parsedVal := ttype.ParseValue(value)
 		if isNullish(parsedVal) {
 			return false, []string{fmt.Sprintf(`Expected type "%v", found "%v".`, ttype.Name(), value)}
-		} else {
-			return true, nil
 		}
+		return true, nil
 	}
 	return true, nil
 }
