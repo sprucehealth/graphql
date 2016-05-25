@@ -60,3 +60,27 @@ func BenchmarkValidateDocument(b *testing.B) {
 		}
 	}
 }
+
+// BenchmarkValidateDocumentRepeatedField stresses OverlappingFieldsCanBeMergedRule
+func BenchmarkValidateDocumentRepeatedField(b *testing.B) {
+	query := `
+		query HeroNameAndFriendsQuery {
+			hero {
+				id id id id id id id id id id id id id id id id id id id id id id id id id id id id id id id id id id id id id id id id id id id id
+				id id id id id id id id id id id id id id id id id id id id id id id id id id id id id id id id id id id id id id id id id id id id
+			}
+		}
+	`
+	ast, err := parser.Parse(parser.ParseParams{Source: source.New("", query)})
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r := graphql.ValidateDocument(&testutil.StarWarsSchema, ast, nil)
+		if !r.IsValid {
+			b.Fatal("Not valid")
+		}
+	}
+}
