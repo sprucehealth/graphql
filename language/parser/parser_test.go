@@ -39,8 +39,7 @@ func TestAcceptsOptionToNotIncludeSource(t *testing.T) {
 		Loc: &ast.Location{
 			Start: 0, End: 9,
 		},
-		Operation:  "query",
-		Directives: []*ast.Directive{},
+		Operation: "query",
 		SelectionSet: &ast.SelectionSet{
 			Kind: "SelectionSet",
 			Loc: &ast.Location{
@@ -59,7 +58,6 @@ func TestAcceptsOptionToNotIncludeSource(t *testing.T) {
 						},
 						Value: "field",
 					},
-					Directives: []*ast.Directive{},
 				},
 			},
 		},
@@ -121,7 +119,7 @@ fragment MissingOn Type
 		},
 	}
 	for _, test := range testErrorMessagesTable {
-		if test.skipped != false {
+		if test.skipped {
 			t.Skipf("Skipped test: %v", test.source)
 		}
 		_, err := Parse(ParseParams{Source: test.source})
@@ -273,8 +271,7 @@ func TestParseCreatesAst(t *testing.T) {
 		Loc: &ast.Location{
 			Start: 0, End: 40,
 		},
-		Operation:  "query",
-		Directives: []*ast.Directive{},
+		Operation: "query",
 		SelectionSet: &ast.SelectionSet{
 			Kind: "SelectionSet",
 			Loc: &ast.Location{
@@ -315,7 +312,6 @@ func TestParseCreatesAst(t *testing.T) {
 							},
 						},
 					},
-					Directives: []*ast.Directive{},
 					SelectionSet: &ast.SelectionSet{
 						Kind: "SelectionSet",
 						Loc: &ast.Location{
@@ -334,8 +330,6 @@ func TestParseCreatesAst(t *testing.T) {
 									},
 									Value: "id",
 								},
-								Directives:   []*ast.Directive{},
-								SelectionSet: nil,
 							},
 							&ast.Field{
 								Kind: "Field",
@@ -349,8 +343,6 @@ func TestParseCreatesAst(t *testing.T) {
 									},
 									Value: "name",
 								},
-								Directives:   []*ast.Directive{},
-								SelectionSet: nil,
 							},
 						},
 					},
@@ -377,7 +369,7 @@ type errorMessageTest struct {
 }
 
 func testErrorMessage(t *testing.T, test errorMessageTest) {
-	if test.skipped != false {
+	if test.skipped {
 		t.Skipf("Skipped test: %v", test.source)
 	}
 	_, err := Parse(ParseParams{Source: test.source})

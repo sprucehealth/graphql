@@ -83,7 +83,7 @@ type Token struct {
 }
 
 func (t *Token) String() string {
-	return fmt.Sprintf("%s", tokenDescription[t.Kind])
+	return tokenDescription[t.Kind]
 }
 
 type Lexer func(resetPosition int) (Token, error)
@@ -208,7 +208,7 @@ func readString(s *source.Source, start int) (Token, error) {
 	var value string
 	for {
 		code = s.RuneAt(position)
-		if !(position < len(body) && code != 34 && code != 10 && code != 13 && code != 0x2028 && code != 0x2029) {
+		if !(position < len(body) && code != '"' && code != 10 && code != 13 && code != 0x2028 && code != 0x2029) {
 			break
 		}
 		position++
@@ -251,7 +251,7 @@ func readString(s *source.Source, start int) (Token, error) {
 			chunkStart = position
 		}
 	}
-	if code != 34 {
+	if code != '"' {
 		return Token{}, gqlerrors.NewSyntaxError(s, position, "Unterminated string.")
 	}
 	value += body[chunkStart:position]

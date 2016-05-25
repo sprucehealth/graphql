@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"encoding/json"
 	"reflect"
 	"testing"
 
@@ -45,7 +46,6 @@ type Hello {
 					Value: "Hello",
 					Loc:   testLoc(6, 11),
 				}),
-				Interfaces: []*ast.Named{},
 				Fields: []*ast.FieldDefinition{
 					ast.NewFieldDefinition(&ast.FieldDefinition{
 						Loc: testLoc(16, 29),
@@ -53,7 +53,6 @@ type Hello {
 							Value: "world",
 							Loc:   testLoc(16, 21),
 						}),
-						Arguments: []*ast.InputValueDefinition{},
 						Type: ast.NewNamed(&ast.Named{
 							Loc: testLoc(23, 29),
 							Name: ast.NewName(&ast.Name{
@@ -89,7 +88,6 @@ extend type Hello {
 						Value: "Hello",
 						Loc:   testLoc(13, 18),
 					}),
-					Interfaces: []*ast.Named{},
 					Fields: []*ast.FieldDefinition{
 						ast.NewFieldDefinition(&ast.FieldDefinition{
 							Loc: testLoc(23, 36),
@@ -97,7 +95,6 @@ extend type Hello {
 								Value: "world",
 								Loc:   testLoc(23, 28),
 							}),
-							Arguments: []*ast.InputValueDefinition{},
 							Type: ast.NewNamed(&ast.Named{
 								Loc: testLoc(30, 36),
 								Name: ast.NewName(&ast.Name{
@@ -132,7 +129,6 @@ type Hello {
 					Value: "Hello",
 					Loc:   testLoc(6, 11),
 				}),
-				Interfaces: []*ast.Named{},
 				Fields: []*ast.FieldDefinition{
 					ast.NewFieldDefinition(&ast.FieldDefinition{
 						Loc: testLoc(16, 30),
@@ -140,7 +136,6 @@ type Hello {
 							Value: "world",
 							Loc:   testLoc(16, 21),
 						}),
-						Arguments: []*ast.InputValueDefinition{},
 						Type: ast.NewNonNull(&ast.NonNull{
 							Kind: "NonNullType",
 							Loc:  testLoc(23, 30),
@@ -188,7 +183,7 @@ func TestSchemaParser_SimpleTypeInheritingInterface(t *testing.T) {
 		},
 	})
 	if !reflect.DeepEqual(astDoc, expected) {
-		t.Fatalf("unexpected document, expected: %v, got: %v", expected, astDoc)
+		t.Fatalf("unexpected document, expected: %s, got: %s", jsonString(expected), jsonString(astDoc))
 	}
 }
 
@@ -225,7 +220,7 @@ func TestSchemaParser_SimpleTypeInheritingMultipleInterfaces(t *testing.T) {
 		},
 	})
 	if !reflect.DeepEqual(astDoc, expected) {
-		t.Fatalf("unexpected document, expected: %v, got: %v", expected, astDoc)
+		t.Fatalf("unexpected document, expected: %s, got: %s", jsonString(expected), jsonString(astDoc))
 	}
 }
 
@@ -316,7 +311,6 @@ interface Hello {
 							Value: "world",
 							Loc:   testLoc(21, 26),
 						}),
-						Arguments: []*ast.InputValueDefinition{},
 						Type: ast.NewNamed(&ast.Named{
 							Loc: testLoc(28, 34),
 							Name: ast.NewName(&ast.Name{
@@ -349,7 +343,6 @@ type Hello {
 					Value: "Hello",
 					Loc:   testLoc(6, 11),
 				}),
-				Interfaces: []*ast.Named{},
 				Fields: []*ast.FieldDefinition{
 					ast.NewFieldDefinition(&ast.FieldDefinition{
 						Loc: testLoc(16, 44),
@@ -406,7 +399,6 @@ type Hello {
 					Value: "Hello",
 					Loc:   testLoc(6, 11),
 				}),
-				Interfaces: []*ast.Named{},
 				Fields: []*ast.FieldDefinition{
 					ast.NewFieldDefinition(&ast.FieldDefinition{
 						Loc: testLoc(16, 51),
@@ -466,7 +458,6 @@ type Hello {
 					Value: "Hello",
 					Loc:   testLoc(6, 11),
 				}),
-				Interfaces: []*ast.Named{},
 				Fields: []*ast.FieldDefinition{
 					ast.NewFieldDefinition(&ast.FieldDefinition{
 						Loc: testLoc(16, 47),
@@ -526,7 +517,6 @@ type Hello {
 					Value: "Hello",
 					Loc:   testLoc(6, 11),
 				}),
-				Interfaces: []*ast.Named{},
 				Fields: []*ast.FieldDefinition{
 					ast.NewFieldDefinition(&ast.FieldDefinition{
 						Loc: testLoc(16, 59),
@@ -753,4 +743,9 @@ input Hello {
 	if !reflect.DeepEqual(expectedError, err) {
 		t.Fatalf("unexpected document, expected: %v, got: %v", expectedError, err)
 	}
+}
+
+func jsonString(v interface{}) string {
+	b, _ := json.MarshalIndent(v, "", "  ")
+	return string(b)
 }

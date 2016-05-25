@@ -3,12 +3,13 @@ package testutil
 import (
 	"testing"
 
+	"reflect"
+
 	"github.com/sprucehealth/graphql"
 	"github.com/sprucehealth/graphql/gqlerrors"
 	"github.com/sprucehealth/graphql/language/location"
 	"github.com/sprucehealth/graphql/language/parser"
 	"github.com/sprucehealth/graphql/language/source"
-	"reflect"
 )
 
 var defaultRulesTestSchema *graphql.Schema
@@ -461,8 +462,8 @@ func expectValidRule(t *testing.T, schema *graphql.Schema, rules []graphql.Valid
 	if len(result.Errors) > 0 {
 		t.Fatalf("Should validate, got %v", result.Errors)
 	}
-	if result.IsValid != true {
-		t.Fatalf("IsValid should be true, got %v", result.IsValid)
+	if !result.IsValid {
+		t.Fatalf("IsValid should be true, got %t", result.IsValid)
 	}
 
 }
@@ -476,8 +477,8 @@ func expectInvalidRule(t *testing.T, schema *graphql.Schema, rules []graphql.Val
 	if len(result.Errors) != len(expectedErrors) {
 		t.Fatalf("Should have %v errors, got %v", len(expectedErrors), len(result.Errors))
 	}
-	if result.IsValid != false {
-		t.Fatalf("IsValid should be false, got %v", result.IsValid)
+	if result.IsValid {
+		t.Fatalf("IsValid should be false, got %t", result.IsValid)
 	}
 	for _, expectedErr := range expectedErrors {
 		found := false
@@ -487,7 +488,7 @@ func expectInvalidRule(t *testing.T, schema *graphql.Schema, rules []graphql.Val
 				break
 			}
 		}
-		if found == false {
+		if !found {
 			t.Fatalf("Unexpected result, Diff: %v", Diff(expectedErrors, result.Errors))
 		}
 	}

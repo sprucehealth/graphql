@@ -49,28 +49,6 @@ func Parse(p ParseParams) (*ast.Document, error) {
 	return doc, nil
 }
 
-// TODO: test and expose parseValue as a public
-func parseValue(p ParseParams) (ast.Value, error) {
-	var value ast.Value
-	var sourceObj *source.Source
-	switch p.Source.(type) {
-	case *source.Source:
-		sourceObj = p.Source.(*source.Source)
-	default:
-		body, _ := p.Source.(string)
-		sourceObj = source.New("", body)
-	}
-	parser, err := makeParser(sourceObj, p.Options)
-	if err != nil {
-		return value, err
-	}
-	value, err = parseValueLiteral(parser, false)
-	if err != nil {
-		return value, err
-	}
-	return value, nil
-}
-
 // Converts a name lex token into a name parse node.
 func parseName(parser *Parser) (*ast.Name, error) {
 	token, err := expect(parser, lexer.TokenKind[lexer.NAME])
@@ -199,7 +177,6 @@ func parseOperationDefinition(parser *Parser) (*ast.OperationDefinition, error) 
 		}
 		return ast.NewOperationDefinition(&ast.OperationDefinition{
 			Operation:    "query",
-			Directives:   []*ast.Directive{},
 			SelectionSet: selectionSet,
 			Loc:          loc(parser, start),
 		}), nil
@@ -339,15 +316,15 @@ func parseField(parser *Parser) (*ast.Field, error) {
 		name  *ast.Name
 		alias *ast.Name
 	)
-	if skp, err := skip(parser, lexer.TokenKind[lexer.COLON]); err != nil {
+	skp, err := skip(parser, lexer.TokenKind[lexer.COLON])
+	if err != nil {
 		return nil, err
 	} else if skp {
 		alias = nameOrAlias
-		n, err := parseName(parser)
+		name, err = parseName(parser)
 		if err != nil {
 			return nil, err
 		}
-		name = n
 	} else {
 		name = nameOrAlias
 	}
@@ -420,8 +397,7 @@ func parseArgument(parser *Parser) (interface{}, error) {
 
 func parseFragment(parser *Parser) (interface{}, error) {
 	start := parser.Token.Start
-	_, err := expect(parser, lexer.TokenKind[lexer.SPREAD])
-	if err != nil {
+	if _, err := expect(parser, lexer.TokenKind[lexer.SPREAD]); err != nil {
 		return nil, err
 	}
 	if parser.Token.Value == "on" {
@@ -564,18 +540,11 @@ func parseValueLiteral(parser *Parser, isConst bool) (ast.Value, error) {
 			return parseVariable(parser)
 		}
 	}
-	if err := unexpected(parser, lexer.Token{}); err != nil {
-		return nil, err
-	}
-	return nil, nil
+	return nil, unexpected(parser, lexer.Token{})
 }
 
 func parseConstValue(parser *Parser) (interface{}, error) {
-	value, err := parseValueLiteral(parser, true)
-	if err != nil {
-		return value, err
-	}
-	return value, nil
+	return parseValueLiteral(parser, true)
 }
 
 func parseValueValue(parser *Parser) (interface{}, error) {
@@ -594,9 +563,9 @@ func parseList(parser *Parser, isConst bool) (*ast.ListValue, error) {
 	if err != nil {
 		return nil, err
 	}
-	values := []ast.Value{}
-	for _, iValue := range iValues {
-		values = append(values, iValue.(ast.Value))
+	values := make([]ast.Value, len(iValues))
+	for i, v := range iValues {
+		values[i] = v.(ast.Value)
 	}
 	return ast.NewListValue(&ast.ListValue{
 		Values: values,
@@ -610,7 +579,7 @@ func parseObject(parser *Parser, isConst bool) (*ast.ObjectValue, error) {
 	if err != nil {
 		return nil, err
 	}
-	fields := []*ast.ObjectField{}
+	var fields []*ast.ObjectField
 	fieldNames := make(map[string]struct{})
 	for {
 		if skp, err := skip(parser, lexer.TokenKind[lexer.BRACE_R]); err != nil {
@@ -660,7 +629,7 @@ func parseObjectField(parser *Parser, isConst bool, fieldNames map[string]struct
 /* Implements the parsing rules in the Directives section. */
 
 func parseDirectives(parser *Parser) ([]*ast.Directive, error) {
-	directives := []*ast.Directive{}
+	var directives []*ast.Directive
 	for {
 		if !peek(parser, lexer.TokenKind[lexer.AT]) {
 			break
@@ -767,7 +736,7 @@ func parseObjectTypeDefinition(parser *Parser) (*ast.ObjectDefinition, error) {
 	if err != nil {
 		return nil, err
 	}
-	fields := []*ast.FieldDefinition{}
+	fields := make([]*ast.FieldDefinition, 0, len(iFields))
 	for _, iField := range iFields {
 		if iField != nil {
 			fields = append(fields, iField.(*ast.FieldDefinition))
@@ -782,7 +751,7 @@ func parseObjectTypeDefinition(parser *Parser) (*ast.ObjectDefinition, error) {
 }
 
 func parseImplementsInterfaces(parser *Parser) ([]*ast.Named, error) {
-	types := []*ast.Named{}
+	var types []*ast.Named
 	if parser.Token.Value == "implements" {
 		if err := advance(parser); err != nil {
 			return nil, err
@@ -828,15 +797,14 @@ func parseFieldDefinition(parser *Parser) (interface{}, error) {
 }
 
 func parseArgumentDefs(parser *Parser) ([]*ast.InputValueDefinition, error) {
-	inputValueDefinitions := []*ast.InputValueDefinition{}
-
 	if !peek(parser, lexer.TokenKind[lexer.PAREN_L]) {
-		return inputValueDefinitions, nil
+		return nil, nil
 	}
 	iInputValueDefinitions, err := many(parser, lexer.TokenKind[lexer.PAREN_L], parseInputValueDef, lexer.TokenKind[lexer.PAREN_R])
 	if err != nil {
-		return inputValueDefinitions, err
+		return nil, err
 	}
+	inputValueDefinitions := make([]*ast.InputValueDefinition, 0, len(iInputValueDefinitions))
 	for _, iInputValueDefinition := range iInputValueDefinitions {
 		if iInputValueDefinition != nil {
 			inputValueDefinitions = append(inputValueDefinitions, iInputValueDefinition.(*ast.InputValueDefinition))
@@ -893,7 +861,7 @@ func parseInterfaceTypeDefinition(parser *Parser) (*ast.InterfaceDefinition, err
 	if err != nil {
 		return nil, err
 	}
-	fields := []*ast.FieldDefinition{}
+	fields := make([]*ast.FieldDefinition, 0, len(iFields))
 	for _, iField := range iFields {
 		if iField != nil {
 			fields = append(fields, iField.(*ast.FieldDefinition))
@@ -932,7 +900,7 @@ func parseUnionTypeDefinition(parser *Parser) (*ast.UnionDefinition, error) {
 }
 
 func parseUnionMembers(parser *Parser) ([]*ast.Named, error) {
-	members := []*ast.Named{}
+	var members []*ast.Named
 	for {
 		member, err := parseNamed(parser)
 		if err != nil {
@@ -979,7 +947,7 @@ func parseEnumTypeDefinition(parser *Parser) (*ast.EnumDefinition, error) {
 	if err != nil {
 		return nil, err
 	}
-	values := []*ast.EnumValueDefinition{}
+	values := make([]*ast.EnumValueDefinition, 0, len(iEnumValueDefs))
 	for _, iEnumValueDef := range iEnumValueDefs {
 		if iEnumValueDef != nil {
 			values = append(values, iEnumValueDef.(*ast.EnumValueDefinition))
@@ -1018,7 +986,7 @@ func parseInputObjectTypeDefinition(parser *Parser) (*ast.InputObjectDefinition,
 	if err != nil {
 		return nil, err
 	}
-	fields := []*ast.InputValueDefinition{}
+	fields := make([]*ast.InputValueDefinition, 0, len(iInputValueDefinitions))
 	for _, iInputValueDefinition := range iInputValueDefinitions {
 		if iInputValueDefinition != nil {
 			fields = append(fields, iInputValueDefinition.(*ast.InputValueDefinition))
@@ -1133,11 +1101,10 @@ func unexpected(parser *Parser, atToken lexer.Token) error {
 // and ends with a lex token of closeKind. Advances the parser
 // to the next lex token after the closing token.
 func any(parser *Parser, openKind int, parseFn parseFn, closeKind int) ([]interface{}, error) {
-	var nodes []interface{}
-	_, err := expect(parser, openKind)
-	if err != nil {
-		return nodes, nil
+	if _, err := expect(parser, openKind); err != nil {
+		return nil, nil
 	}
+	var nodes []interface{}
 	for {
 		if skp, err := skip(parser, closeKind); err != nil {
 			return nil, err
@@ -1162,11 +1129,11 @@ func many(parser *Parser, openKind int, parseFn parseFn, closeKind int) ([]inter
 	if err != nil {
 		return nil, err
 	}
-	var nodes []interface{}
 	node, err := parseFn(parser)
 	if err != nil {
-		return nodes, err
+		return nil, err
 	}
+	var nodes []interface{}
 	nodes = append(nodes, node)
 	for {
 		if skp, err := skip(parser, closeKind); err != nil {

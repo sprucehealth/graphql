@@ -52,7 +52,7 @@ func visitUsingRules(schema *Schema, astDoc *ast.Document, rules []ValidationRul
 					// provided `visitSpreadFragments`.
 					kind := node.GetKind()
 
-					if kind == kinds.FragmentDefinition && p.Parent != nil && instance.VisitSpreadFragments == true {
+					if kind == kinds.FragmentDefinition && p.Parent != nil && instance.VisitSpreadFragments {
 						return visitor.ActionSkip, nil
 					}
 
@@ -77,7 +77,7 @@ func visitUsingRules(schema *Schema, astDoc *ast.Document, rules []ValidationRul
 					// and this node is a fragment spread, visit the fragment definition
 					// from this point.
 					if action == visitor.ActionNoChange && result == nil &&
-						instance.VisitSpreadFragments == true && kind == kinds.FragmentSpread {
+						instance.VisitSpreadFragments && kind == kinds.FragmentSpread {
 						node, _ := node.(*ast.FragmentSpread)
 						name := node.Name
 						nameVal := ""
@@ -175,8 +175,7 @@ func (ctx *ValidationContext) Fragment(name string) *ast.FragmentDefinition {
 		}
 		ctx.fragments = fragments
 	}
-	f, _ := ctx.fragments[name]
-	return f
+	return ctx.fragments[name]
 }
 
 func (ctx *ValidationContext) Type() Output {

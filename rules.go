@@ -2,13 +2,14 @@ package graphql
 
 import (
 	"fmt"
+	"sort"
+	"strings"
+
 	"github.com/sprucehealth/graphql/gqlerrors"
 	"github.com/sprucehealth/graphql/language/ast"
 	"github.com/sprucehealth/graphql/language/kinds"
 	"github.com/sprucehealth/graphql/language/printer"
 	"github.com/sprucehealth/graphql/language/visitor"
-	"sort"
-	"strings"
 )
 
 /**
@@ -56,13 +57,10 @@ func newValidationRuleError(message string, nodes []ast.Node) (string, error) {
 	)
 }
 
-/**
- * ArgumentsOfCorrectTypeRule
- * Argument values of correct type
- *
- * A GraphQL document is only valid if all field argument literal values are
- * of the type expected by their position.
- */
+// ArgumentsOfCorrectTypeRule validates that argument values are of correct type.
+//
+// A GraphQL document is only valid if all field argument literal values are
+// of the type expected by their position.
 func ArgumentsOfCorrectTypeRule(context *ValidationContext) *ValidationRuleInstance {
 	return &ValidationRuleInstance{
 		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
@@ -197,13 +195,7 @@ func FragmentsOnCompositeTypesRule(context *ValidationContext) *ValidationRuleIn
 	}
 }
 
-/**
- * KnownArgumentNamesRule
- * Known argument names
- *
- * A GraphQL field is only valid if all supplied arguments are defined by
- * that field.
- */
+// KnownArgumentNamesRule validates that a GraphQL field is only valid if all supplied arguments are defined by.
 func KnownArgumentNamesRule(context *ValidationContext) *ValidationRuleInstance {
 	return &ValidationRuleInstance{
 		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
@@ -271,12 +263,8 @@ func KnownArgumentNamesRule(context *ValidationContext) *ValidationRuleInstance 
 	}
 }
 
-/**
- * Known directives
- *
- * A GraphQL document is only valid if all `@directives` are known by the
- * schema and legally positioned.
- */
+// KnownDirectivesRule validates that  A GraphQL document is only valid if all
+// `@directives` are known by the schema and legally positioned.
 func KnownDirectivesRule(context *ValidationContext) *ValidationRuleInstance {
 	return &ValidationRuleInstance{
 		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
@@ -308,13 +296,13 @@ func KnownDirectivesRule(context *ValidationContext) *ValidationRuleInstance {
 					return action, nil
 				}
 
-				if appliedTo.GetKind() == kinds.OperationDefinition && directiveDef.OnOperation == false {
+				if appliedTo.GetKind() == kinds.OperationDefinition && !directiveDef.OnOperation {
 					return newValidationRuleError(
 						fmt.Sprintf(`Directive "%v" may not be used on "%v".`, nodeName, "operation"),
 						[]ast.Node{node},
 					)
 				}
-				if appliedTo.GetKind() == kinds.Field && directiveDef.OnField == false {
+				if appliedTo.GetKind() == kinds.Field && !directiveDef.OnField {
 					return newValidationRuleError(
 						fmt.Sprintf(`Directive "%v" may not be used on "%v".`, nodeName, "field"),
 						[]ast.Node{node},
@@ -577,7 +565,7 @@ func NoUndefinedVariablesRule(context *ValidationContext) *ValidationRuleInstanc
 							break
 						}
 					}
-					if withinFragment == true && operation != nil && operation.Name != nil {
+					if withinFragment && operation != nil && operation.Name != nil {
 						return newValidationRuleError(
 							fmt.Sprintf(`Variable "$%v" is not defined by operation "%v".`, variableName, operation.Name.Value),
 							[]ast.Node{node, operation},
@@ -867,8 +855,8 @@ type conflict struct {
 	Fields []ast.Node
 }
 
-func sameDirectives(directives1 []*ast.Directive, directives2 []*ast.Directive) bool {
-	if len(directives1) != len(directives1) {
+func sameDirectives(directives1, directives2 []*ast.Directive) bool {
+	if len(directives1) != len(directives2) {
 		return false
 	}
 	for _, directive1 := range directives1 {
@@ -891,18 +879,17 @@ func sameDirectives(directives1 []*ast.Directive, directives2 []*ast.Directive) 
 		if foundDirective2 == nil {
 			return false
 		}
-		if sameArguments(directive1.Arguments, foundDirective2.Arguments) == false {
+		if !sameArguments(directive1.Arguments, foundDirective2.Arguments) {
 			return false
 		}
 	}
 
 	return true
 }
-func sameArguments(args1 []*ast.Argument, args2 []*ast.Argument) bool {
+func sameArguments(args1, args2 []*ast.Argument) bool {
 	if len(args1) != len(args2) {
 		return false
 	}
-
 	for _, arg1 := range args1 {
 		arg1Name := ""
 		if arg1.Name != nil {
@@ -923,7 +910,7 @@ func sameArguments(args1 []*ast.Argument, args2 []*ast.Argument) bool {
 		if foundArgs2 == nil {
 			return false
 		}
-		if sameValue(arg1.Value, foundArgs2.Value) == false {
+		if !sameValue(arg1.Value, foundArgs2.Value) {
 			return false
 		}
 	}
@@ -1072,7 +1059,7 @@ func OverlappingFieldsCanBeMergedRule(context *ValidationContext) *ValidationRul
 
 		var conflicts []*conflict
 		for _, responseName := range orderedName {
-			fields, _ := fieldMap[responseName]
+			fields := fieldMap[responseName]
 			for _, fieldA := range fields {
 				for _, fieldB := range fields {
 					c := findConflict(responseName, fieldA, fieldB)
@@ -1621,7 +1608,7 @@ func isValidLiteralValue(ttype Input, valueAST ast.Value) bool {
 		itemType, _ := ttype.OfType.(Input)
 		if valueAST, ok := valueAST.(*ast.ListValue); ok {
 			for _, value := range valueAST.Values {
-				if isValidLiteralValue(itemType, value) == false {
+				if !isValidLiteralValue(itemType, value) {
 					return false
 				}
 			}

@@ -16,7 +16,7 @@ import (
 // provided variable definitions and arbitrary input. If the input cannot be
 // parsed to match the variable definitions, a GraphQLError will be returned.
 func getVariableValues(schema Schema, definitionASTs []*ast.VariableDefinition, inputs map[string]interface{}) (map[string]interface{}, error) {
-	values := map[string]interface{}{}
+	values := make(map[string]interface{}, len(definitionASTs))
 	for _, defAST := range definitionASTs {
 		if defAST == nil || defAST.Variable == nil || defAST.Variable.Name == nil {
 			continue
@@ -34,16 +34,14 @@ func getVariableValues(schema Schema, definitionASTs []*ast.VariableDefinition, 
 // Prepares an object map of argument values given a list of argument
 // definitions and list of argument AST nodes.
 func getArgumentValues(argDefs []*Argument, argASTs []*ast.Argument, variableVariables map[string]interface{}) (map[string]interface{}, error) {
-
-	argASTMap := map[string]*ast.Argument{}
+	argASTMap := make(map[string]*ast.Argument, len(argASTs))
 	for _, argAST := range argASTs {
 		if argAST.Name != nil {
 			argASTMap[argAST.Name.Value] = argAST
 		}
 	}
-	results := map[string]interface{}{}
+	results := make(map[string]interface{}, len(argDefs))
 	for _, argDef := range argDefs {
-
 		name := argDef.PrivateName
 		var valueAST ast.Value
 		if argAST, ok := argASTMap[name]; ok {
@@ -140,7 +138,6 @@ func coerceValue(ttype Input, value interface{}) interface{} {
 		return []interface{}{val}
 	}
 	if ttype, ok := ttype.(*InputObject); ok {
-
 		valueMap, ok := value.(map[string]interface{})
 		if !ok {
 			valueMap = map[string]interface{}{}
@@ -326,7 +323,6 @@ func isEmptyValue(v reflect.Value) bool {
  *
  */
 func valueFromAST(valueAST ast.Value, ttype Input, variables map[string]interface{}) interface{} {
-
 	if ttype, ok := ttype.(*NonNull); ok {
 		val := valueFromAST(valueAST, ttype.OfType, variables)
 		return val
@@ -382,7 +378,7 @@ func valueFromAST(valueAST ast.Value, ttype Input, variables map[string]interfac
 			fieldASTs[fieldName] = fieldAST
 
 		}
-		obj := map[string]interface{}{}
+		obj := make(map[string]interface{})
 		for fieldName, field := range ttype.Fields() {
 			fieldAST, ok := fieldASTs[fieldName]
 			if !ok || fieldAST == nil {

@@ -68,7 +68,7 @@ func (ti *TypeInfo) Enter(node ast.Node) {
 	switch node := node.(type) {
 	case *ast.SelectionSet:
 		namedType := GetNamed(ti.Type())
-		var compositeType Composite = nil
+		var compositeType Composite
 		if IsCompositeType(namedType) {
 			compositeType, _ = namedType.(Composite)
 		}
@@ -170,11 +170,7 @@ func (ti *TypeInfo) Leave(node ast.Node) {
 		_, ti.typeStack = ti.typeStack[len(ti.typeStack)-1], ti.typeStack[:len(ti.typeStack)-1]
 	case kinds.Directive:
 		ti.directive = nil
-	case kinds.OperationDefinition:
-		fallthrough
-	case kinds.InlineFragment:
-		fallthrough
-	case kinds.FragmentDefinition:
+	case kinds.FragmentDefinition, kinds.OperationDefinition, kinds.InlineFragment:
 		// pop ti.typeStack
 		_, ti.typeStack = ti.typeStack[len(ti.typeStack)-1], ti.typeStack[:len(ti.typeStack)-1]
 	case kinds.VariableDefinition:
@@ -184,51 +180,48 @@ func (ti *TypeInfo) Leave(node ast.Node) {
 		ti.argument = nil
 		// pop ti.inputTypeStack
 		_, ti.inputTypeStack = ti.inputTypeStack[len(ti.inputTypeStack)-1], ti.inputTypeStack[:len(ti.inputTypeStack)-1]
-	case kinds.ListValue:
-		fallthrough
-	case kinds.ObjectField:
+	case kinds.ObjectField, kinds.ListValue:
 		// pop ti.inputTypeStack
 		_, ti.inputTypeStack = ti.inputTypeStack[len(ti.inputTypeStack)-1], ti.inputTypeStack[:len(ti.inputTypeStack)-1]
 	}
 }
 
-/**
- * Not exactly the same as the executor's definition of FieldDef, in this
- * statically evaluated environment we do not always have an Object type,
- * and need to handle Interface and Union types.
- */
+// Not exactly the same as the executor's definition of FieldDef, in this
+// statically evaluated environment we do not always have an Object type,
+// and need to handle Interface and Union types.
 func TypeInfoFieldDef(schema Schema, parentType Type, fieldAST *ast.Field) *FieldDefinition {
 	name := ""
 	if fieldAST.Name != nil {
 		name = fieldAST.Name.Value
 	}
-	if name == SchemaMetaFieldDef.Name &&
-		schema.QueryType() == parentType {
+	if name == SchemaMetaFieldDef.Name && schema.QueryType() == parentType {
 		return SchemaMetaFieldDef
 	}
-	if name == TypeMetaFieldDef.Name &&
-		schema.QueryType() == parentType {
+	if name == TypeMetaFieldDef.Name && schema.QueryType() == parentType {
 		return TypeMetaFieldDef
 	}
 	if name == TypeNameMetaFieldDef.Name {
-		if _, ok := parentType.(*Object); ok && parentType != nil {
-			return TypeNameMetaFieldDef
-		}
-		if _, ok := parentType.(*Interface); ok && parentType != nil {
-			return TypeNameMetaFieldDef
-		}
-		if _, ok := parentType.(*Union); ok && parentType != nil {
-			return TypeNameMetaFieldDef
+		switch v := parentType.(type) {
+		case *Object:
+			if v != nil {
+				return TypeNameMetaFieldDef
+			}
+		case *Interface:
+			if v != nil {
+				return TypeNameMetaFieldDef
+			}
+		case *Union:
+			if v != nil {
+				return TypeNameMetaFieldDef
+			}
 		}
 	}
 
 	if parentType, ok := parentType.(*Object); ok && parentType != nil {
-		field, _ := parentType.Fields()[name]
-		return field
+		return parentType.Fields()[name]
 	}
 	if parentType, ok := parentType.(*Interface); ok && parentType != nil {
-		field, _ := parentType.Fields()[name]
-		return field
+		return parentType.Fields()[name]
 	}
 	return nil
 }
