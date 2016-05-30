@@ -1,7 +1,6 @@
 package ast
 
 type Definition interface {
-	// TODO: determine the minimal set of interface for `Definition`
 	GetOperation() string
 	GetVariableDefinitions() []*VariableDefinition
 	GetSelectionSet() *SelectionSet
@@ -12,6 +11,7 @@ type Definition interface {
 var _ Definition = (*OperationDefinition)(nil)
 var _ Definition = (*FragmentDefinition)(nil)
 var _ Definition = (*TypeExtensionDefinition)(nil)
+var _ Definition = (*DirectiveDefinition)(nil)
 var _ Definition = (Definition)(nil)
 
 // OperationDefinition implements Node, Definition
@@ -110,5 +110,29 @@ func (def *TypeExtensionDefinition) GetSelectionSet() *SelectionSet {
 }
 
 func (def *TypeExtensionDefinition) GetOperation() string {
+	return ""
+}
+
+// DirectiveDefinition implements Node, Definition
+type DirectiveDefinition struct {
+	Loc       Location
+	Name      *Name
+	Arguments []*InputValueDefinition
+	Locations []*Name
+}
+
+func (def *DirectiveDefinition) GetLoc() Location {
+	return def.Loc
+}
+
+func (def *DirectiveDefinition) GetVariableDefinitions() []*VariableDefinition {
+	return []*VariableDefinition{}
+}
+
+func (def *DirectiveDefinition) GetSelectionSet() *SelectionSet {
+	return &SelectionSet{}
+}
+
+func (def *DirectiveDefinition) GetOperation() string {
 	return ""
 }

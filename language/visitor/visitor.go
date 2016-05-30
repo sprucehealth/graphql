@@ -180,6 +180,14 @@ func visit(root ast.Node, visitorOpts *VisitorOptions, ancestors []ast.Node, par
 		}
 	case *ast.TypeExtensionDefinition:
 		visit(root.Definition, visitorOpts, p.Ancestors, root)
+	case *ast.DirectiveDefinition:
+		visit(root.Name, visitorOpts, p.Ancestors, root)
+		for _, n := range root.Arguments {
+			visit(n, visitorOpts, p.Ancestors, root)
+		}
+		for _, n := range root.Locations {
+			visit(n, visitorOpts, p.Ancestors, root)
+		}
 	default:
 		panic("unknown node type")
 	}

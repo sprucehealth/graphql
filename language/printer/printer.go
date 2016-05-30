@@ -215,6 +215,10 @@ func (w *walker) walkAST(root ast.Node) string {
 		}
 		fmt.Printf("%v\n", lines)
 		return strings.Join(lines, "\n")
+	case *ast.DirectiveDefinition:
+		name := w.walkAST(node.Name)
+		args := wrap("(", w.walkASTSliceAndJoin(node.Arguments, ", "), ")")
+		return fmt.Sprintf("directive @%v%v on %v", name, args, w.walkASTSliceAndJoin(node.Locations, " | "))
 	case ast.Type:
 		return node.String()
 	case ast.Value:

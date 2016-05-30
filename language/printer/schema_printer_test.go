@@ -84,9 +84,16 @@ input InputType {
 extend type Foo {
   seven(argument: [String]): Type
 }
+
+directive @skip(if: Boolean!) on FIELD | FRAGMENT_SPREAD | INLINE_FRAGMENT
+
+directive @include(if: Boolean!) on FIELD | FRAGMENT_SPREAD | INLINE_FRAGMENT
 `
 	results := printer.Print(astDoc)
 	if !reflect.DeepEqual(expected, results) {
-		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(results, expected))
+		for _, l := range testutil.Diff(results, expected) {
+			t.Logf("%s", l)
+		}
+		t.Fatalf("Unexpected result")
 	}
 }
