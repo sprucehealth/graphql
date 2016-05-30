@@ -106,6 +106,12 @@ func (p *Parser) parseDocument() (*ast.Document, error) {
 					return nil, err
 				}
 				nodes = append(nodes, node)
+			case "scalar":
+				node, err := p.parseScalarTypeDefinition()
+				if err != nil {
+					return nil, err
+				}
+				nodes = append(nodes, node)
 			case "type":
 				node, err := p.parseObjectTypeDefinition()
 				if err != nil {
@@ -120,12 +126,6 @@ func (p *Parser) parseDocument() (*ast.Document, error) {
 				nodes = append(nodes, node)
 			case "union":
 				node, err := p.parseUnionTypeDefinition()
-				if err != nil {
-					return nil, err
-				}
-				nodes = append(nodes, node)
-			case "scalar":
-				node, err := p.parseScalarTypeDefinition()
 				if err != nil {
 					return nil, err
 				}
@@ -734,6 +734,23 @@ func (p *Parser) parseNamed() (*ast.Named, error) {
 
 /* Implements the parsing rules in the Type Definition section. */
 
+func (p *Parser) parseScalarTypeDefinition() (*ast.ScalarDefinition, error) {
+	start := p.tok.Start
+	_, err := p.expectKeyWord("scalar")
+	if err != nil {
+		return nil, err
+	}
+	name, err := p.parseName()
+	if err != nil {
+		return nil, err
+	}
+	def := &ast.ScalarDefinition{
+		Name: name,
+		Loc:  p.loc(start),
+	}
+	return def, nil
+}
+
 func (p *Parser) parseObjectTypeDefinition() (*ast.ObjectDefinition, error) {
 	docComment := p.leadComment
 
@@ -946,23 +963,6 @@ func (p *Parser) parseUnionMembers() ([]*ast.Named, error) {
 		}
 	}
 	return members, nil
-}
-
-func (p *Parser) parseScalarTypeDefinition() (*ast.ScalarDefinition, error) {
-	start := p.tok.Start
-	_, err := p.expectKeyWord("scalar")
-	if err != nil {
-		return nil, err
-	}
-	name, err := p.parseName()
-	if err != nil {
-		return nil, err
-	}
-	def := &ast.ScalarDefinition{
-		Name: name,
-		Loc:  p.loc(start),
-	}
-	return def, nil
 }
 
 func (p *Parser) parseEnumTypeDefinition() (*ast.EnumDefinition, error) {

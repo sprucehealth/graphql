@@ -170,6 +170,9 @@ func (w *walker) walkAST(root ast.Node) string {
 		return "[" + w.walkAST(node.Type) + "]"
 	case *ast.NonNull:
 		return w.walkAST(node.Type) + "!"
+	case *ast.ScalarDefinition:
+		name := w.walkAST(node.Name)
+		return "scalar " + name
 	case *ast.ObjectDefinition:
 		name := w.walkAST(node.Name)
 		interfaces := w.walkASTSliceAndJoin(node.Interfaces, ", ")
@@ -193,9 +196,6 @@ func (w *walker) walkAST(root ast.Node) string {
 		name := w.walkAST(node.Name)
 		types := w.walkASTSliceAndJoin(node.Types, " | ")
 		return joinComments(node.Doc, "", "\n") + "union " + name + " = " + types + joinComments(node.Comment, " ", "")
-	case *ast.ScalarDefinition:
-		name := w.walkAST(node.Name)
-		return "scalar " + name
 	case *ast.EnumDefinition:
 		name := w.walkAST(node.Name)
 		values := w.walkASTSliceAndBlock(node.Values)
