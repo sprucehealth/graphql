@@ -109,7 +109,7 @@ func buildExecutionContext(p BuildExecutionCtxParams) (*ExecutionContext, error)
 		if p.OperationName != "" {
 			return nil, fmt.Errorf("Unknown operation named %q.", p.OperationName)
 		}
-		return nil, errors.New("Must provide an operation")
+		return nil, errors.New("Must provide an operation.")
 	}
 
 	variableValues, err := getVariableValues(p.Schema, operation.GetVariableDefinitions(), p.Args)

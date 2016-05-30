@@ -644,7 +644,7 @@ func TestNullsOutErrorSubtrees(t *testing.T) {
 	}
 }
 
-func TestUsesTheInlineOperationIfNoOperationIsProvided(t *testing.T) {
+func TestUsesTheInlineOperationIfNoOperationNameIsProvided(t *testing.T) {
 
 	doc := `{ a }`
 	data := map[string]interface{}{
@@ -689,7 +689,7 @@ func TestUsesTheInlineOperationIfNoOperationIsProvided(t *testing.T) {
 	}
 }
 
-func TestUsesTheOnlyOperationIfNoOperationIsProvided(t *testing.T) {
+func TestUsesTheOnlyOperationIfNoOperationNameIsProvided(t *testing.T) {
 
 	doc := `query Example { a }`
 	data := map[string]interface{}{
@@ -734,7 +734,100 @@ func TestUsesTheOnlyOperationIfNoOperationIsProvided(t *testing.T) {
 	}
 }
 
-func TestThrowsIfNoOperationIsProvidedWithMultipleOperations(t *testing.T) {
+func TestUsesTheNamedOperationIfOperationNameIsProvided(t *testing.T) {
+	doc := `query Example { first: a } query OtherExample { second: a }`
+	data := map[string]interface{}{
+		"a": "b",
+	}
+
+	expected := &graphql.Result{
+		Data: map[string]interface{}{
+			"second": "b",
+		},
+	}
+	schema, err := graphql.NewSchema(graphql.SchemaConfig{
+		Query: graphql.NewObject(graphql.ObjectConfig{
+			Name: "Type",
+			Fields: graphql.Fields{
+				"a": &graphql.Field{
+					Type: graphql.String,
+				},
+			},
+		}),
+	})
+	if err != nil {
+		t.Fatalf("Error in schema %v", err.Error())
+	}
+
+	// parse query
+	ast := testutil.TestParse(t, doc)
+
+	// execute
+	ep := graphql.ExecuteParams{
+		Schema:        schema,
+		AST:           ast,
+		Root:          data,
+		OperationName: "OtherExample",
+	}
+	result := testutil.TestExecute(t, ep)
+	if len(result.Errors) > 0 {
+		t.Fatalf("wrong result, unexpected errors: %v", result.Errors)
+	}
+	if !reflect.DeepEqual(expected, result) {
+		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expected, result))
+	}
+}
+
+func TestThrowsIfNoOperationIsProvided(t *testing.T) {
+	doc := `fragment Example on Type { a }`
+	data := map[string]interface{}{
+		"a": "b",
+	}
+
+	expectedErrors := []gqlerrors.FormattedError{
+		gqlerrors.FormattedError{
+			Message:   "Must provide an operation.",
+			Locations: []location.SourceLocation{},
+			Type:      "INTERNAL",
+		},
+	}
+
+	schema, err := graphql.NewSchema(graphql.SchemaConfig{
+		Query: graphql.NewObject(graphql.ObjectConfig{
+			Name: "Type",
+			Fields: graphql.Fields{
+				"a": &graphql.Field{
+					Type: graphql.String,
+				},
+			},
+		}),
+	})
+	if err != nil {
+		t.Fatalf("Error in schema %v", err.Error())
+	}
+
+	// parse query
+	ast := testutil.TestParse(t, doc)
+
+	// execute
+	ep := graphql.ExecuteParams{
+		Schema: schema,
+		AST:    ast,
+		Root:   data,
+	}
+	result := testutil.TestExecute(t, ep)
+	if len(result.Errors) != 1 {
+		t.Fatalf("wrong result, expected len(1) unexpected len: %v", len(result.Errors))
+	}
+	if result.Data != nil {
+		t.Fatalf("wrong result, expected nil result.Data, got %v", result.Data)
+	}
+	if !reflect.DeepEqual(expectedErrors, result.Errors) {
+		t.Fatalf("unexpected result, Diff: %v", testutil.Diff(expectedErrors, result.Errors))
+	}
+}
+
+func TestThrowsIfNoOperationNameIsProvidedWithMultipleOperations(t *testing.T) {
 	doc := `query Example { a } query OtherExample { a }`
 	data := map[string]interface{}{
 		"a": "b",
@@ -783,6 +876,52 @@ func TestThrowsIfNoOperationIsProvidedWithMultipleOperations(t *testing.T) {
 	}
 }
 
+func TestThrowsIfUnknownOperationNameIsProvided(t *testing.T) {
+	doc := `query Example { a } query OtherExample { a }`
+	data := map[string]interface{}{
+		"a": "b",
+	}
+
+	expectedErrors := []gqlerrors.FormattedError{
+		gqlerrors.FormattedError{
+			Message:   `Unknown operation named "UnknownExample".`,
+			Locations: []location.SourceLocation{},
+			Type:      "INTERNAL",
+		},
+	}
+
+	schema, err := graphql.NewSchema(graphql.SchemaConfig{
+		Query: graphql.NewObject(graphql.ObjectConfig{
+			Name: "Type",
+			Fields: graphql.Fields{
+				"a": &graphql.Field{
+					Type: graphql.String,
+				},
+			},
+		}),
+	})
+	if err != nil {
+		t.Fatalf("Error in schema %v", err.Error())
+	}
+
+	// parse query
+	ast := testutil.TestParse(t, doc)
+
+	// execute
+	ep := graphql.ExecuteParams{
+		Schema:        schema,
+		AST:           ast,
+		Root:          data,
+		OperationName: "UnknownExample",
+	}
+	result := testutil.TestExecute(t, ep)
+	if result.Data != nil {
+		t.Fatalf("wrong result, expected nil result.Data, got %v", result.Data)
+	}
+	if !reflect.DeepEqual(expectedErrors, result.Errors) {
+		t.Fatalf("unexpected result, Diff: %v", testutil.Diff(expectedErrors, result.Errors))
+	}
+}
 func TestUsesTheQuerySchemaForQueries(t *testing.T) {
 	doc := `query Q { a } mutation M { c } subscription S { a }`
 	data := map[string]interface{}{
