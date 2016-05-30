@@ -1,5 +1,10 @@
 # Filename: schema-kitchen-sink.graphql
 
+schema {
+  query: QueryType
+  mutation: MutationType
+}
+
 type Foo implements Bar {
   one: Type # Description comment
   two(argument: InputType!): Type # DEPRECATED: for some reason

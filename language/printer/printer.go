@@ -84,7 +84,7 @@ func (w *walker) walkAST(root ast.Node) string {
 		selectionSet := w.walkAST(node.SelectionSet)
 		varDefs := wrap("(", w.walkASTSliceAndJoin(node.VariableDefinitions, ", "), ")")
 		directives := w.walkASTSliceAndJoin(node.Directives, " ")
-		if name == "" && directives == "" && varDefs == "" && node.Operation == "query" {
+		if name == "" && directives == "" && varDefs == "" && node.Operation == ast.OperationTypeQuery {
 			return selectionSet
 		}
 		return join([]string{
@@ -170,6 +170,11 @@ func (w *walker) walkAST(root ast.Node) string {
 		return "[" + w.walkAST(node.Type) + "]"
 	case *ast.NonNull:
 		return w.walkAST(node.Type) + "!"
+	case *ast.SchemaDefinition:
+		operationTypesBlock := w.walkASTSliceAndBlock(node.OperationTypes)
+		return fmt.Sprintf("schema %v", operationTypesBlock)
+	case *ast.OperationTypeDefinition:
+		return fmt.Sprintf("%v: %v", node.Operation, node.Type)
 	case *ast.ScalarDefinition:
 		name := w.walkAST(node.Name)
 		return "scalar " + name

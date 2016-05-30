@@ -21,9 +21,43 @@ type TypeSystemDefinition interface {
 	GetLoc() Location
 }
 
+var _ TypeSystemDefinition = (*SchemaDefinition)(nil)
 var _ TypeSystemDefinition = (TypeDefinition)(nil)
 var _ TypeSystemDefinition = (*TypeExtensionDefinition)(nil)
 var _ TypeSystemDefinition = (*DirectiveDefinition)(nil)
+
+// SchemaDefinition implements Node, Definition
+type SchemaDefinition struct {
+	Loc            Location
+	OperationTypes []*OperationTypeDefinition
+}
+
+func (def *SchemaDefinition) GetLoc() Location {
+	return def.Loc
+}
+
+func (def *SchemaDefinition) GetVariableDefinitions() []*VariableDefinition {
+	return []*VariableDefinition{}
+}
+
+func (def *SchemaDefinition) GetSelectionSet() *SelectionSet {
+	return &SelectionSet{}
+}
+
+func (def *SchemaDefinition) GetOperation() string {
+	return ""
+}
+
+// ScalarDefinition implements Node, Definition
+type OperationTypeDefinition struct {
+	Loc       Location
+	Operation string
+	Type      *Named
+}
+
+func (def *OperationTypeDefinition) GetLoc() Location {
+	return def.Loc
+}
 
 // ScalarDefinition implements Node, Definition
 type ScalarDefinition struct {

@@ -106,6 +106,13 @@ func (p *Parser) parseDocument() (*ast.Document, error) {
 					return nil, err
 				}
 				nodes = append(nodes, node)
+			// Note: the Type System IDL is an experimental non-spec addition.
+			case "schema":
+				node, err := p.parseSchemaDefinition()
+				if err != nil {
+					return nil, err
+				}
+				nodes = append(nodes, node)
 			case "scalar":
 				node, err := p.parseScalarTypeDefinition()
 				if err != nil {
@@ -182,25 +189,14 @@ func (p *Parser) parseOperationDefinition() (*ast.OperationDefinition, error) {
 			return nil, err
 		}
 		return &ast.OperationDefinition{
-			Operation:    "query",
+			Operation:    ast.OperationTypeQuery,
 			SelectionSet: selectionSet,
 			Loc:          p.loc(start),
 		}, nil
 	}
-	operationToken, err := p.expect(lexer.NAME)
+	operation, err := p.parseOperationType()
 	if err != nil {
 		return nil, err
-	}
-	operation := ""
-	switch operationToken.Value {
-	case "mutation":
-		fallthrough
-	case "subscription":
-		fallthrough
-	case "query":
-		operation = operationToken.Value
-	default:
-		return nil, p.unexpected(operationToken)
 	}
 	var name *ast.Name
 	if p.peek(lexer.NAME) {
@@ -229,6 +225,23 @@ func (p *Parser) parseOperationDefinition() (*ast.OperationDefinition, error) {
 		SelectionSet:        selectionSet,
 		Loc:                 p.loc(start),
 	}, nil
+}
+
+// OperationType : one of query mutation subscription
+func (p *Parser) parseOperationType() (string, error) {
+	operationToken, err := p.expect(lexer.NAME)
+	if err != nil {
+		return "", err
+	}
+	switch operationToken.Value {
+	case ast.OperationTypeQuery:
+		return operationToken.Value, nil
+	case ast.OperationTypeMutation:
+		return operationToken.Value, nil
+	case ast.OperationTypeSubscription:
+		return operationToken.Value, nil
+	}
+	return "", p.unexpected(operationToken)
 }
 
 func (p *Parser) parseVariableDefinitions() ([]*ast.VariableDefinition, error) {
@@ -729,6 +742,50 @@ func (p *Parser) parseNamed() (*ast.Named, error) {
 	return &ast.Named{
 		Name: name,
 		Loc:  p.loc(start),
+	}, nil
+}
+
+// SchemaDefinition : schema { OperationTypeDefinition+ }
+func (p *Parser) parseSchemaDefinition() (*ast.SchemaDefinition, error) {
+	start := p.tok.Start
+	_, err := p.expectKeyWord("schema")
+	if err != nil {
+		return nil, err
+	}
+	operationTypesI, err := p.many(lexer.BRACE_L, p.parseOperationTypeDefinition, lexer.BRACE_R)
+	if err != nil {
+		return nil, err
+	}
+	operationTypes := make([]*ast.OperationTypeDefinition, 0, len(operationTypesI))
+	for _, op := range operationTypesI {
+		if op, ok := op.(*ast.OperationTypeDefinition); ok {
+			operationTypes = append(operationTypes, op)
+		}
+	}
+	return &ast.SchemaDefinition{
+		OperationTypes: operationTypes,
+		Loc:            p.loc(start),
+	}, nil
+}
+
+func (p *Parser) parseOperationTypeDefinition() (interface{}, error) {
+	start := p.tok.Start
+	operation, err := p.parseOperationType()
+	if err != nil {
+		return nil, err
+	}
+	_, err = p.expect(lexer.COLON)
+	if err != nil {
+		return nil, err
+	}
+	ttype, err := p.parseNamed()
+	if err != nil {
+		return nil, err
+	}
+	return &ast.OperationTypeDefinition{
+		Operation: operation,
+		Type:      ttype,
+		Loc:       p.loc(start),
 	}, nil
 }
 

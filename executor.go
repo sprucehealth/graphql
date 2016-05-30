@@ -154,7 +154,7 @@ func executeOperation(p ExecuteOperationParams) *Result {
 		Fields:           fields,
 	}
 
-	if p.Operation.GetOperation() == "mutation" {
+	if p.Operation.GetOperation() == ast.OperationTypeMutation {
 		return executeFieldsSerially(executeFieldsParams)
 	}
 	return executeFields(executeFieldsParams)
@@ -167,9 +167,9 @@ func getOperationRootType(schema Schema, operation ast.Definition) (*Object, err
 	}
 
 	switch operation.GetOperation() {
-	case "query":
+	case ast.OperationTypeQuery:
 		return schema.QueryType(), nil
-	case "mutation":
+	case ast.OperationTypeMutation:
 		mutationType := schema.MutationType()
 		if mutationType.PrivateName == "" {
 			return nil, gqlerrors.NewError(
@@ -182,7 +182,7 @@ func getOperationRootType(schema Schema, operation ast.Definition) (*Object, err
 			)
 		}
 		return mutationType, nil
-	case "subscription":
+	case ast.OperationTypeSubscription:
 		subscriptionType := schema.SubscriptionType()
 		if subscriptionType.PrivateName == "" {
 			return nil, gqlerrors.NewError(

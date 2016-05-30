@@ -481,13 +481,13 @@ func KnownDirectivesRule(context *ValidationContext) *ValidationRuleInstance {
 func getLocationForAppliedNode(appliedTo ast.Node) string {
 	switch appliedTo := appliedTo.(type) {
 	case *ast.OperationDefinition:
-		if appliedTo.Operation == "query" {
+		if appliedTo.Operation == ast.OperationTypeQuery {
 			return DirectiveLocationQuery
 		}
-		if appliedTo.Operation == "mutation" {
+		if appliedTo.Operation == ast.OperationTypeMutation {
 			return DirectiveLocationMutation
 		}
-		if appliedTo.Operation == "subscription" {
+		if appliedTo.Operation == ast.OperationTypeSubscription {
 			return DirectiveLocationSubscription
 		}
 	case *ast.Field:
