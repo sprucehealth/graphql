@@ -627,6 +627,28 @@ func TestIntrospection_ExecutesAnIntrospectionQuery(t *testing.T) {
 							"deprecationReason": "",
 						},
 						map[string]interface{}{
+							"name": "locations",
+							"args": []interface{}{},
+							"type": map[string]interface{}{
+								"kind": "NON_NULL",
+								"name": nil,
+								"ofType": map[string]interface{}{
+									"kind": "LIST",
+									"name": nil,
+									"ofType": map[string]interface{}{
+										"kind": "NON_NULL",
+										"name": nil,
+										"ofType": map[string]interface{}{
+											"kind": "ENUM",
+											"name": "__DirectiveLocation",
+										},
+									},
+								},
+							},
+							"isDeprecated":      false,
+							"deprecationReason": "",
+						},
+						map[string]interface{}{
 							"name": "args",
 							"args": []interface{}{},
 							"type": map[string]interface{}{
@@ -660,8 +682,8 @@ func TestIntrospection_ExecutesAnIntrospectionQuery(t *testing.T) {
 									"ofType": nil,
 								},
 							},
-							"isDeprecated":      false,
-							"deprecationReason": "",
+							"isDeprecated":      true,
+							"deprecationReason": "Use `locations`.",
 						},
 						map[string]interface{}{
 							"name": "onFragment",
@@ -675,8 +697,8 @@ func TestIntrospection_ExecutesAnIntrospectionQuery(t *testing.T) {
 									"ofType": nil,
 								},
 							},
-							"isDeprecated":      false,
-							"deprecationReason": "",
+							"isDeprecated":      true,
+							"deprecationReason": "Use `locations`.",
 						},
 						map[string]interface{}{
 							"name": "onField",
@@ -690,8 +712,8 @@ func TestIntrospection_ExecutesAnIntrospectionQuery(t *testing.T) {
 									"ofType": nil,
 								},
 							},
-							"isDeprecated":      false,
-							"deprecationReason": "",
+							"isDeprecated":      true,
+							"deprecationReason": "Use `locations`.",
 						},
 					},
 					"inputFields":   nil,
@@ -699,10 +721,60 @@ func TestIntrospection_ExecutesAnIntrospectionQuery(t *testing.T) {
 					"enumValues":    nil,
 					"possibleTypes": nil,
 				},
+				map[string]interface{}{
+					"kind":        "ENUM",
+					"name":        "__DirectiveLocation",
+					"fields":      nil,
+					"inputFields": nil,
+					"interfaces":  nil,
+					"enumValues": []interface{}{
+						map[string]interface{}{
+							"name":              "QUERY",
+							"isDeprecated":      false,
+							"deprecationReason": "",
+						},
+						map[string]interface{}{
+							"name":              "MUTATION",
+							"isDeprecated":      false,
+							"deprecationReason": "",
+						},
+						map[string]interface{}{
+							"name":              "SUBSCRIPTION",
+							"isDeprecated":      false,
+							"deprecationReason": "",
+						},
+						map[string]interface{}{
+							"name":              "FIELD",
+							"isDeprecated":      false,
+							"deprecationReason": "",
+						},
+						map[string]interface{}{
+							"name":              "FRAGMENT_DEFINITION",
+							"isDeprecated":      false,
+							"deprecationReason": "",
+						},
+						map[string]interface{}{
+							"name":              "FRAGMENT_SPREAD",
+							"isDeprecated":      false,
+							"deprecationReason": "",
+						},
+						map[string]interface{}{
+							"name":              "INLINE_FRAGMENT",
+							"isDeprecated":      false,
+							"deprecationReason": "",
+						},
+					},
+					"possibleTypes": nil,
+				},
 			},
 			"directives": []interface{}{
 				map[string]interface{}{
 					"name": "include",
+					"locations": []interface{}{
+						"FIELD",
+						"FRAGMENT_SPREAD",
+						"INLINE_FRAGMENT",
+					},
 					"args": []interface{}{
 						map[string]interface{}{
 							"defaultValue": nil,
@@ -718,12 +790,14 @@ func TestIntrospection_ExecutesAnIntrospectionQuery(t *testing.T) {
 							},
 						},
 					},
-					"onOperation": false,
-					"onFragment":  true,
-					"onField":     true,
 				},
 				map[string]interface{}{
 					"name": "skip",
+					"locations": []interface{}{
+						"FIELD",
+						"FRAGMENT_SPREAD",
+						"INLINE_FRAGMENT",
+					},
 					"args": []interface{}{
 						map[string]interface{}{
 							"defaultValue": nil,
@@ -739,9 +813,6 @@ func TestIntrospection_ExecutesAnIntrospectionQuery(t *testing.T) {
 							},
 						},
 					},
-					"onOperation": false,
-					"onFragment":  true,
-					"onField":     true,
 				},
 			},
 		},
@@ -750,8 +821,11 @@ func TestIntrospection_ExecutesAnIntrospectionQuery(t *testing.T) {
 		Schema:        emptySchema,
 		RequestString: testutil.IntrospectionQuery,
 	})
+	if len(result.Errors) != 0 {
+		t.Fatalf("Errors: %+v", result.Errors)
+	}
 	if !testutil.ContainSubset(result.Data.(map[string]interface{}), expectedDataSubSet) {
-		t.Fatalf("unexpected, result does not contain subset of expected data")
+		t.Fatal("unexpected, result does not contain subset of expected data")
 	}
 }
 

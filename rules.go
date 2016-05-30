@@ -414,6 +414,10 @@ func KnownArgumentNamesRule(context *ValidationContext) *ValidationRuleInstance 
 	}
 }
 
+func MisplaceDirectiveMessage(directiveName, location string) string {
+	return fmt.Sprintf(`Directive "%s" may not be used on %s.`, directiveName, location)
+}
+
 // KnownDirectivesRule Known directives
 //
 // A GraphQL document is only valid if all `@directives` are known by the
@@ -421,7 +425,6 @@ func KnownArgumentNamesRule(context *ValidationContext) *ValidationRuleInstance 
 func KnownDirectivesRule(context *ValidationContext) *ValidationRuleInstance {
 	return &ValidationRuleInstance{
 		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
-			var action = visitor.ActionNoChange
 			if node, ok := p.Node.(*ast.Directive); ok {
 				nodeName := ""
 				if node.Name != nil {
@@ -447,37 +450,56 @@ func KnownDirectivesRule(context *ValidationContext) *ValidationRuleInstance {
 					appliedTo = p.Ancestors[len(p.Ancestors)-1]
 				}
 				if appliedTo == nil {
-					return action, nil
+					return visitor.ActionNoChange, nil
 				}
 
-				if _, ok := appliedTo.(*ast.OperationDefinition); ok && !directiveDef.OnOperation {
-					return reportErrorAndReturn(
-						context,
-						fmt.Sprintf(`Directive "%v" may not be used on "%v".`, nodeName, "operation"),
-						[]ast.Node{node},
-					)
-				}
-				if _, ok := appliedTo.(*ast.Field); ok && !directiveDef.OnField {
-					return reportErrorAndReturn(
-						context,
-						fmt.Sprintf(`Directive "%v" may not be used on "%v".`, nodeName, "field"),
-						[]ast.Node{node},
-					)
-				}
-				if !directiveDef.OnFragment {
-					switch appliedTo.(type) {
-					case *ast.FragmentSpread, *ast.InlineFragment, *ast.FragmentDefinition:
-						return reportErrorAndReturn(
-							context,
-							fmt.Sprintf(`Directive "%v" may not be used on "%v".`, nodeName, "fragment"),
-							[]ast.Node{node},
-						)
+				candidateLocation := getLocationForAppliedNode(appliedTo)
+
+				directiveHasLocation := false
+				for _, loc := range directiveDef.Locations {
+					if loc == candidateLocation {
+						directiveHasLocation = true
+						break
 					}
 				}
+
+				if candidateLocation == "" {
+					context.ReportError(newValidationError(
+						MisplaceDirectiveMessage(nodeName, fmt.Sprintf("%T", node)),
+						[]ast.Node{node}))
+				} else if !directiveHasLocation {
+					context.ReportError(newValidationError(
+						MisplaceDirectiveMessage(nodeName, candidateLocation),
+						[]ast.Node{node}))
+				}
 			}
-			return action, nil
+			return visitor.ActionNoChange, nil
 		},
 	}
+}
+
+func getLocationForAppliedNode(appliedTo ast.Node) string {
+	switch appliedTo := appliedTo.(type) {
+	case *ast.OperationDefinition:
+		if appliedTo.Operation == "query" {
+			return DirectiveLocationQuery
+		}
+		if appliedTo.Operation == "mutation" {
+			return DirectiveLocationMutation
+		}
+		if appliedTo.Operation == "subscription" {
+			return DirectiveLocationSubscription
+		}
+	case *ast.Field:
+		return DirectiveLocationField
+	case *ast.FragmentSpread:
+		return DirectiveLocationFragmentSpread
+	case *ast.InlineFragment:
+		return DirectiveLocationInlineFragment
+	case *ast.FragmentDefinition:
+		return DirectiveLocationFragmentDefinition
+	}
+	return ""
 }
 
 // KnownFragmentNamesRule Known fragment names
