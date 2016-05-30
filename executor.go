@@ -669,12 +669,35 @@ func completeValue(eCtx *ExecutionContext, returnType Type, fieldASTs []*ast.Fie
 	return results.Data
 
 }
+
+// completeLeafValue complete a leaf value (Scalar / Enum) by serializing to a valid value, returning nil if serialization is not possible.
 func completeLeafValue(eCtx *ExecutionContext, returnType Leaf, fieldASTs []*ast.Field, info ResolveInfo, result interface{}) interface{} {
 	serializedResult := returnType.Serialize(result)
 	if isNullish(serializedResult) {
 		return nil
 	}
 	return serializedResult
+}
+
+// completeListValue complete a list value by completing each item in the list with the inner type
+func completeListValue(eCtx *ExecutionContext, returnType *List, fieldASTs []*ast.Field, info ResolveInfo, result interface{}) interface{} {
+	resultVal := reflect.ValueOf(result)
+	parentTypeName := ""
+	if info.ParentType != nil {
+		parentTypeName = info.ParentType.Name()
+	}
+	if !resultVal.IsValid() || resultVal.Type().Kind() != reflect.Slice {
+		panic(gqlerrors.NewFormattedError(fmt.Sprintf("User Error: expected iterable, but did not find one for field %v.%v.", parentTypeName, info.FieldName)))
+	}
+
+	itemType := returnType.OfType
+	completedResults := make([]interface{}, 0, resultVal.Len())
+	for i := 0; i < resultVal.Len(); i++ {
+		val := resultVal.Index(i).Interface()
+		completedItem := completeValueCatchingError(eCtx, itemType, fieldASTs, info, val)
+		completedResults = append(completedResults, completedItem)
+	}
+	return completedResults
 }
 
 type structFieldInfo struct {
@@ -728,27 +751,6 @@ func fieldInfoForStruct(structType reflect.Type) map[string]structFieldInfo {
 	}
 	structTypeCache[structType] = sm
 	return sm
-}
-
-// completeListValue complete a list value by completeing each item in the list with the inner type
-func completeListValue(eCtx *ExecutionContext, returnType *List, fieldASTs []*ast.Field, info ResolveInfo, result interface{}) interface{} {
-	resultVal := reflect.ValueOf(result)
-	parentTypeName := ""
-	if info.ParentType != nil {
-		parentTypeName = info.ParentType.Name()
-	}
-	if !resultVal.IsValid() || resultVal.Type().Kind() != reflect.Slice {
-		panic(gqlerrors.NewFormattedError(fmt.Sprintf("User Error: expected iterable, but did not find one for field %v.%v.", parentTypeName, info.FieldName)))
-	}
-
-	itemType := returnType.OfType
-	completedResults := make([]interface{}, 0, resultVal.Len())
-	for i := 0; i < resultVal.Len(); i++ {
-		val := resultVal.Index(i).Interface()
-		completedItem := completeValueCatchingError(eCtx, itemType, fieldASTs, info, val)
-		completedResults = append(completedResults, completedItem)
-	}
-	return completedResults
 }
 
 func defaultResolveFn(p ResolveParams) (interface{}, error) {
