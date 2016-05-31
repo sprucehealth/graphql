@@ -323,8 +323,7 @@ func collectFields(p CollectFieldsParams) map[string][]*ast.Field {
 			}
 
 			if fragment, ok := fragment.(*ast.FragmentDefinition); ok {
-				if !shouldIncludeNode(p.ExeContext, fragment.Directives) ||
-					!doesFragmentConditionMatch(p.ExeContext, fragment, p.RuntimeType) {
+				if !doesFragmentConditionMatch(p.ExeContext, fragment, p.RuntimeType) {
 					continue
 				}
 				innerParams := CollectFieldsParams{
@@ -367,7 +366,7 @@ func shouldIncludeNode(eCtx *ExecutionContext, directives []*ast.Directive) bool
 			return defaultReturnValue
 		}
 		if skipIf, ok := argValues["if"].(bool); ok {
-			if skipIf {
+			if skipIf == true {
 				return false
 			}
 		}
@@ -390,12 +389,11 @@ func shouldIncludeNode(eCtx *ExecutionContext, directives []*ast.Directive) bool
 		if err != nil {
 			return defaultReturnValue
 		}
-		if includeIf, ok := argValues["if"]; ok {
-			if boolIncludeIf, ok := includeIf.(bool); ok {
-				return boolIncludeIf
+		if includeIf, ok := argValues["if"].(bool); ok {
+			if includeIf == false {
+				return false
 			}
 		}
-		return defaultReturnValue
 	}
 	return defaultReturnValue
 }
