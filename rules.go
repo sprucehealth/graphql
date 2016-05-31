@@ -193,9 +193,9 @@ func FieldsOnCorrectTypeRule(context *ValidationContext) *ValidationRuleInstance
 						if node.Name != nil {
 							nodeName = node.Name.Value
 						}
-						if ttype, ok := ttype.(Abstract); ok {
-							siblingInterfaces := getSiblingInterfacesIncludingField(ttype, nodeName)
-							implementations := getImplementationsIncludingField(ttype, nodeName)
+						if ttype, ok := ttype.(Abstract); ok && IsAbstractType(ttype) {
+							siblingInterfaces := getSiblingInterfacesIncludingField(context.Schema(), ttype, nodeName)
+							implementations := getImplementationsIncludingField(context.Schema(), ttype, nodeName)
 							suggestedMaps := map[string]bool{}
 							for _, s := range siblingInterfaces {
 								if _, ok := suggestedMaps[s]; !ok {
@@ -225,16 +225,14 @@ func FieldsOnCorrectTypeRule(context *ValidationContext) *ValidationRuleInstance
 }
 
 // Return implementations of `type` that include `fieldName` as a valid field.
-func getImplementationsIncludingField(ttype Abstract, fieldName string) []string {
-
-	result := []string{}
-	for _, t := range ttype.PossibleTypes() {
+func getImplementationsIncludingField(schema *Schema, ttype Abstract, fieldName string) []string {
+	var result []string
+	for _, t := range schema.PossibleTypes(ttype) {
 		fields := t.Fields()
 		if _, ok := fields[fieldName]; ok {
-			result = append(result, fmt.Sprintf(`%v`, t.Name()))
+			result = append(result, t.Name())
 		}
 	}
-
 	sort.Strings(result)
 	return result
 }
@@ -243,11 +241,11 @@ func getImplementationsIncludingField(ttype Abstract, fieldName string) []string
 // that they implement. If those interfaces include `field` as a valid field,
 // return them, sorted by how often the implementations include the other
 // interface.
-func getSiblingInterfacesIncludingField(ttype Abstract, fieldName string) []string {
-	implementingObjects := ttype.PossibleTypes()
+func getSiblingInterfacesIncludingField(schema *Schema, ttype Abstract, fieldName string) []string {
+	implementingObjects := schema.PossibleTypes(ttype)
 
-	result := []string{}
-	suggestedInterfaceSlice := []*suggestedInterface{}
+	var result []string
+	var suggestedInterfaceSlice []*suggestedInterface
 
 	// stores a map of interface name => index in suggestedInterfaceSlice
 	suggestedInterfaceMap := map[string]int{}
@@ -280,7 +278,7 @@ func getSiblingInterfacesIncludingField(ttype Abstract, fieldName string) []stri
 	sort.Sort(suggestedInterfaceSortedSlice(suggestedInterfaceSlice))
 
 	for _, s := range suggestedInterfaceSlice {
-		result = append(result, fmt.Sprintf(`%v`, s.name))
+		result = append(result, s.name)
 	}
 	return result
 
@@ -1302,7 +1300,7 @@ func getFragmentType(context *ValidationContext, name string) Type {
 	return ttype
 }
 
-func doTypesOverlap(t1 Type, t2 Type) bool {
+func doTypesOverlap(schema *Schema, t1 Type, t2 Type) bool {
 	if t1 == t2 {
 		return true
 	}
@@ -1311,7 +1309,7 @@ func doTypesOverlap(t1 Type, t2 Type) bool {
 			return false
 		}
 		if t2, ok := t2.(Abstract); ok {
-			for _, ttype := range t2.PossibleTypes() {
+			for _, ttype := range schema.PossibleTypes(t2) {
 				if ttype == t1 {
 					return true
 				}
@@ -1321,21 +1319,21 @@ func doTypesOverlap(t1 Type, t2 Type) bool {
 	}
 	if t1, ok := t1.(Abstract); ok {
 		if _, ok := t2.(*Object); ok {
-			for _, ttype := range t1.PossibleTypes() {
+			for _, ttype := range schema.PossibleTypes(t1) {
 				if ttype == t2 {
 					return true
 				}
 			}
 			return false
 		}
-		possibleTypes := t1.PossibleTypes()
-		t1TypeNames := make(map[string]struct{}, len(possibleTypes))
+		possibleTypes := schema.PossibleTypes(t1)
+		t1TypeNames := make(map[string]bool, len(possibleTypes))
 		for _, ttype := range possibleTypes {
-			t1TypeNames[ttype.Name()] = struct{}{}
+			t1TypeNames[ttype.Name()] = true
 		}
 		if t2, ok := t2.(Abstract); ok {
-			for _, ttype := range t2.PossibleTypes() {
-				if _, hasT1TypeName := t1TypeNames[ttype.Name()]; hasT1TypeName {
+			for _, ttype := range schema.PossibleTypes(t2) {
+				if hasT1TypeName, _ := t1TypeNames[ttype.Name()]; hasT1TypeName {
 					return true
 				}
 			}
@@ -1358,7 +1356,7 @@ func PossibleFragmentSpreadsRule(context *ValidationContext) *ValidationRuleInst
 				fragType := context.Type()
 				parentType, _ := context.ParentType().(Type)
 
-				if fragType != nil && parentType != nil && !doTypesOverlap(fragType, parentType) {
+				if fragType != nil && parentType != nil && !doTypesOverlap(context.Schema(), fragType, parentType) {
 					return reportErrorAndReturn(
 						context,
 						fmt.Sprintf(`Fragment cannot be spread here as objects of `+
@@ -1373,7 +1371,7 @@ func PossibleFragmentSpreadsRule(context *ValidationContext) *ValidationRuleInst
 				}
 				fragType := getFragmentType(context, fragName)
 				parentType, _ := context.ParentType().(Type)
-				if fragType != nil && parentType != nil && !doTypesOverlap(fragType, parentType) {
+				if fragType != nil && parentType != nil && !doTypesOverlap(context.Schema(), fragType, parentType) {
 					return reportErrorAndReturn(
 						context,
 						fmt.Sprintf(`Fragment "%v" cannot be spread here as objects of `+
@@ -1747,7 +1745,7 @@ func VariablesInAllowedPositionRule(context *ValidationContext) *ValidationRuleI
 						if err != nil {
 							varType = nil
 						}
-						if varType != nil && !isTypeSubTypeOf(effectiveType(varType, varDef), usage.Type) {
+						if varType != nil && !isTypeSubTypeOf(context.Schema(), effectiveType(varType, varDef), usage.Type) {
 							context.ReportError(newValidationError(
 								fmt.Sprintf(`Variable "$%v" of type "%v" used in position `+
 									`expecting type "%v".`, varName, varType, usage.Type),

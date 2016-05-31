@@ -147,12 +147,20 @@ func IsCompositeType(ttype interface{}) bool {
 // Abstract interface for types that may describe the parent context of a selection set.
 type Abstract interface {
 	Name() string
-	PossibleTypes() []*Object
-	IsPossibleType(ttype *Object) bool
 }
 
 var _ Abstract = (*Interface)(nil)
 var _ Abstract = (*Union)(nil)
+
+func IsAbstractType(ttype interface{}) bool {
+	if _, ok := ttype.(*Interface); ok {
+		return true
+	}
+	if _, ok := ttype.(*Union); ok {
+		return true
+	}
+	return false
+}
 
 // Nullable interface for types that can accept null as a value.
 type Nullable interface {
@@ -387,21 +395,6 @@ func NewObject(config ObjectConfig) *Object {
 	if err := assertValidName(config.Name); err != nil {
 		objectType.setErr(err)
 		return objectType
-	}
-
-	/*
-			addImplementationToInterfaces()
-			Update the interfaces to know about this implementation.
-			This is an rare and unfortunate use of mutation in the type definition
-		 	implementations, but avoids an expensive "getPossibleTypes"
-		 	implementation for Interface
-	*/
-	interfaces := objectType.Interfaces()
-	if interfaces == nil {
-		return objectType
-	}
-	for _, iface := range interfaces {
-		iface.implementations = append(iface.implementations, objectType)
 	}
 
 	return objectType
@@ -676,11 +669,9 @@ type Interface struct {
 	PrivateDescription string `json:"description"`
 	ResolveType        ResolveTypeFn
 
-	mu              sync.RWMutex
-	typeConfig      InterfaceConfig
-	fields          FieldDefinitionMap
-	implementations []*Object
-	possibleTypes   map[string]struct{}
+	mu         sync.RWMutex
+	typeConfig InterfaceConfig
+	fields     FieldDefinitionMap
 
 	muErr sync.RWMutex
 	err   error
@@ -760,35 +751,6 @@ func (it *Interface) Fields() FieldDefinitionMap {
 	return it.fields
 }
 
-func (it *Interface) PossibleTypes() []*Object {
-	return it.implementations
-}
-
-func (it *Interface) IsPossibleType(ttype *Object) bool {
-	if ttype == nil {
-		return false
-	}
-	it.mu.RLock()
-	possibleTypes := it.possibleTypes
-	it.mu.RUnlock()
-	if possibleTypes == nil {
-		it.mu.Lock()
-		defer it.mu.Unlock()
-		possibleTypes = it.possibleTypes
-		if possibleTypes == nil {
-			possibleTypes = make(map[string]struct{}, len(it.PossibleTypes()))
-			for _, possibleType := range it.PossibleTypes() {
-				if possibleType == nil {
-					continue
-				}
-				possibleTypes[possibleType.PrivateName] = struct{}{}
-			}
-			it.possibleTypes = possibleTypes
-		}
-	}
-	_, ok := possibleTypes[ttype.PrivateName]
-	return ok
-}
 func (it *Interface) String() string {
 	return it.PrivateName
 }
@@ -823,9 +785,8 @@ type Union struct {
 	PrivateDescription string `json:"description"`
 	ResolveType        ResolveTypeFn
 
-	typeConfig    UnionConfig
-	types         []*Object
-	possibleTypes map[string]struct{}
+	typeConfig UnionConfig
+	types      []*Object
 
 	err error
 }
@@ -874,26 +835,10 @@ func NewUnion(config UnionConfig) *Union {
 	objectType.typeConfig = config
 	return objectType
 }
-func (ut *Union) PossibleTypes() []*Object {
+func (ut *Union) Types() []*Object {
 	return ut.types
 }
-func (ut *Union) IsPossibleType(ttype *Object) bool {
-	if ttype == nil {
-		return false
-	}
-	if len(ut.possibleTypes) == 0 {
-		possibleTypes := make(map[string]struct{}, len(ut.PossibleTypes()))
-		for _, possibleType := range ut.PossibleTypes() {
-			if possibleType == nil {
-				continue
-			}
-			possibleTypes[possibleType.PrivateName] = struct{}{}
-		}
-		ut.possibleTypes = possibleTypes
-	}
-	_, ok := ut.possibleTypes[ttype.PrivateName]
-	return ok
-}
+
 func (ut *Union) String() string {
 	return ut.PrivateName
 }
