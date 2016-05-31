@@ -512,8 +512,6 @@ func resolveField(eCtx *ExecutionContext, parentType *Object, source interface{}
 	// TODO: find a way to memoize, in case this field is within a List type.
 	args, _ := getArgumentValues(fieldDef.Args, fieldAST.Arguments, eCtx.VariableValues)
 
-	// The resolve function's optional third argument is a collection of
-	// information about the current execution state.
 	info := ResolveInfo{
 		FieldName:      fieldName,
 		FieldASTs:      fieldASTs,
@@ -531,7 +529,6 @@ func resolveField(eCtx *ExecutionContext, parentType *Object, source interface{}
 	result, resolveFnError = resolveFn(ResolveParams{
 		Source:  source,
 		Args:    args,
-		Schema:  eCtx.Schema,
 		Info:    info,
 		Context: eCtx.Context,
 	})
@@ -641,12 +638,17 @@ func completeValue(eCtx *ExecutionContext, returnType Type, fieldASTs []*ast.Fie
 func completeAbstractValue(eCtx *ExecutionContext, returnType Abstract, fieldASTs []*ast.Field, info ResolveInfo, result interface{}) interface{} {
 	var runtimeType *Object
 
+	resolveTypeParams := ResolveTypeParams{
+		Value:   result,
+		Info:    info,
+		Context: eCtx.Context,
+	}
 	if unionReturnType, ok := returnType.(*Union); ok && unionReturnType.ResolveType != nil {
-		runtimeType = unionReturnType.ResolveType(result, info)
+		runtimeType = unionReturnType.ResolveType(resolveTypeParams)
 	} else if interfaceReturnType, ok := returnType.(*Interface); ok && interfaceReturnType.ResolveType != nil {
-		runtimeType = interfaceReturnType.ResolveType(result, info)
+		runtimeType = interfaceReturnType.ResolveType(resolveTypeParams)
 	} else {
-		runtimeType = defaultResolveTypeFn(result, info, returnType)
+		runtimeType = defaultResolveTypeFn(resolveTypeParams, returnType)
 	}
 
 	if runtimeType == nil {
@@ -669,10 +671,17 @@ func completeObjectValue(eCtx *ExecutionContext, returnType *Object, fieldASTs [
 	// If there is an isTypeOf predicate function, call it with the
 	// current result. If isTypeOf returns false, then raise an error rather
 	// than continuing execution.
-	if returnType.IsTypeOf != nil && !returnType.IsTypeOf(result, info) {
-		panic(gqlerrors.NewFormattedError(
-			fmt.Sprintf(`Expected value of type "%v" but got: %T.`, returnType, result),
-		))
+	if returnType.IsTypeOf != nil {
+		p := IsTypeOfParams{
+			Value:   result,
+			Info:    info,
+			Context: eCtx.Context,
+		}
+		if !returnType.IsTypeOf(p) {
+			panic(gqlerrors.NewFormattedError(
+				fmt.Sprintf(`Expected value of type "%v" but got: %T.`, returnType, result),
+			))
+		}
 	}
 
 	// Collect sub-fields to execute to complete this value.
@@ -792,13 +801,18 @@ func fieldInfoForStruct(structType reflect.Type) map[string]structFieldInfo {
 // defaultResolveTypeFn If a resolveType function is not given, then a default resolve behavior is
 // used which tests each possible type for the abstract type by calling
 // isTypeOf for the object being coerced, returning the first type that matches.
-func defaultResolveTypeFn(value interface{}, info ResolveInfo, abstractType Abstract) *Object {
-	possibleTypes := info.Schema.PossibleTypes(abstractType)
+func defaultResolveTypeFn(p ResolveTypeParams, abstractType Abstract) *Object {
+	possibleTypes := p.Info.Schema.PossibleTypes(abstractType)
 	for _, possibleType := range possibleTypes {
 		if possibleType.IsTypeOf == nil {
 			continue
 		}
-		if res := possibleType.IsTypeOf(value, info); res {
+		isTypeOfParams := IsTypeOfParams{
+			Value:   p.Value,
+			Info:    p.Info,
+			Context: p.Context,
+		}
+		if res := possibleType.IsTypeOf(isTypeOfParams); res {
 			return possibleType
 		}
 	}

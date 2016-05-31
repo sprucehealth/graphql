@@ -364,7 +364,22 @@ type Object struct {
 	err atomic.Value
 }
 
-type IsTypeOfFn func(value interface{}, info ResolveInfo) bool
+// IsTypeOfParams Params for IsTypeOfFn()
+type IsTypeOfParams struct {
+	// Value that needs to be resolve.
+	// Use this to decide which GraphQLObject this value maps to.
+	Value interface{}
+
+	// Info is a collection of information about the current execution state.
+	Info ResolveInfo
+
+	// Context argument is a context value that is provided to every resolve function within an execution.
+	// It is commonly
+	// used to represent an authenticated user, or request-specific caches.
+	Context context.Context
+}
+
+type IsTypeOfFn func(p IsTypeOfParams) bool
 
 type InterfacesThunk func() []*Interface
 
@@ -565,14 +580,19 @@ func defineFieldMap(ttype Named, fields Fields) (FieldDefinitionMap, error) {
 }
 
 // ResolveParams Params for FieldResolveFn()
-// TODO: clean up GQLFRParams fields
 type ResolveParams struct {
+	// Source is the source value
 	Source interface{}
-	Args   map[string]interface{}
-	Info   ResolveInfo
-	Schema Schema
-	//This can be used to provide per-request state
-	//from the application.
+
+	// Args is a map of arguments for current GraphQL request
+	Args map[string]interface{}
+
+	// Info is a collection of information about the current execution state.
+	Info ResolveInfo
+
+	// Context argument is a context value that is provided to every resolve function within an execution.
+	// It is commonly
+	// used to represent an authenticated user, or request-specific caches.
 	Context context.Context
 }
 
@@ -684,7 +704,22 @@ type InterfaceConfig struct {
 	Description string `json:"description"`
 }
 
-type ResolveTypeFn func(value interface{}, info ResolveInfo) *Object
+// ResolveTypeParams Params for ResolveTypeFn()
+type ResolveTypeParams struct {
+	// Value that needs to be resolve.
+	// Use this to decide which GraphQLObject this value maps to.
+	Value interface{}
+
+	// Info is a collection of information about the current execution state.
+	Info ResolveInfo
+
+	// Context argument is a context value that is provided to every resolve function within an execution.
+	// It is commonly
+	// used to represent an authenticated user, or request-specific caches.
+	Context context.Context
+}
+
+type ResolveTypeFn func(p ResolveTypeParams) *Object
 
 func NewInterface(config InterfaceConfig) *Interface {
 	it := &Interface{
