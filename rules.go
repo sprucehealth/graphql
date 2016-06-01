@@ -2,6 +2,7 @@ package graphql
 
 import (
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 
@@ -147,8 +148,14 @@ func DefaultValuesOfCorrectTypeRule(context *ValidationContext) *ValidationRuleI
 		},
 	}
 }
-
-func UndefinedFieldMessage(fieldName string, ttypeName string, suggestedTypes []string) string {
+func quoteStrings(slice []string) []string {
+	quoted := []string{}
+	for _, s := range slice {
+		quoted = append(quoted, fmt.Sprintf(`"%v"`, s))
+	}
+	return quoted
+}
+func UndefinedFieldMessage(fieldName string, ttypeName string, suggestedTypes []string, suggestedFields []string) string {
 
 	quoteStrings := func(slice []string) []string {
 		quoted := []string{}
@@ -160,15 +167,27 @@ func UndefinedFieldMessage(fieldName string, ttypeName string, suggestedTypes []
 
 	// construct helpful (but long) message
 	message := fmt.Sprintf(`Cannot query field "%v" on type "%v".`, fieldName, ttypeName)
-	suggestions := strings.Join(quoteStrings(suggestedTypes), ", ")
 	const MaxLength = 5
 	if len(suggestedTypes) > 0 {
+		suggestions := ""
 		if len(suggestedTypes) > MaxLength {
 			suggestions = strings.Join(quoteStrings(suggestedTypes[0:MaxLength]), ", ") +
 				fmt.Sprintf(`, and %v other types`, len(suggestedTypes)-MaxLength)
+		} else {
+			suggestions = strings.Join(quoteStrings(suggestedTypes), ", ")
 		}
-		message = message + fmt.Sprintf(` However, this field exists on %v.`, suggestions)
-		message = message + ` Perhaps you meant to use an inline fragment?`
+		message = fmt.Sprintf(`%v However, this field exists on %v. `+
+			`Perhaps you meant to use an inline fragment?`, message, suggestions)
+	}
+	if len(suggestedFields) > 0 {
+		suggestions := ""
+		if len(suggestedFields) > MaxLength {
+			suggestions = strings.Join(quoteStrings(suggestedFields[0:MaxLength]), ", ") +
+				fmt.Sprintf(`, or %v other field`, len(suggestedFields)-MaxLength)
+		} else {
+			suggestions = strings.Join(quoteStrings(suggestedFields), ", ")
+		}
+		message = fmt.Sprintf(`%v Did you mean to query %v?`, message, suggestions)
 	}
 
 	return message
@@ -210,12 +229,30 @@ func FieldsOnCorrectTypeRule(context *ValidationContext) *ValidationRuleInstance
 								}
 							}
 						}
-						message := UndefinedFieldMessage(nodeName, ttype.Name(), suggestedTypes)
-						return reportErrorAndReturn(
-							context,
-							message,
-							[]ast.Node{node},
-						)
+
+						var suggestedFieldNames []string
+						var suggestedFields []string
+						switch ttype := ttype.(type) {
+						case *Object:
+							for name := range ttype.Fields() {
+								suggestedFieldNames = append(suggestedFieldNames, name)
+							}
+							suggestedFields = suggestionList(nodeName, suggestedFieldNames)
+						case *Interface:
+							for name := range ttype.Fields() {
+								suggestedFieldNames = append(suggestedFieldNames, name)
+							}
+							suggestedFields = suggestionList(nodeName, suggestedFieldNames)
+						case *InputObject:
+							for name := range ttype.Fields() {
+								suggestedFieldNames = append(suggestedFieldNames, name)
+							}
+							suggestedFields = suggestionList(nodeName, suggestedFieldNames)
+						}
+
+						context.ReportError(newValidationError(
+							UndefinedFieldMessage(nodeName, ttype.Name(), suggestedTypes, suggestedFields),
+							[]ast.Node{node}))
 					}
 				}
 			}
@@ -338,6 +375,28 @@ func FragmentsOnCompositeTypesRule(context *ValidationContext) *ValidationRuleIn
 	}
 }
 
+func unknownArgMessage(argName string, fieldName string, parentTypeName string, suggestedArgs []string) string {
+	message := fmt.Sprintf(`Unknown argument "%v" on field "%v" of type "%v".`, argName, fieldName, parentTypeName)
+
+	if len(suggestedArgs) > 0 {
+		suggestions := strings.Join(quoteStrings(suggestedArgs), ", ")
+		message = fmt.Sprintf(`%v Perhaps you meant %v?`, message, suggestions)
+	}
+
+	return message
+}
+
+func unknownDirectiveArgMessage(argName string, directiveName string, suggestedArgs []string) string {
+	message := fmt.Sprintf(`Unknown argument "%v" on directive "@%v".`, argName, directiveName)
+
+	if len(suggestedArgs) > 0 {
+		suggestions := strings.Join(quoteStrings(suggestedArgs), ", ")
+		message = fmt.Sprintf(`%v Perhaps you meant %v?`, message, suggestions)
+	}
+
+	return message
+}
+
 // KnownArgumentNamesRule Known argument names
 //
 // A GraphQL field is only valid if all supplied arguments are defined by
@@ -364,8 +423,10 @@ func KnownArgumentNamesRule(context *ValidationContext) *ValidationRuleInstance 
 					if node.Name != nil {
 						nodeName = node.Name.Value
 					}
+					argNames := make([]string, 0, len(fieldDef.Args))
 					var fieldArgDef *Argument
 					for _, arg := range fieldDef.Args {
+						argNames = append(argNames, arg.Name())
 						if arg.Name() == nodeName {
 							fieldArgDef = arg
 						}
@@ -378,7 +439,7 @@ func KnownArgumentNamesRule(context *ValidationContext) *ValidationRuleInstance 
 						}
 						return reportErrorAndReturn(
 							context,
-							fmt.Sprintf(`Unknown argument "%v" on field "%v" of type "%v".`, nodeName, fieldDef.Name, parentTypeName),
+							unknownArgMessage(nodeName, fieldDef.Name, parentTypeName, suggestionList(nodeName, argNames)),
 							[]ast.Node{node},
 						)
 					}
@@ -391,8 +452,10 @@ func KnownArgumentNamesRule(context *ValidationContext) *ValidationRuleInstance 
 					if node.Name != nil {
 						nodeName = node.Name.Value
 					}
+					argNames := make([]string, 0, len(directive.Args))
 					var directiveArgDef *Argument
 					for _, arg := range directive.Args {
+						argNames = append(argNames, arg.Name())
 						if arg.Name() == nodeName {
 							directiveArgDef = arg
 						}
@@ -400,7 +463,7 @@ func KnownArgumentNamesRule(context *ValidationContext) *ValidationRuleInstance 
 					if directiveArgDef == nil {
 						return reportErrorAndReturn(
 							context,
-							fmt.Sprintf(`Unknown argument "%v" on directive "@%v".`, nodeName, directive.Name),
+							unknownDirectiveArgMessage(nodeName, directive.Name, suggestionList(nodeName, argNames)),
 							[]ast.Node{node},
 						)
 					}
@@ -528,6 +591,23 @@ func KnownFragmentNamesRule(context *ValidationContext) *ValidationRuleInstance 
 	}
 }
 
+func unknownTypeMessage(typeName string, suggestedTypes []string) string {
+	message := fmt.Sprintf(`Unknown type "%v".`, typeName)
+
+	const MaxLength = 5
+	if len(suggestedTypes) > 0 {
+		suggestions := ""
+		if len(suggestedTypes) < MaxLength {
+			suggestions = strings.Join(quoteStrings(suggestedTypes), ", ")
+		} else {
+			suggestions = strings.Join(quoteStrings(suggestedTypes[0:MaxLength]), ", ")
+		}
+		message = fmt.Sprintf(`%v Perhaps you meant one of the following: %v?`, message, suggestions)
+	}
+
+	return message
+}
+
 // KnownTypeNamesRule Known type names
 //
 // A GraphQL document is only valid if referenced types (specifically
@@ -552,9 +632,14 @@ func KnownTypeNamesRule(context *ValidationContext) *ValidationRuleInstance {
 				}
 				ttype := context.Schema().Type(typeNameValue)
 				if ttype == nil {
+					typeMap := context.Schema().TypeMap()
+					suggestedTypes := make([]string, 0, len(typeMap))
+					for key := range typeMap {
+						suggestedTypes = append(suggestedTypes, key)
+					}
 					return reportErrorAndReturn(
 						context,
-						fmt.Sprintf(`Unknown type "%v".`, typeNameValue),
+						unknownTypeMessage(typeNameValue, suggestionList(typeNameValue, suggestedTypes)),
 						[]ast.Node{node},
 					)
 				}
@@ -1918,4 +2003,86 @@ func isValidLiteralValue(ttype Input, valueAST ast.Value) (bool, []string) {
 	}
 
 	return true, nil
+}
+
+// Internal struct to sort results from suggestionList()
+type suggestionListResult struct {
+	Options   []string
+	Distances []float64
+}
+
+func (s suggestionListResult) Len() int {
+	return len(s.Options)
+}
+func (s suggestionListResult) Swap(i, j int) {
+	s.Options[i], s.Options[j] = s.Options[j], s.Options[i]
+}
+func (s suggestionListResult) Less(i, j int) bool {
+	return s.Distances[i] < s.Distances[j]
+}
+
+// suggestionList Given an invalid input string and a list of valid options, returns a filtered
+// list of valid options sorted based on their similarity with the input.
+func suggestionList(input string, options []string) []string {
+	dists := []float64{}
+	filteredOpts := []string{}
+	inputThreshold := float64(len(input) / 2)
+
+	for _, opt := range options {
+		dist := lexicalDistance(input, opt)
+		threshold := math.Max(inputThreshold, float64(len(opt)/2))
+		threshold = math.Max(threshold, 1)
+		if dist <= threshold {
+			filteredOpts = append(filteredOpts, opt)
+			dists = append(dists, dist)
+		}
+	}
+	//sort results
+	suggested := suggestionListResult{filteredOpts, dists}
+	sort.Sort(suggested)
+	return suggested.Options
+}
+
+// lexicalDistance Computes the lexical distance between strings A and B.
+// The "distance" between two strings is given by counting the minimum number
+// of edits needed to transform string A into string B. An edit can be an
+// insertion, deletion, or substitution of a single character, or a swap of two
+// adjacent characters.
+// This distance can be useful for detecting typos in input or sorting
+func lexicalDistance(a, b string) float64 {
+	d := [][]float64{}
+	aLen := len(a)
+	bLen := len(b)
+	for i := 0; i <= aLen; i++ {
+		d = append(d, []float64{float64(i)})
+	}
+	for k := 1; k <= bLen; k++ {
+		d[0] = append(d[0], float64(k))
+	}
+
+	for i := 1; i <= aLen; i++ {
+		for k := 1; k <= bLen; k++ {
+			cost := 1.0
+			if a[i-1] == b[k-1] {
+				cost = 0.0
+			}
+			minCostFloat := math.Min(
+				d[i-1][k]+1.0,
+				d[i][k-1]+1.0,
+			)
+			minCostFloat = math.Min(
+				minCostFloat,
+				d[i-1][k-1]+cost,
+			)
+			d[i] = append(d[i], minCostFloat)
+
+			if i > 1 && k < 1 &&
+				a[i-1] == b[k-2] &&
+				a[i-2] == b[k-1] {
+				d[i][k] = math.Min(d[i][k], d[i-2][k-2]+cost)
+			}
+		}
+	}
+
+	return d[aLen][bLen]
 }
