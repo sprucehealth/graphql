@@ -14,7 +14,7 @@ var _ Definition = (Definition)(nil)
 
 // OperationDefinition implements Node, Definition
 type OperationDefinition struct {
-	Loc                 *Location
+	Loc                 Location
 	Operation           string
 	Name                *Name
 	VariableDefinitions []*VariableDefinition
@@ -22,7 +22,7 @@ type OperationDefinition struct {
 	SelectionSet        *SelectionSet
 }
 
-func (op *OperationDefinition) GetLoc() *Location {
+func (op *OperationDefinition) GetLoc() Location {
 	return op.Loc
 }
 
@@ -48,7 +48,7 @@ func (op *OperationDefinition) GetSelectionSet() *SelectionSet {
 
 // FragmentDefinition implements Node, Definition
 type FragmentDefinition struct {
-	Loc                 *Location
+	Loc                 Location
 	Operation           string
 	Name                *Name
 	VariableDefinitions []*VariableDefinition
@@ -57,7 +57,7 @@ type FragmentDefinition struct {
 	SelectionSet        *SelectionSet
 }
 
-func (fd *FragmentDefinition) GetLoc() *Location {
+func (fd *FragmentDefinition) GetLoc() Location {
 	return fd.Loc
 }
 
@@ -79,12 +79,12 @@ func (fd *FragmentDefinition) GetSelectionSet() *SelectionSet {
 
 // VariableDefinition implements Node
 type VariableDefinition struct {
-	Loc          *Location
+	Loc          Location
 	Variable     *Variable
 	Type         Type
 	DefaultValue Value
 }
 
-func (vd *VariableDefinition) GetLoc() *Location {
+func (vd *VariableDefinition) GetLoc() Location {
 	return vd.Loc
 }

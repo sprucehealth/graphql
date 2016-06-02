@@ -2,11 +2,11 @@ package ast
 
 // Argument implements Node
 type Argument struct {
-	Loc   *Location
+	Loc   Location
 	Name  *Name
 	Value Value
 }
 
-func (arg *Argument) GetLoc() *Location {
+func (arg *Argument) GetLoc() Location {
 	return arg.Loc
 }

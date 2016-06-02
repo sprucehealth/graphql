@@ -2,7 +2,7 @@ package ast
 
 type Value interface {
 	GetValue() interface{}
-	GetLoc() *Location
+	GetLoc() Location
 }
 
 // Ensure that all value types implements Value interface
@@ -17,11 +17,11 @@ var _ Value = (*ObjectValue)(nil)
 
 // Variable implements Node, Value
 type Variable struct {
-	Loc  *Location
+	Loc  Location
 	Name *Name
 }
 
-func (v *Variable) GetLoc() *Location {
+func (v *Variable) GetLoc() Location {
 	return v.Loc
 }
 
@@ -36,11 +36,11 @@ func (v *Variable) GetName() interface{} {
 
 // IntValue implements Node, Value
 type IntValue struct {
-	Loc   *Location
+	Loc   Location
 	Value string
 }
 
-func (v *IntValue) GetLoc() *Location {
+func (v *IntValue) GetLoc() Location {
 	return v.Loc
 }
 
@@ -50,11 +50,11 @@ func (v *IntValue) GetValue() interface{} {
 
 // FloatValue implements Node, Value
 type FloatValue struct {
-	Loc   *Location
+	Loc   Location
 	Value string
 }
 
-func (v *FloatValue) GetLoc() *Location {
+func (v *FloatValue) GetLoc() Location {
 	return v.Loc
 }
 
@@ -64,11 +64,11 @@ func (v *FloatValue) GetValue() interface{} {
 
 // StringValue implements Node, Value
 type StringValue struct {
-	Loc   *Location
+	Loc   Location
 	Value string
 }
 
-func (v *StringValue) GetLoc() *Location {
+func (v *StringValue) GetLoc() Location {
 	return v.Loc
 }
 
@@ -78,11 +78,11 @@ func (v *StringValue) GetValue() interface{} {
 
 // BooleanValue implements Node, Value
 type BooleanValue struct {
-	Loc   *Location
+	Loc   Location
 	Value bool
 }
 
-func (v *BooleanValue) GetLoc() *Location {
+func (v *BooleanValue) GetLoc() Location {
 	return v.Loc
 }
 
@@ -92,11 +92,11 @@ func (v *BooleanValue) GetValue() interface{} {
 
 // EnumValue implements Node, Value
 type EnumValue struct {
-	Loc   *Location
+	Loc   Location
 	Value string
 }
 
-func (v *EnumValue) GetLoc() *Location {
+func (v *EnumValue) GetLoc() Location {
 	return v.Loc
 }
 
@@ -106,11 +106,11 @@ func (v *EnumValue) GetValue() interface{} {
 
 // ListValue implements Node, Value
 type ListValue struct {
-	Loc    *Location
+	Loc    Location
 	Values []Value
 }
 
-func (v *ListValue) GetLoc() *Location {
+func (v *ListValue) GetLoc() Location {
 	return v.Loc
 }
 
@@ -126,11 +126,11 @@ func (v *ListValue) GetValues() interface{} {
 
 // ObjectValue implements Node, Value
 type ObjectValue struct {
-	Loc    *Location
+	Loc    Location
 	Fields []*ObjectField
 }
 
-func (v *ObjectValue) GetLoc() *Location {
+func (v *ObjectValue) GetLoc() Location {
 	return v.Loc
 }
 
@@ -142,11 +142,11 @@ func (v *ObjectValue) GetValue() interface{} {
 // ObjectField implements Node, Value
 type ObjectField struct {
 	Name  *Name
-	Loc   *Location
+	Loc   Location
 	Value Value
 }
 
-func (f *ObjectField) GetLoc() *Location {
+func (f *ObjectField) GetLoc() Location {
 	return f.Loc
 }
 

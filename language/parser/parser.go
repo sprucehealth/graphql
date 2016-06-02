@@ -12,8 +12,7 @@ import (
 type parseFn func(parser *Parser) (interface{}, error)
 
 type ParseOptions struct {
-	NoLocation bool
-	NoSource   bool
+	NoSource bool
 }
 
 type ParseParams struct {
@@ -1018,17 +1017,14 @@ func parseTypeExtensionDefinition(parser *Parser) (*ast.TypeExtensionDefinition,
 
 // Returns a location object, used to identify the place in
 // the source that created a given parsed object.
-func loc(parser *Parser, start int) *ast.Location {
-	if parser.Options.NoLocation {
-		return nil
-	}
+func loc(parser *Parser, start int) ast.Location {
 	if parser.Options.NoSource {
-		return &ast.Location{
+		return ast.Location{
 			Start: start,
 			End:   parser.PrevEnd,
 		}
 	}
-	return &ast.Location{
+	return ast.Location{
 		Start:  start,
 		End:    parser.PrevEnd,
 		Source: parser.Source,

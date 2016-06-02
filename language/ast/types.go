@@ -1,7 +1,7 @@
 package ast
 
 type Type interface {
-	GetLoc() *Location
+	GetLoc() Location
 	String() string
 }
 
@@ -12,11 +12,11 @@ var _ Type = (*NonNull)(nil)
 
 // Named implements Node, Type
 type Named struct {
-	Loc  *Location
+	Loc  Location
 	Name *Name
 }
 
-func (t *Named) GetLoc() *Location {
+func (t *Named) GetLoc() Location {
 	return t.Loc
 }
 
@@ -29,11 +29,11 @@ func (t *Named) String() string {
 
 // List implements Node, Type
 type List struct {
-	Loc  *Location
+	Loc  Location
 	Type Type
 }
 
-func (t *List) GetLoc() *Location {
+func (t *List) GetLoc() Location {
 	return t.Loc
 }
 
@@ -43,11 +43,11 @@ func (t *List) String() string {
 
 // NonNull implements Node, Type
 type NonNull struct {
-	Loc  *Location
+	Loc  Location
 	Type Type
 }
 
-func (t *NonNull) GetLoc() *Location {
+func (t *NonNull) GetLoc() Location {
 	return t.Loc
 }
 

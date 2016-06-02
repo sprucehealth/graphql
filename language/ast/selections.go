@@ -11,7 +11,7 @@ var _ Selection = (*InlineFragment)(nil)
 
 // Field implements Node, Selection
 type Field struct {
-	Loc          *Location
+	Loc          Location
 	Alias        *Name
 	Name         *Name
 	Arguments    []*Argument
@@ -19,39 +19,39 @@ type Field struct {
 	SelectionSet *SelectionSet
 }
 
-func (f *Field) GetLoc() *Location {
+func (f *Field) GetLoc() Location {
 	return f.Loc
 }
 
 // FragmentSpread implements Node, Selection
 type FragmentSpread struct {
-	Loc        *Location
+	Loc        Location
 	Name       *Name
 	Directives []*Directive
 }
 
-func (fs *FragmentSpread) GetLoc() *Location {
+func (fs *FragmentSpread) GetLoc() Location {
 	return fs.Loc
 }
 
 // InlineFragment implements Node, Selection
 type InlineFragment struct {
-	Loc           *Location
+	Loc           Location
 	TypeCondition *Named
 	Directives    []*Directive
 	SelectionSet  *SelectionSet
 }
 
-func (f *InlineFragment) GetLoc() *Location {
+func (f *InlineFragment) GetLoc() Location {
 	return f.Loc
 }
 
 // SelectionSet implements Node
 type SelectionSet struct {
-	Loc        *Location
+	Loc        Location
 	Selections []Selection
 }
 
-func (ss *SelectionSet) GetLoc() *Location {
+func (ss *SelectionSet) GetLoc() Location {
 	return ss.Loc
 }

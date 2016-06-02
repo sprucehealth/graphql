@@ -1,7 +1,7 @@
 package ast
 
 type Node interface {
-	GetLoc() *Location
+	GetLoc() Location
 }
 
 // The list of all possible AST node graphql.

@@ -35,21 +35,21 @@ func TestAcceptsOptionToNotIncludeSource(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	oDef := ast.OperationDefinition{
-		Loc: &ast.Location{
+		Loc: ast.Location{
 			Start: 0, End: 9,
 		},
 		Operation: "query",
 		SelectionSet: &ast.SelectionSet{
-			Loc: &ast.Location{
+			Loc: ast.Location{
 				Start: 0, End: 9,
 			},
 			Selections: []ast.Selection{
 				&ast.Field{
-					Loc: &ast.Location{
+					Loc: ast.Location{
 						Start: 2, End: 7,
 					},
 					Name: &ast.Name{
-						Loc: &ast.Location{
+						Loc: ast.Location{
 							Start: 2, End: 7,
 						},
 						Value: "field",
@@ -59,7 +59,7 @@ func TestAcceptsOptionToNotIncludeSource(t *testing.T) {
 		},
 	}
 	expectedDocument := &ast.Document{
-		Loc: &ast.Location{
+		Loc: ast.Location{
 			Start: 0, End: 9,
 		},
 		Definitions: []ast.Node{&oDef},
@@ -263,21 +263,21 @@ func TestParseCreatesAst(t *testing.T) {
 	}
 
 	oDef := ast.OperationDefinition{
-		Loc: &ast.Location{
+		Loc: ast.Location{
 			Start: 0, End: 40,
 		},
 		Operation: "query",
 		SelectionSet: &ast.SelectionSet{
-			Loc: &ast.Location{
+			Loc: ast.Location{
 				Start: 0, End: 40,
 			},
 			Selections: []ast.Selection{
 				&ast.Field{
-					Loc: &ast.Location{
+					Loc: ast.Location{
 						Start: 4, End: 38,
 					},
 					Name: &ast.Name{
-						Loc: &ast.Location{
+						Loc: ast.Location{
 							Start: 4, End: 8,
 						},
 						Value: "node",
@@ -285,44 +285,44 @@ func TestParseCreatesAst(t *testing.T) {
 					Arguments: []*ast.Argument{
 						{
 							Name: &ast.Name{
-								Loc: &ast.Location{
+								Loc: ast.Location{
 									Start: 9, End: 11,
 								},
 								Value: "id",
 							},
 							Value: &ast.IntValue{
-								Loc: &ast.Location{
+								Loc: ast.Location{
 									Start: 13, End: 14,
 								},
 								Value: "4",
 							},
-							Loc: &ast.Location{
+							Loc: ast.Location{
 								Start: 9, End: 14,
 							},
 						},
 					},
 					SelectionSet: &ast.SelectionSet{
-						Loc: &ast.Location{
+						Loc: ast.Location{
 							Start: 16, End: 38,
 						},
 						Selections: []ast.Selection{
 							&ast.Field{
-								Loc: &ast.Location{
+								Loc: ast.Location{
 									Start: 22, End: 24,
 								},
 								Name: &ast.Name{
-									Loc: &ast.Location{
+									Loc: ast.Location{
 										Start: 22, End: 24,
 									},
 									Value: "id",
 								},
 							},
 							&ast.Field{
-								Loc: &ast.Location{
+								Loc: ast.Location{
 									Start: 30, End: 34,
 								},
 								Name: &ast.Name{
-									Loc: &ast.Location{
+									Loc: ast.Location{
 										Start: 30, End: 34,
 									},
 									Value: "name",
@@ -335,7 +335,7 @@ func TestParseCreatesAst(t *testing.T) {
 		},
 	}
 	expectedDocument := &ast.Document{
-		Loc: &ast.Location{
+		Loc: ast.Location{
 			Start: 0, End: 41,
 		},
 		Definitions: []ast.Node{&oDef},

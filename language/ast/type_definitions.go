@@ -11,13 +11,13 @@ var _ Definition = (*TypeExtensionDefinition)(nil)
 
 // ObjectDefinition implements Node, Definition
 type ObjectDefinition struct {
-	Loc        *Location
+	Loc        Location
 	Name       *Name
 	Interfaces []*Named
 	Fields     []*FieldDefinition
 }
 
-func (def *ObjectDefinition) GetLoc() *Location {
+func (def *ObjectDefinition) GetLoc() Location {
 	return def.Loc
 }
 
@@ -39,36 +39,36 @@ func (def *ObjectDefinition) GetOperation() string {
 
 // FieldDefinition implements Node
 type FieldDefinition struct {
-	Loc       *Location
+	Loc       Location
 	Name      *Name
 	Arguments []*InputValueDefinition
 	Type      Type
 }
 
-func (def *FieldDefinition) GetLoc() *Location {
+func (def *FieldDefinition) GetLoc() Location {
 	return def.Loc
 }
 
 // InputValueDefinition implements Node
 type InputValueDefinition struct {
-	Loc          *Location
+	Loc          Location
 	Name         *Name
 	Type         Type
 	DefaultValue Value
 }
 
-func (def *InputValueDefinition) GetLoc() *Location {
+func (def *InputValueDefinition) GetLoc() Location {
 	return def.Loc
 }
 
 // InterfaceDefinition implements Node, Definition
 type InterfaceDefinition struct {
-	Loc    *Location
+	Loc    Location
 	Name   *Name
 	Fields []*FieldDefinition
 }
 
-func (def *InterfaceDefinition) GetLoc() *Location {
+func (def *InterfaceDefinition) GetLoc() Location {
 	return def.Loc
 }
 
@@ -90,12 +90,12 @@ func (def *InterfaceDefinition) GetOperation() string {
 
 // UnionDefinition implements Node, Definition
 type UnionDefinition struct {
-	Loc   *Location
+	Loc   Location
 	Name  *Name
 	Types []*Named
 }
 
-func (def *UnionDefinition) GetLoc() *Location {
+func (def *UnionDefinition) GetLoc() Location {
 	return def.Loc
 }
 
@@ -117,11 +117,11 @@ func (def *UnionDefinition) GetOperation() string {
 
 // ScalarDefinition implements Node, Definition
 type ScalarDefinition struct {
-	Loc  *Location
+	Loc  Location
 	Name *Name
 }
 
-func (def *ScalarDefinition) GetLoc() *Location {
+func (def *ScalarDefinition) GetLoc() Location {
 	return def.Loc
 }
 
@@ -143,12 +143,12 @@ func (def *ScalarDefinition) GetOperation() string {
 
 // EnumDefinition implements Node, Definition
 type EnumDefinition struct {
-	Loc    *Location
+	Loc    Location
 	Name   *Name
 	Values []*EnumValueDefinition
 }
 
-func (def *EnumDefinition) GetLoc() *Location {
+func (def *EnumDefinition) GetLoc() Location {
 	return def.Loc
 }
 
@@ -170,22 +170,22 @@ func (def *EnumDefinition) GetOperation() string {
 
 // EnumValueDefinition implements Node, Definition
 type EnumValueDefinition struct {
-	Loc  *Location
+	Loc  Location
 	Name *Name
 }
 
-func (def *EnumValueDefinition) GetLoc() *Location {
+func (def *EnumValueDefinition) GetLoc() Location {
 	return def.Loc
 }
 
 // InputObjectDefinition implements Node, Definition
 type InputObjectDefinition struct {
-	Loc    *Location
+	Loc    Location
 	Name   *Name
 	Fields []*InputValueDefinition
 }
 
-func (def *InputObjectDefinition) GetLoc() *Location {
+func (def *InputObjectDefinition) GetLoc() Location {
 	return def.Loc
 }
 
@@ -207,11 +207,11 @@ func (def *InputObjectDefinition) GetOperation() string {
 
 // TypeExtensionDefinition implements Node, Definition
 type TypeExtensionDefinition struct {
-	Loc        *Location
+	Loc        Location
 	Definition *ObjectDefinition
 }
 
-func (def *TypeExtensionDefinition) GetLoc() *Location {
+func (def *TypeExtensionDefinition) GetLoc() Location {
 	return def.Loc
 }
 

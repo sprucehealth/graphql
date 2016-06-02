@@ -13,10 +13,8 @@ import (
 
 func parse(t testing.TB, query string) *ast.Document {
 	astDoc, err := parser.Parse(parser.ParseParams{
-		Source: query,
-		Options: parser.ParseOptions{
-			NoLocation: true,
-		},
+		Source:  query,
+		Options: parser.ParseOptions{},
 	})
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)

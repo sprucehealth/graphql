@@ -2,10 +2,10 @@ package ast
 
 // Name implements Node
 type Name struct {
-	Loc   *Location
+	Loc   Location
 	Value string
 }
 
-func (node *Name) GetLoc() *Location {
+func (node *Name) GetLoc() Location {
 	return node.Loc
 }
