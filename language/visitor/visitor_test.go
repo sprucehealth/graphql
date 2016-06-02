@@ -51,14 +51,14 @@ func TestVisitor_AllowsSkippingASubTree(t *testing.T) {
 		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
 			switch node := p.Node.(type) {
 			case *ast.Name:
-				visited = append(visited, []interface{}{"enter", node.Kind, node.Value})
+				visited = append(visited, []interface{}{"enter", kind(node), node.Value})
 			case *ast.Field:
-				visited = append(visited, []interface{}{"enter", node.Kind, nil})
+				visited = append(visited, []interface{}{"enter", kind(node), nil})
 				if node.Name != nil && node.Name.Value == "b" {
 					return visitor.ActionSkip, nil
 				}
 			case ast.Node:
-				visited = append(visited, []interface{}{"enter", node.GetKind(), nil})
+				visited = append(visited, []interface{}{"enter", kind(node), nil})
 			default:
 				visited = append(visited, []interface{}{"enter", nil, nil})
 			}
@@ -67,9 +67,9 @@ func TestVisitor_AllowsSkippingASubTree(t *testing.T) {
 		Leave: func(p visitor.VisitFuncParams) (string, interface{}) {
 			switch node := p.Node.(type) {
 			case *ast.Name:
-				visited = append(visited, []interface{}{"leave", node.Kind, node.Value})
+				visited = append(visited, []interface{}{"leave", kind(node), node.Value})
 			case ast.Node:
-				visited = append(visited, []interface{}{"leave", node.GetKind(), nil})
+				visited = append(visited, []interface{}{"leave", kind(node), nil})
 			default:
 				visited = append(visited, []interface{}{"leave", nil, nil})
 			}
@@ -110,12 +110,12 @@ func TestVisitor_AllowsEarlyExitWhileVisiting(t *testing.T) {
 		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
 			switch node := p.Node.(type) {
 			case *ast.Name:
-				visited = append(visited, []interface{}{"enter", node.Kind, node.Value})
+				visited = append(visited, []interface{}{"enter", kind(node), node.Value})
 				if node.Value == "x" {
 					return visitor.ActionBreak, nil
 				}
 			case ast.Node:
-				visited = append(visited, []interface{}{"enter", node.GetKind(), nil})
+				visited = append(visited, []interface{}{"enter", kind(node), nil})
 			default:
 				visited = append(visited, []interface{}{"enter", nil, nil})
 			}
@@ -124,9 +124,9 @@ func TestVisitor_AllowsEarlyExitWhileVisiting(t *testing.T) {
 		Leave: func(p visitor.VisitFuncParams) (string, interface{}) {
 			switch node := p.Node.(type) {
 			case *ast.Name:
-				visited = append(visited, []interface{}{"leave", node.Kind, node.Value})
+				visited = append(visited, []interface{}{"leave", kind(node), node.Value})
 			case ast.Node:
-				visited = append(visited, []interface{}{"leave", node.GetKind(), nil})
+				visited = append(visited, []interface{}{"leave", kind(node), nil})
 			default:
 				visited = append(visited, []interface{}{"leave", nil, nil})
 			}
@@ -375,9 +375,9 @@ func TestVisitor_VisitsKitchenSink(t *testing.T) {
 			switch node := p.Node.(type) {
 			case ast.Node:
 				if p.Parent != nil {
-					visited = append(visited, []interface{}{"enter", node.GetKind(), p.Parent.GetKind()})
+					visited = append(visited, []interface{}{"enter", kind(node), kind(p.Parent)})
 				} else {
-					visited = append(visited, []interface{}{"enter", node.GetKind(), nil})
+					visited = append(visited, []interface{}{"enter", kind(node), nil})
 				}
 			}
 			return visitor.ActionNoChange, nil
@@ -386,9 +386,9 @@ func TestVisitor_VisitsKitchenSink(t *testing.T) {
 			switch node := p.Node.(type) {
 			case ast.Node:
 				if p.Parent != nil {
-					visited = append(visited, []interface{}{"leave", node.GetKind(), p.Parent.GetKind()})
+					visited = append(visited, []interface{}{"leave", kind(node), kind(p.Parent)})
 				} else {
-					visited = append(visited, []interface{}{"leave", node.GetKind(), nil})
+					visited = append(visited, []interface{}{"leave", kind(node), nil})
 				}
 			}
 			return visitor.ActionNoChange, nil
@@ -406,4 +406,8 @@ func TestVisitor_VisitsKitchenSink(t *testing.T) {
 		}
 		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expectedVisited, visited))
 	}
+}
+
+func kind(v interface{}) string {
+	return reflect.TypeOf(v).String()[5:]
 }

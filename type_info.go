@@ -2,7 +2,6 @@ package graphql
 
 import (
 	"github.com/sprucehealth/graphql/language/ast"
-	"github.com/sprucehealth/graphql/language/kinds"
 )
 
 // TODO: can move TypeInfo to a utils package if there ever is one
@@ -158,29 +157,28 @@ func (ti *TypeInfo) Enter(node ast.Node) {
 	}
 }
 func (ti *TypeInfo) Leave(node ast.Node) {
-	kind := node.GetKind()
-	switch kind {
-	case kinds.SelectionSet:
+	switch node.(type) {
+	case *ast.SelectionSet:
 		// pop ti.parentTypeStack
 		_, ti.parentTypeStack = ti.parentTypeStack[len(ti.parentTypeStack)-1], ti.parentTypeStack[:len(ti.parentTypeStack)-1]
-	case kinds.Field:
+	case *ast.Field:
 		// pop ti.fieldDefStack
 		_, ti.fieldDefStack = ti.fieldDefStack[len(ti.fieldDefStack)-1], ti.fieldDefStack[:len(ti.fieldDefStack)-1]
 		// pop ti.typeStack
 		_, ti.typeStack = ti.typeStack[len(ti.typeStack)-1], ti.typeStack[:len(ti.typeStack)-1]
-	case kinds.Directive:
+	case *ast.Directive:
 		ti.directive = nil
-	case kinds.FragmentDefinition, kinds.OperationDefinition, kinds.InlineFragment:
+	case *ast.FragmentDefinition, *ast.OperationDefinition, *ast.InlineFragment:
 		// pop ti.typeStack
 		_, ti.typeStack = ti.typeStack[len(ti.typeStack)-1], ti.typeStack[:len(ti.typeStack)-1]
-	case kinds.VariableDefinition:
+	case *ast.VariableDefinition:
 		// pop ti.inputTypeStack
 		_, ti.inputTypeStack = ti.inputTypeStack[len(ti.inputTypeStack)-1], ti.inputTypeStack[:len(ti.inputTypeStack)-1]
-	case kinds.Argument:
+	case *ast.Argument:
 		ti.argument = nil
 		// pop ti.inputTypeStack
 		_, ti.inputTypeStack = ti.inputTypeStack[len(ti.inputTypeStack)-1], ti.inputTypeStack[:len(ti.inputTypeStack)-1]
-	case kinds.ObjectField, kinds.ListValue:
+	case *ast.ObjectField, *ast.ListValue:
 		// pop ti.inputTypeStack
 		_, ti.inputTypeStack = ti.inputTypeStack[len(ti.inputTypeStack)-1], ti.inputTypeStack[:len(ti.inputTypeStack)-1]
 	}

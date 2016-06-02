@@ -55,10 +55,10 @@ func parseName(parser *Parser) (*ast.Name, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ast.NewName(&ast.Name{
+	return &ast.Name{
 		Value: token.Value,
 		Loc:   loc(parser, token.Start),
-	}), nil
+	}, nil
 }
 
 func makeParser(s *source.Source, opts ParseOptions) (*Parser, error) {
@@ -158,10 +158,10 @@ func parseDocument(parser *Parser) (*ast.Document, error) {
 			}
 		}
 	}
-	return ast.NewDocument(&ast.Document{
+	return &ast.Document{
 		Loc:         loc(parser, start),
 		Definitions: nodes,
-	}), nil
+	}, nil
 }
 
 /* Implements the parsing rules in the Operations section. */
@@ -173,11 +173,11 @@ func parseOperationDefinition(parser *Parser) (*ast.OperationDefinition, error) 
 		if err != nil {
 			return nil, err
 		}
-		return ast.NewOperationDefinition(&ast.OperationDefinition{
+		return &ast.OperationDefinition{
 			Operation:    "query",
 			SelectionSet: selectionSet,
 			Loc:          loc(parser, start),
-		}), nil
+		}, nil
 	}
 	operationToken, err := expect(parser, lexer.NAME)
 	if err != nil {
@@ -200,14 +200,14 @@ func parseOperationDefinition(parser *Parser) (*ast.OperationDefinition, error) 
 	if err != nil {
 		return nil, err
 	}
-	return ast.NewOperationDefinition(&ast.OperationDefinition{
+	return &ast.OperationDefinition{
 		Operation:           operation,
 		Name:                name,
 		VariableDefinitions: variableDefinitions,
 		Directives:          directives,
 		SelectionSet:        selectionSet,
 		Loc:                 loc(parser, start),
-	}), nil
+	}, nil
 }
 
 func parseVariableDefinitions(parser *Parser) ([]*ast.VariableDefinition, error) {
@@ -252,12 +252,12 @@ func parseVariableDefinition(parser *Parser) (interface{}, error) {
 		}
 		defaultValue = dv
 	}
-	return ast.NewVariableDefinition(&ast.VariableDefinition{
+	return &ast.VariableDefinition{
 		Variable:     variable,
 		Type:         ttype,
 		DefaultValue: defaultValue,
 		Loc:          loc(parser, start),
-	}), nil
+	}, nil
 }
 
 func parseVariable(parser *Parser) (*ast.Variable, error) {
@@ -270,10 +270,10 @@ func parseVariable(parser *Parser) (*ast.Variable, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ast.NewVariable(&ast.Variable{
+	return &ast.Variable{
 		Name: name,
 		Loc:  loc(parser, start),
-	}), nil
+	}, nil
 }
 
 func parseSelectionSet(parser *Parser) (*ast.SelectionSet, error) {
@@ -290,10 +290,10 @@ func parseSelectionSet(parser *Parser) (*ast.SelectionSet, error) {
 		}
 	}
 
-	return ast.NewSelectionSet(&ast.SelectionSet{
+	return &ast.SelectionSet{
 		Selections: selections,
 		Loc:        loc(parser, start),
-	}), nil
+	}, nil
 }
 
 func parseSelection(parser *Parser) (interface{}, error) {
@@ -342,14 +342,14 @@ func parseField(parser *Parser) (*ast.Field, error) {
 		}
 		selectionSet = sSet
 	}
-	return ast.NewField(&ast.Field{
+	return &ast.Field{
 		Alias:        alias,
 		Name:         name,
 		Arguments:    arguments,
 		Directives:   directives,
 		SelectionSet: selectionSet,
 		Loc:          loc(parser, start),
-	}), nil
+	}, nil
 }
 
 func parseArguments(parser *Parser) ([]*ast.Argument, error) {
@@ -384,11 +384,11 @@ func parseArgument(parser *Parser) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ast.NewArgument(&ast.Argument{
+	return &ast.Argument{
 		Name:  name,
 		Value: value,
 		Loc:   loc(parser, start),
-	}), nil
+	}, nil
 }
 
 /* Implements the parsing rules in the Fragments section. */
@@ -414,12 +414,12 @@ func parseFragment(parser *Parser) (interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
-		return ast.NewInlineFragment(&ast.InlineFragment{
+		return &ast.InlineFragment{
 			TypeCondition: name,
 			Directives:    directives,
 			SelectionSet:  selectionSet,
 			Loc:           loc(parser, start),
-		}), nil
+		}, nil
 	}
 	name, err := parseFragmentName(parser)
 	if err != nil {
@@ -429,11 +429,11 @@ func parseFragment(parser *Parser) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ast.NewFragmentSpread(&ast.FragmentSpread{
+	return &ast.FragmentSpread{
 		Name:       name,
 		Directives: directives,
 		Loc:        loc(parser, start),
-	}), nil
+	}, nil
 }
 
 func parseFragmentDefinition(parser *Parser) (*ast.FragmentDefinition, error) {
@@ -462,13 +462,13 @@ func parseFragmentDefinition(parser *Parser) (*ast.FragmentDefinition, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ast.NewFragmentDefinition(&ast.FragmentDefinition{
+	return &ast.FragmentDefinition{
 		Name:          name,
 		TypeCondition: typeCondition,
 		Directives:    directives,
 		SelectionSet:  selectionSet,
 		Loc:           loc(parser, start),
-	}), nil
+	}, nil
 }
 
 func parseFragmentName(parser *Parser) (*ast.Name, error) {
@@ -491,26 +491,26 @@ func parseValueLiteral(parser *Parser, isConst bool) (ast.Value, error) {
 		if err := advance(parser); err != nil {
 			return nil, err
 		}
-		return ast.NewIntValue(&ast.IntValue{
+		return &ast.IntValue{
 			Value: token.Value,
 			Loc:   loc(parser, token.Start),
-		}), nil
+		}, nil
 	case lexer.FLOAT:
 		if err := advance(parser); err != nil {
 			return nil, err
 		}
-		return ast.NewFloatValue(&ast.FloatValue{
+		return &ast.FloatValue{
 			Value: token.Value,
 			Loc:   loc(parser, token.Start),
-		}), nil
+		}, nil
 	case lexer.STRING:
 		if err := advance(parser); err != nil {
 			return nil, err
 		}
-		return ast.NewStringValue(&ast.StringValue{
+		return &ast.StringValue{
 			Value: token.Value,
 			Loc:   loc(parser, token.Start),
-		}), nil
+		}, nil
 	case lexer.NAME:
 		if token.Value == "true" || token.Value == "false" {
 			if err := advance(parser); err != nil {
@@ -520,18 +520,18 @@ func parseValueLiteral(parser *Parser, isConst bool) (ast.Value, error) {
 			if token.Value == "false" {
 				value = false
 			}
-			return ast.NewBooleanValue(&ast.BooleanValue{
+			return &ast.BooleanValue{
 				Value: value,
 				Loc:   loc(parser, token.Start),
-			}), nil
+			}, nil
 		} else if token.Value != "null" {
 			if err := advance(parser); err != nil {
 				return nil, err
 			}
-			return ast.NewEnumValue(&ast.EnumValue{
+			return &ast.EnumValue{
 				Value: token.Value,
 				Loc:   loc(parser, token.Start),
-			}), nil
+			}, nil
 		}
 	case lexer.DOLLAR:
 		if !isConst {
@@ -565,10 +565,10 @@ func parseList(parser *Parser, isConst bool) (*ast.ListValue, error) {
 	for i, v := range iValues {
 		values[i] = v.(ast.Value)
 	}
-	return ast.NewListValue(&ast.ListValue{
+	return &ast.ListValue{
 		Values: values,
 		Loc:    loc(parser, start),
-	}), nil
+	}, nil
 }
 
 func parseObject(parser *Parser, isConst bool) (*ast.ObjectValue, error) {
@@ -592,10 +592,10 @@ func parseObject(parser *Parser, isConst bool) (*ast.ObjectValue, error) {
 		fieldNames[fieldName] = struct{}{}
 		fields = append(fields, field)
 	}
-	return ast.NewObjectValue(&ast.ObjectValue{
+	return &ast.ObjectValue{
 		Fields: fields,
 		Loc:    loc(parser, start),
-	}), nil
+	}, nil
 }
 
 func parseObjectField(parser *Parser, isConst bool, fieldNames map[string]struct{}) (*ast.ObjectField, string, error) {
@@ -617,11 +617,11 @@ func parseObjectField(parser *Parser, isConst bool, fieldNames map[string]struct
 	if err != nil {
 		return nil, "", err
 	}
-	return ast.NewObjectField(&ast.ObjectField{
+	return &ast.ObjectField{
 		Name:  name,
 		Value: value,
 		Loc:   loc(parser, start),
-	}), fieldName, nil
+	}, fieldName, nil
 }
 
 /* Implements the parsing rules in the Directives section. */
@@ -655,11 +655,11 @@ func parseDirective(parser *Parser) (*ast.Directive, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ast.NewDirective(&ast.Directive{
+	return &ast.Directive{
 		Name:      name,
 		Arguments: args,
 		Loc:       loc(parser, start),
-	}), nil
+	}, nil
 }
 
 /* Implements the parsing rules in the Types section. */
@@ -679,10 +679,10 @@ func parseType(parser *Parser) (ast.Type, error) {
 		if err != nil {
 			return ttype, err
 		}
-		ttype = ast.NewList(&ast.List{
+		ttype = &ast.List{
 			Type: ttype,
 			Loc:  loc(parser, start),
-		})
+		}
 	} else {
 		name, err := parseNamed(parser)
 		if err != nil {
@@ -693,10 +693,10 @@ func parseType(parser *Parser) (ast.Type, error) {
 	if skp, err := skip(parser, lexer.BANG); err != nil {
 		return nil, err
 	} else if skp {
-		ttype = ast.NewNonNull(&ast.NonNull{
+		ttype = &ast.NonNull{
 			Type: ttype,
 			Loc:  loc(parser, start),
-		})
+		}
 		return ttype, nil
 	}
 	return ttype, nil
@@ -708,10 +708,10 @@ func parseNamed(parser *Parser) (*ast.Named, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ast.NewNamed(&ast.Named{
+	return &ast.Named{
 		Name: name,
 		Loc:  loc(parser, start),
-	}), nil
+	}, nil
 }
 
 /* Implements the parsing rules in the Type Definition section. */
@@ -740,12 +740,12 @@ func parseObjectTypeDefinition(parser *Parser) (*ast.ObjectDefinition, error) {
 			fields = append(fields, iField.(*ast.FieldDefinition))
 		}
 	}
-	return ast.NewObjectDefinition(&ast.ObjectDefinition{
+	return &ast.ObjectDefinition{
 		Name:       name,
 		Loc:        loc(parser, start),
 		Interfaces: interfaces,
 		Fields:     fields,
-	}), nil
+	}, nil
 }
 
 func parseImplementsInterfaces(parser *Parser) ([]*ast.Named, error) {
@@ -786,12 +786,12 @@ func parseFieldDefinition(parser *Parser) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ast.NewFieldDefinition(&ast.FieldDefinition{
+	return &ast.FieldDefinition{
 		Name:      name,
 		Arguments: args,
 		Type:      ttype,
 		Loc:       loc(parser, start),
-	}), nil
+	}, nil
 }
 
 func parseArgumentDefs(parser *Parser) ([]*ast.InputValueDefinition, error) {
@@ -837,12 +837,12 @@ func parseInputValueDef(parser *Parser) (interface{}, error) {
 			defaultValue = val
 		}
 	}
-	return ast.NewInputValueDefinition(&ast.InputValueDefinition{
+	return &ast.InputValueDefinition{
 		Name:         name,
 		Type:         ttype,
 		DefaultValue: defaultValue,
 		Loc:          loc(parser, start),
-	}), nil
+	}, nil
 }
 
 func parseInterfaceTypeDefinition(parser *Parser) (*ast.InterfaceDefinition, error) {
@@ -865,11 +865,11 @@ func parseInterfaceTypeDefinition(parser *Parser) (*ast.InterfaceDefinition, err
 			fields = append(fields, iField.(*ast.FieldDefinition))
 		}
 	}
-	return ast.NewInterfaceDefinition(&ast.InterfaceDefinition{
+	return &ast.InterfaceDefinition{
 		Name:   name,
 		Loc:    loc(parser, start),
 		Fields: fields,
-	}), nil
+	}, nil
 }
 
 func parseUnionTypeDefinition(parser *Parser) (*ast.UnionDefinition, error) {
@@ -890,11 +890,11 @@ func parseUnionTypeDefinition(parser *Parser) (*ast.UnionDefinition, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ast.NewUnionDefinition(&ast.UnionDefinition{
+	return &ast.UnionDefinition{
 		Name:  name,
 		Loc:   loc(parser, start),
 		Types: types,
-	}), nil
+	}, nil
 }
 
 func parseUnionMembers(parser *Parser) ([]*ast.Named, error) {
@@ -924,10 +924,10 @@ func parseScalarTypeDefinition(parser *Parser) (*ast.ScalarDefinition, error) {
 	if err != nil {
 		return nil, err
 	}
-	def := ast.NewScalarDefinition(&ast.ScalarDefinition{
+	def := &ast.ScalarDefinition{
 		Name: name,
 		Loc:  loc(parser, start),
-	})
+	}
 	return def, nil
 }
 
@@ -951,11 +951,11 @@ func parseEnumTypeDefinition(parser *Parser) (*ast.EnumDefinition, error) {
 			values = append(values, iEnumValueDef.(*ast.EnumValueDefinition))
 		}
 	}
-	return ast.NewEnumDefinition(&ast.EnumDefinition{
+	return &ast.EnumDefinition{
 		Name:   name,
 		Loc:    loc(parser, start),
 		Values: values,
-	}), nil
+	}, nil
 }
 
 func parseEnumValueDefinition(parser *Parser) (interface{}, error) {
@@ -964,10 +964,10 @@ func parseEnumValueDefinition(parser *Parser) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ast.NewEnumValueDefinition(&ast.EnumValueDefinition{
+	return &ast.EnumValueDefinition{
 		Name: name,
 		Loc:  loc(parser, start),
-	}), nil
+	}, nil
 }
 
 func parseInputObjectTypeDefinition(parser *Parser) (*ast.InputObjectDefinition, error) {
@@ -990,11 +990,11 @@ func parseInputObjectTypeDefinition(parser *Parser) (*ast.InputObjectDefinition,
 			fields = append(fields, iInputValueDefinition.(*ast.InputValueDefinition))
 		}
 	}
-	return ast.NewInputObjectDefinition(&ast.InputObjectDefinition{
+	return &ast.InputObjectDefinition{
 		Name:   name,
 		Loc:    loc(parser, start),
 		Fields: fields,
-	}), nil
+	}, nil
 }
 
 func parseTypeExtensionDefinition(parser *Parser) (*ast.TypeExtensionDefinition, error) {
@@ -1008,10 +1008,10 @@ func parseTypeExtensionDefinition(parser *Parser) (*ast.TypeExtensionDefinition,
 	if err != nil {
 		return nil, err
 	}
-	return ast.NewTypeExtensionDefinition(&ast.TypeExtensionDefinition{
+	return &ast.TypeExtensionDefinition{
 		Loc:        loc(parser, start),
 		Definition: definition,
-	}), nil
+	}, nil
 }
 
 /* Core parsing utility functions */
@@ -1023,16 +1023,16 @@ func loc(parser *Parser, start int) *ast.Location {
 		return nil
 	}
 	if parser.Options.NoSource {
-		return ast.NewLocation(&ast.Location{
+		return &ast.Location{
 			Start: start,
 			End:   parser.PrevEnd,
-		})
+		}
 	}
-	return ast.NewLocation(&ast.Location{
+	return &ast.Location{
 		Start:  start,
 		End:    parser.PrevEnd,
 		Source: parser.Source,
-	})
+	}
 }
 
 // Moves the internal parser object to the next lexed token.

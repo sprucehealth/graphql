@@ -11,11 +11,11 @@ import (
 )
 
 func TestSchemaPrinter_PrintsMinimalAST(t *testing.T) {
-	astDoc := ast.NewScalarDefinition(&ast.ScalarDefinition{
-		Name: ast.NewName(&ast.Name{
+	astDoc := &ast.ScalarDefinition{
+		Name: &ast.Name{
 			Value: "foo",
-		}),
-	})
+		},
+	}
 	results := printer.Print(astDoc)
 	expected := "scalar foo"
 	if !reflect.DeepEqual(results, expected) {

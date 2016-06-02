@@ -7,7 +7,6 @@ import (
 
 	"github.com/sprucehealth/graphql/gqlerrors"
 	"github.com/sprucehealth/graphql/language/ast"
-	"github.com/sprucehealth/graphql/language/kinds"
 	"github.com/sprucehealth/graphql/language/printer"
 	"github.com/sprucehealth/graphql/language/visitor"
 )
@@ -208,7 +207,8 @@ func KnownArgumentNamesRule(context *ValidationContext) *ValidationRuleInstance 
 				if argumentOf == nil {
 					return action, nil
 				}
-				if argumentOf.GetKind() == "Field" {
+				switch argumentOf.(type) {
+				case *ast.Field:
 					fieldDef := context.FieldDef()
 					if fieldDef == nil {
 						return action, nil
@@ -234,7 +234,7 @@ func KnownArgumentNamesRule(context *ValidationContext) *ValidationRuleInstance 
 							[]ast.Node{node},
 						)
 					}
-				} else if argumentOf.GetKind() == "Directive" {
+				case *ast.Directive:
 					directive := context.Directive()
 					if directive == nil {
 						return action, nil
@@ -296,21 +296,21 @@ func KnownDirectivesRule(context *ValidationContext) *ValidationRuleInstance {
 					return action, nil
 				}
 
-				if appliedTo.GetKind() == kinds.OperationDefinition && !directiveDef.OnOperation {
+				if _, ok := appliedTo.(*ast.OperationDefinition); ok && !directiveDef.OnOperation {
 					return newValidationRuleError(
 						fmt.Sprintf(`Directive "%v" may not be used on "%v".`, nodeName, "operation"),
 						[]ast.Node{node},
 					)
 				}
-				if appliedTo.GetKind() == kinds.Field && !directiveDef.OnField {
+				if _, ok := appliedTo.(*ast.Field); ok && !directiveDef.OnField {
 					return newValidationRuleError(
 						fmt.Sprintf(`Directive "%v" may not be used on "%v".`, nodeName, "field"),
 						[]ast.Node{node},
 					)
 				}
 				if !directiveDef.OnFragment {
-					switch appliedTo.GetKind() {
-					case kinds.FragmentSpread, kinds.InlineFragment, kinds.FragmentDefinition:
+					switch appliedTo.(type) {
+					case *ast.FragmentSpread, *ast.InlineFragment, *ast.FragmentDefinition:
 						return newValidationRuleError(
 							fmt.Sprintf(`Directive "%v" may not be used on "%v".`, nodeName, "fragment"),
 							[]ast.Node{node},
@@ -397,7 +397,7 @@ func LoneAnonymousOperationRule(context *ValidationContext) *ValidationRuleInsta
 			case *ast.Document:
 				operationCount = 0
 				for _, definition := range node.Definitions {
-					if definition.GetKind() == kinds.OperationDefinition {
+					if _, ok := definition.(*ast.OperationDefinition); ok {
 						operationCount = operationCount + 1
 					}
 				}
@@ -560,7 +560,7 @@ func NoUndefinedVariablesRule(context *ValidationContext) *ValidationRuleInstanc
 				if _, ok := definedVariableNames[variableName]; !ok {
 					withinFragment := false
 					for _, node := range p.Ancestors {
-						if node.GetKind() == kinds.FragmentDefinition {
+						if _, ok := node.(*ast.FragmentDefinition); ok {
 							withinFragment = true
 							break
 						}
@@ -1599,7 +1599,7 @@ func isValidLiteralValue(ttype Input, valueAST ast.Value) bool {
 
 	// This function only tests literals, and assumes variables will provide
 	// values of the correct type.
-	if valueAST.GetKind() == kinds.Variable {
+	if _, ok := valueAST.(*ast.Variable); ok {
 		return true
 	}
 

@@ -1,11 +1,6 @@
 package ast
 
-import (
-	"github.com/sprucehealth/graphql/language/kinds"
-)
-
 type Type interface {
-	GetKind() string
 	GetLoc() *Location
 	String() string
 }
@@ -17,24 +12,8 @@ var _ Type = (*NonNull)(nil)
 
 // Named implements Node, Type
 type Named struct {
-	Kind string
 	Loc  *Location
 	Name *Name
-}
-
-func NewNamed(t *Named) *Named {
-	if t == nil {
-		return &Named{Kind: kinds.Named}
-	}
-	return &Named{
-		Kind: kinds.Named,
-		Loc:  t.Loc,
-		Name: t.Name,
-	}
-}
-
-func (t *Named) GetKind() string {
-	return t.Kind
 }
 
 func (t *Named) GetLoc() *Location {
@@ -42,29 +21,16 @@ func (t *Named) GetLoc() *Location {
 }
 
 func (t *Named) String() string {
-	return t.GetKind()
+	if t.Name != nil {
+		return t.Name.Value
+	}
+	return "Named"
 }
 
 // List implements Node, Type
 type List struct {
-	Kind string
 	Loc  *Location
 	Type Type
-}
-
-func NewList(t *List) *List {
-	if t == nil {
-		return &List{Kind: kinds.List}
-	}
-	return &List{
-		Kind: kinds.List,
-		Loc:  t.Loc,
-		Type: t.Type,
-	}
-}
-
-func (t *List) GetKind() string {
-	return t.Kind
 }
 
 func (t *List) GetLoc() *Location {
@@ -72,29 +38,13 @@ func (t *List) GetLoc() *Location {
 }
 
 func (t *List) String() string {
-	return t.GetKind()
+	return t.Type.String()
 }
 
 // NonNull implements Node, Type
 type NonNull struct {
-	Kind string
 	Loc  *Location
 	Type Type
-}
-
-func NewNonNull(t *NonNull) *NonNull {
-	if t == nil {
-		return &NonNull{Kind: kinds.NonNull}
-	}
-	return &NonNull{
-		Kind: kinds.NonNull,
-		Loc:  t.Loc,
-		Type: t.Type,
-	}
-}
-
-func (t *NonNull) GetKind() string {
-	return t.Kind
 }
 
 func (t *NonNull) GetLoc() *Location {
@@ -102,5 +52,5 @@ func (t *NonNull) GetLoc() *Location {
 }
 
 func (t *NonNull) String() string {
-	return t.GetKind()
+	return t.Type.String()
 }

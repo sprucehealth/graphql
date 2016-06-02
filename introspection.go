@@ -512,9 +512,9 @@ func astFromValue(value interface{}, ttype Type) ast.Value {
 					values = append(values, itemAST)
 				}
 			}
-			return ast.NewListValue(&ast.ListValue{
+			return &ast.ListValue{
 				Values: values,
-			})
+			}
 		}
 		// Because GraphQL will accept single values as a "list of one" when
 		// expecting a list, if there's a non-array value and an expected list type,
@@ -528,44 +528,44 @@ func astFromValue(value interface{}, ttype Type) ast.Value {
 	}
 
 	if value, ok := value.(bool); ok {
-		return ast.NewBooleanValue(&ast.BooleanValue{
+		return &ast.BooleanValue{
 			Value: value,
-		})
+		}
 	}
 	if value, ok := value.(int); ok {
 		if ttype == Float {
-			return ast.NewIntValue(&ast.IntValue{
+			return &ast.IntValue{
 				Value: strconv.Itoa(value) + ".0",
-			})
+			}
 		}
-		return ast.NewIntValue(&ast.IntValue{
+		return &ast.IntValue{
 			Value: strconv.Itoa(value),
-		})
+		}
 	}
 	if value, ok := value.(float32); ok {
-		return ast.NewFloatValue(&ast.FloatValue{
+		return &ast.FloatValue{
 			Value: strconv.FormatFloat(float64(value), 'f', -1, 32),
-		})
+		}
 	}
 	if value, ok := value.(float64); ok {
-		return ast.NewFloatValue(&ast.FloatValue{
+		return &ast.FloatValue{
 			Value: strconv.FormatFloat(value, 'f', -1, 64),
-		})
+		}
 	}
 
 	if value, ok := value.(string); ok {
 		if _, ok := ttype.(*Enum); ok {
-			return ast.NewEnumValue(&ast.EnumValue{
+			return &ast.EnumValue{
 				Value: value,
-			})
+			}
 		}
-		return ast.NewStringValue(&ast.StringValue{
+		return &ast.StringValue{
 			Value: value,
-		})
+		}
 	}
 
 	// fallback, treat as string
-	return ast.NewStringValue(&ast.StringValue{
+	return &ast.StringValue{
 		Value: fmt.Sprintf("%v", value),
-	})
+	}
 }

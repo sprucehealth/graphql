@@ -1,12 +1,7 @@
 package ast
 
-import (
-	"github.com/sprucehealth/graphql/language/kinds"
-)
-
 type Value interface {
 	GetValue() interface{}
-	GetKind() string
 	GetLoc() *Location
 }
 
@@ -22,24 +17,8 @@ var _ Value = (*ObjectValue)(nil)
 
 // Variable implements Node, Value
 type Variable struct {
-	Kind string
 	Loc  *Location
 	Name *Name
-}
-
-func NewVariable(v *Variable) *Variable {
-	if v == nil {
-		return &Variable{Kind: kinds.Variable}
-	}
-	return &Variable{
-		Kind: kinds.Variable,
-		Loc:  v.Loc,
-		Name: v.Name,
-	}
-}
-
-func (v *Variable) GetKind() string {
-	return v.Kind
 }
 
 func (v *Variable) GetLoc() *Location {
@@ -57,24 +36,8 @@ func (v *Variable) GetName() interface{} {
 
 // IntValue implements Node, Value
 type IntValue struct {
-	Kind  string
 	Loc   *Location
 	Value string
-}
-
-func NewIntValue(v *IntValue) *IntValue {
-	if v == nil {
-		return &IntValue{Kind: kinds.IntValue}
-	}
-	return &IntValue{
-		Kind:  kinds.IntValue,
-		Loc:   v.Loc,
-		Value: v.Value,
-	}
-}
-
-func (v *IntValue) GetKind() string {
-	return v.Kind
 }
 
 func (v *IntValue) GetLoc() *Location {
@@ -87,24 +50,8 @@ func (v *IntValue) GetValue() interface{} {
 
 // FloatValue implements Node, Value
 type FloatValue struct {
-	Kind  string
 	Loc   *Location
 	Value string
-}
-
-func NewFloatValue(v *FloatValue) *FloatValue {
-	if v == nil {
-		return &FloatValue{Kind: kinds.FloatValue}
-	}
-	return &FloatValue{
-		Kind:  kinds.FloatValue,
-		Loc:   v.Loc,
-		Value: v.Value,
-	}
-}
-
-func (v *FloatValue) GetKind() string {
-	return v.Kind
 }
 
 func (v *FloatValue) GetLoc() *Location {
@@ -117,24 +64,8 @@ func (v *FloatValue) GetValue() interface{} {
 
 // StringValue implements Node, Value
 type StringValue struct {
-	Kind  string
 	Loc   *Location
 	Value string
-}
-
-func NewStringValue(v *StringValue) *StringValue {
-	if v == nil {
-		return &StringValue{Kind: kinds.StringValue}
-	}
-	return &StringValue{
-		Kind:  kinds.StringValue,
-		Loc:   v.Loc,
-		Value: v.Value,
-	}
-}
-
-func (v *StringValue) GetKind() string {
-	return v.Kind
 }
 
 func (v *StringValue) GetLoc() *Location {
@@ -147,24 +78,8 @@ func (v *StringValue) GetValue() interface{} {
 
 // BooleanValue implements Node, Value
 type BooleanValue struct {
-	Kind  string
 	Loc   *Location
 	Value bool
-}
-
-func NewBooleanValue(v *BooleanValue) *BooleanValue {
-	if v == nil {
-		return &BooleanValue{Kind: kinds.BooleanValue}
-	}
-	return &BooleanValue{
-		Kind:  kinds.BooleanValue,
-		Loc:   v.Loc,
-		Value: v.Value,
-	}
-}
-
-func (v *BooleanValue) GetKind() string {
-	return v.Kind
 }
 
 func (v *BooleanValue) GetLoc() *Location {
@@ -177,24 +92,8 @@ func (v *BooleanValue) GetValue() interface{} {
 
 // EnumValue implements Node, Value
 type EnumValue struct {
-	Kind  string
 	Loc   *Location
 	Value string
-}
-
-func NewEnumValue(v *EnumValue) *EnumValue {
-	if v == nil {
-		return &EnumValue{Kind: kinds.EnumValue}
-	}
-	return &EnumValue{
-		Kind:  kinds.EnumValue,
-		Loc:   v.Loc,
-		Value: v.Value,
-	}
-}
-
-func (v *EnumValue) GetKind() string {
-	return v.Kind
 }
 
 func (v *EnumValue) GetLoc() *Location {
@@ -207,24 +106,8 @@ func (v *EnumValue) GetValue() interface{} {
 
 // ListValue implements Node, Value
 type ListValue struct {
-	Kind   string
 	Loc    *Location
 	Values []Value
-}
-
-func NewListValue(v *ListValue) *ListValue {
-	if v == nil {
-		return &ListValue{Kind: kinds.ListValue}
-	}
-	return &ListValue{
-		Kind:   kinds.ListValue,
-		Loc:    v.Loc,
-		Values: v.Values,
-	}
-}
-
-func (v *ListValue) GetKind() string {
-	return v.Kind
 }
 
 func (v *ListValue) GetLoc() *Location {
@@ -243,24 +126,8 @@ func (v *ListValue) GetValues() interface{} {
 
 // ObjectValue implements Node, Value
 type ObjectValue struct {
-	Kind   string
 	Loc    *Location
 	Fields []*ObjectField
-}
-
-func NewObjectValue(v *ObjectValue) *ObjectValue {
-	if v == nil {
-		return &ObjectValue{Kind: kinds.ObjectValue}
-	}
-	return &ObjectValue{
-		Kind:   kinds.ObjectValue,
-		Loc:    v.Loc,
-		Fields: v.Fields,
-	}
-}
-
-func (v *ObjectValue) GetKind() string {
-	return v.Kind
 }
 
 func (v *ObjectValue) GetLoc() *Location {
@@ -274,26 +141,9 @@ func (v *ObjectValue) GetValue() interface{} {
 
 // ObjectField implements Node, Value
 type ObjectField struct {
-	Kind  string
 	Name  *Name
 	Loc   *Location
 	Value Value
-}
-
-func NewObjectField(f *ObjectField) *ObjectField {
-	if f == nil {
-		return &ObjectField{Kind: kinds.ObjectField}
-	}
-	return &ObjectField{
-		Kind:  kinds.ObjectField,
-		Loc:   f.Loc,
-		Name:  f.Name,
-		Value: f.Value,
-	}
-}
-
-func (f *ObjectField) GetKind() string {
-	return f.Kind
 }
 
 func (f *ObjectField) GetLoc() *Location {

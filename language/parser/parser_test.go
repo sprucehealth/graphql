@@ -35,24 +35,20 @@ func TestAcceptsOptionToNotIncludeSource(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	oDef := ast.OperationDefinition{
-		Kind: "OperationDefinition",
 		Loc: &ast.Location{
 			Start: 0, End: 9,
 		},
 		Operation: "query",
 		SelectionSet: &ast.SelectionSet{
-			Kind: "SelectionSet",
 			Loc: &ast.Location{
 				Start: 0, End: 9,
 			},
 			Selections: []ast.Selection{
 				&ast.Field{
-					Kind: "Field",
 					Loc: &ast.Location{
 						Start: 2, End: 7,
 					},
 					Name: &ast.Name{
-						Kind: "Name",
 						Loc: &ast.Location{
 							Start: 2, End: 7,
 						},
@@ -62,12 +58,12 @@ func TestAcceptsOptionToNotIncludeSource(t *testing.T) {
 			},
 		},
 	}
-	expectedDocument := ast.NewDocument(&ast.Document{
+	expectedDocument := &ast.Document{
 		Loc: &ast.Location{
 			Start: 0, End: 9,
 		},
 		Definitions: []ast.Node{&oDef},
-	})
+	}
 	if !reflect.DeepEqual(document, expectedDocument) {
 		t.Fatalf("unexpected document, expected: %v, got: %v", expectedDocument, document)
 	}
@@ -267,24 +263,20 @@ func TestParseCreatesAst(t *testing.T) {
 	}
 
 	oDef := ast.OperationDefinition{
-		Kind: "OperationDefinition",
 		Loc: &ast.Location{
 			Start: 0, End: 40,
 		},
 		Operation: "query",
 		SelectionSet: &ast.SelectionSet{
-			Kind: "SelectionSet",
 			Loc: &ast.Location{
 				Start: 0, End: 40,
 			},
 			Selections: []ast.Selection{
 				&ast.Field{
-					Kind: "Field",
 					Loc: &ast.Location{
 						Start: 4, End: 38,
 					},
 					Name: &ast.Name{
-						Kind: "Name",
 						Loc: &ast.Location{
 							Start: 4, End: 8,
 						},
@@ -292,16 +284,13 @@ func TestParseCreatesAst(t *testing.T) {
 					},
 					Arguments: []*ast.Argument{
 						{
-							Kind: "Argument",
 							Name: &ast.Name{
-								Kind: "Name",
 								Loc: &ast.Location{
 									Start: 9, End: 11,
 								},
 								Value: "id",
 							},
 							Value: &ast.IntValue{
-								Kind: "IntValue",
 								Loc: &ast.Location{
 									Start: 13, End: 14,
 								},
@@ -313,18 +302,15 @@ func TestParseCreatesAst(t *testing.T) {
 						},
 					},
 					SelectionSet: &ast.SelectionSet{
-						Kind: "SelectionSet",
 						Loc: &ast.Location{
 							Start: 16, End: 38,
 						},
 						Selections: []ast.Selection{
 							&ast.Field{
-								Kind: "Field",
 								Loc: &ast.Location{
 									Start: 22, End: 24,
 								},
 								Name: &ast.Name{
-									Kind: "Name",
 									Loc: &ast.Location{
 										Start: 22, End: 24,
 									},
@@ -332,12 +318,10 @@ func TestParseCreatesAst(t *testing.T) {
 								},
 							},
 							&ast.Field{
-								Kind: "Field",
 								Loc: &ast.Location{
 									Start: 30, End: 34,
 								},
 								Name: &ast.Name{
-									Kind: "Name",
 									Loc: &ast.Location{
 										Start: 30, End: 34,
 									},
@@ -350,12 +334,12 @@ func TestParseCreatesAst(t *testing.T) {
 			},
 		},
 	}
-	expectedDocument := ast.NewDocument(&ast.Document{
+	expectedDocument := &ast.Document{
 		Loc: &ast.Location{
 			Start: 0, End: 41,
 		},
 		Definitions: []ast.Node{&oDef},
-	})
+	}
 	if !reflect.DeepEqual(document, expectedDocument) {
 		t.Fatalf("unexpected document, expected: %v, got: %v", expectedDocument, document.Definitions)
 	}

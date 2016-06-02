@@ -8,7 +8,6 @@ import (
 
 	"github.com/sprucehealth/graphql/gqlerrors"
 	"github.com/sprucehealth/graphql/language/ast"
-	"github.com/sprucehealth/graphql/language/kinds"
 	"github.com/sprucehealth/graphql/language/printer"
 )
 
@@ -197,7 +196,7 @@ func typeFromAST(schema Schema, inputTypeAST ast.Type) (Type, error) {
 		ttype := schema.Type(nameValue)
 		return ttype, nil
 	default:
-		if inputTypeAST.GetKind() != kinds.Named {
+		if _, ok := inputTypeAST.(*ast.Named); !ok {
 			return nil, gqlerrors.NewFormattedError("Must be a named type.")
 		}
 		return nil, nil
@@ -332,7 +331,7 @@ func valueFromAST(valueAST ast.Value, ttype Input, variables map[string]interfac
 		return nil
 	}
 
-	if valueAST, ok := valueAST.(*ast.Variable); ok && valueAST.Kind == kinds.Variable {
+	if valueAST, ok := valueAST.(*ast.Variable); ok {
 		if valueAST.Name == nil {
 			return nil
 		}
@@ -352,7 +351,7 @@ func valueFromAST(valueAST ast.Value, ttype Input, variables map[string]interfac
 
 	if ttype, ok := ttype.(*List); ok {
 		itemType := ttype.OfType
-		if valueAST, ok := valueAST.(*ast.ListValue); ok && valueAST.Kind == kinds.ListValue {
+		if valueAST, ok := valueAST.(*ast.ListValue); ok {
 			values := []interface{}{}
 			for _, itemAST := range valueAST.Values {
 				v := valueFromAST(itemAST, itemType, variables)

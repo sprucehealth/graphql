@@ -47,11 +47,11 @@ func TestPrinter_DoesNotAlterAST(t *testing.T) {
 }
 
 func TestPrinter_PrintsMinimalAST(t *testing.T) {
-	astDoc := ast.NewField(&ast.Field{
-		Name: ast.NewName(&ast.Name{
+	astDoc := &ast.Field{
+		Name: &ast.Name{
 			Value: "foo",
-		}),
-	})
+		},
+	}
 	results := printer.Print(astDoc)
 	expected := "foo"
 	if !reflect.DeepEqual(results, expected) {

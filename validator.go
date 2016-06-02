@@ -3,7 +3,6 @@ package graphql
 import (
 	"github.com/sprucehealth/graphql/gqlerrors"
 	"github.com/sprucehealth/graphql/language/ast"
-	"github.com/sprucehealth/graphql/language/kinds"
 	"github.com/sprucehealth/graphql/language/visitor"
 )
 
@@ -50,9 +49,8 @@ func visitUsingRules(schema *Schema, astDoc *ast.Document, rules []ValidationRul
 					// Do not visit top level fragment definitions if this instance will
 					// visit those fragments inline because it
 					// provided `visitSpreadFragments`.
-					kind := node.GetKind()
 
-					if kind == kinds.FragmentDefinition && p.Parent != nil && instance.VisitSpreadFragments {
+					if _, ok := node.(*ast.FragmentDefinition); ok && p.Parent != nil && instance.VisitSpreadFragments {
 						return visitor.ActionSkip, nil
 					}
 
@@ -76,8 +74,7 @@ func visitUsingRules(schema *Schema, astDoc *ast.Document, rules []ValidationRul
 					// If any validation instances provide the flag `visitSpreadFragments`
 					// and this node is a fragment spread, visit the fragment definition
 					// from this point.
-					if action == visitor.ActionNoChange && result == nil &&
-						instance.VisitSpreadFragments && kind == kinds.FragmentSpread {
+					if _, ok := node.(*ast.FragmentSpread); ok && action == visitor.ActionNoChange && result == nil && instance.VisitSpreadFragments {
 						node, _ := node.(*ast.FragmentSpread)
 						name := node.Name
 						nameVal := ""

@@ -1,7 +1,6 @@
 package ast
 
 type Node interface {
-	GetKind() string
 	GetLoc() *Location
 }
 
