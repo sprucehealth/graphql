@@ -24,42 +24,64 @@ func TestSkipsWhiteSpace(t *testing.T) {
     foo
 
 `,
-			Expected: Token{
-				Kind:  TokenKind[NAME],
+			Expected: []Token{{
+				Kind:  NAME,
 				Start: 6,
 				End:   9,
 				Value: "foo",
-			},
+			}},
 		},
 		{
 			Body: `
-    #comment
-    foo#comment
+    #comment1
+    foo#comment2
 `,
-			Expected: Token{
-				Kind:  TokenKind[NAME],
-				Start: 18,
-				End:   21,
-				Value: "foo",
+			Expected: []Token{
+				{
+					Kind:  COMMENT,
+					Start: 6,
+					End:   14,
+					Value: "comment1",
+				},
+				{
+					Kind:  NAME,
+					Start: 19,
+					End:   22,
+					Value: "foo",
+				},
+				{
+					Kind:  COMMENT,
+					Start: 23,
+					End:   31,
+					Value: "comment2",
+				},
 			},
 		},
 		{
 			Body: `,,,foo,,,`,
-			Expected: Token{
-				Kind:  TokenKind[NAME],
+			Expected: []Token{{
+				Kind:  NAME,
 				Start: 3,
 				End:   6,
 				Value: "foo",
-			},
+			}},
 		},
 	}
 	for _, test := range tests {
-		token, err := Lex(source.New("", test.Body))(0)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
+		lex := New(source.New("", test.Body))
+		var tokens []Token
+		for {
+			tok, err := lex.NextToken()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tok.Kind == EOF {
+				break
+			}
+			tokens = append(tokens, tok)
 		}
-		if !reflect.DeepEqual(token, test.Expected) {
-			t.Fatalf("unexpected token, expected: %v, got: %v, body: %s", test.Expected, token, test.Body)
+		if !reflect.DeepEqual(tokens, test.Expected) {
+			t.Fatalf("unexpected token, expected: %v, got: %v, body: %s", test.Expected, tokens, test.Body)
 		}
 	}
 }
@@ -70,7 +92,7 @@ func TestErrorsRespectWhitespace(t *testing.T) {
     ?
 
 `
-	_, err := Lex(createSource(body))(0)
+	_, err := New(createSource(body)).NextToken()
 	expected := "Syntax Error GraphQL (3:5) Unexpected character \"?\".\n\n2: \n3:     ?\n       ^\n4: \n"
 	if err == nil {
 		t.Fatalf("unexpected nil error\nexpected:\n%v\n\ngot:\n%v", expected, err)
@@ -85,7 +107,7 @@ func TestLexesStrings(t *testing.T) {
 		{
 			Body: "\"simple\"",
 			Expected: Token{
-				Kind:  TokenKind[STRING],
+				Kind:  STRING,
 				Start: 0,
 				End:   8,
 				Value: "simple",
@@ -94,7 +116,7 @@ func TestLexesStrings(t *testing.T) {
 		{
 			Body: "\" white space \"",
 			Expected: Token{
-				Kind:  TokenKind[STRING],
+				Kind:  STRING,
 				Start: 0,
 				End:   15,
 				Value: " white space ",
@@ -103,7 +125,7 @@ func TestLexesStrings(t *testing.T) {
 		{
 			Body: "\"quote \\\"\"",
 			Expected: Token{
-				Kind:  TokenKind[STRING],
+				Kind:  STRING,
 				Start: 0,
 				End:   10,
 				Value: `quote "`,
@@ -112,7 +134,7 @@ func TestLexesStrings(t *testing.T) {
 		{
 			Body: "\"escaped \\n\\r\\b\\t\\f\"",
 			Expected: Token{
-				Kind:  TokenKind[STRING],
+				Kind:  STRING,
 				Start: 0,
 				End:   20,
 				Value: "escaped \n\r\b\t\f",
@@ -121,7 +143,7 @@ func TestLexesStrings(t *testing.T) {
 		{
 			Body: "\"slashes \\\\ \\/\"",
 			Expected: Token{
-				Kind:  TokenKind[STRING],
+				Kind:  STRING,
 				Start: 0,
 				End:   15,
 				Value: "slashes \\ \\/",
@@ -130,7 +152,7 @@ func TestLexesStrings(t *testing.T) {
 		{
 			Body: "\"unicode \\u1234\\u5678\\u90AB\\uCDEF\"",
 			Expected: Token{
-				Kind:  TokenKind[STRING],
+				Kind:  STRING,
 				Start: 0,
 				End:   34,
 				Value: "unicode \u1234\u5678\u90AB\uCDEF",
@@ -138,7 +160,7 @@ func TestLexesStrings(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		token, err := Lex(source.New("", test.Body))(0)
+		token, err := New(source.New("", test.Body)).NextToken()
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -252,7 +274,7 @@ func TestLexReportsUsefulStringErrors(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		_, err := Lex(createSource(test.Body))(0)
+		_, err := New(createSource(test.Body)).NextToken()
 		if err == nil {
 			t.Fatalf("unexpected nil error\nexpected:\n%v\n\ngot:\n%v", test.Expected, err)
 		}
@@ -267,7 +289,7 @@ func TestLexesNumbers(t *testing.T) {
 		{
 			Body: "4",
 			Expected: Token{
-				Kind:  TokenKind[INT],
+				Kind:  INT,
 				Start: 0,
 				End:   1,
 				Value: "4",
@@ -276,7 +298,7 @@ func TestLexesNumbers(t *testing.T) {
 		{
 			Body: "4.123",
 			Expected: Token{
-				Kind:  TokenKind[FLOAT],
+				Kind:  FLOAT,
 				Start: 0,
 				End:   5,
 				Value: "4.123",
@@ -285,7 +307,7 @@ func TestLexesNumbers(t *testing.T) {
 		{
 			Body: "-4",
 			Expected: Token{
-				Kind:  TokenKind[INT],
+				Kind:  INT,
 				Start: 0,
 				End:   2,
 				Value: "-4",
@@ -294,7 +316,7 @@ func TestLexesNumbers(t *testing.T) {
 		{
 			Body: "9",
 			Expected: Token{
-				Kind:  TokenKind[INT],
+				Kind:  INT,
 				Start: 0,
 				End:   1,
 				Value: "9",
@@ -303,7 +325,7 @@ func TestLexesNumbers(t *testing.T) {
 		{
 			Body: "0",
 			Expected: Token{
-				Kind:  TokenKind[INT],
+				Kind:  INT,
 				Start: 0,
 				End:   1,
 				Value: "0",
@@ -312,7 +334,7 @@ func TestLexesNumbers(t *testing.T) {
 		{
 			Body: "-4.123",
 			Expected: Token{
-				Kind:  TokenKind[FLOAT],
+				Kind:  FLOAT,
 				Start: 0,
 				End:   6,
 				Value: "-4.123",
@@ -321,7 +343,7 @@ func TestLexesNumbers(t *testing.T) {
 		{
 			Body: "0.123",
 			Expected: Token{
-				Kind:  TokenKind[FLOAT],
+				Kind:  FLOAT,
 				Start: 0,
 				End:   5,
 				Value: "0.123",
@@ -330,7 +352,7 @@ func TestLexesNumbers(t *testing.T) {
 		{
 			Body: "123e4",
 			Expected: Token{
-				Kind:  TokenKind[FLOAT],
+				Kind:  FLOAT,
 				Start: 0,
 				End:   5,
 				Value: "123e4",
@@ -339,7 +361,7 @@ func TestLexesNumbers(t *testing.T) {
 		{
 			Body: "123E4",
 			Expected: Token{
-				Kind:  TokenKind[FLOAT],
+				Kind:  FLOAT,
 				Start: 0,
 				End:   5,
 				Value: "123E4",
@@ -348,7 +370,7 @@ func TestLexesNumbers(t *testing.T) {
 		{
 			Body: "123e-4",
 			Expected: Token{
-				Kind:  TokenKind[FLOAT],
+				Kind:  FLOAT,
 				Start: 0,
 				End:   6,
 				Value: "123e-4",
@@ -357,7 +379,7 @@ func TestLexesNumbers(t *testing.T) {
 		{
 			Body: "123e+4",
 			Expected: Token{
-				Kind:  TokenKind[FLOAT],
+				Kind:  FLOAT,
 				Start: 0,
 				End:   6,
 				Value: "123e+4",
@@ -366,7 +388,7 @@ func TestLexesNumbers(t *testing.T) {
 		{
 			Body: "-1.123e4",
 			Expected: Token{
-				Kind:  TokenKind[FLOAT],
+				Kind:  FLOAT,
 				Start: 0,
 				End:   8,
 				Value: "-1.123e4",
@@ -375,7 +397,7 @@ func TestLexesNumbers(t *testing.T) {
 		{
 			Body: "-1.123E4",
 			Expected: Token{
-				Kind:  TokenKind[FLOAT],
+				Kind:  FLOAT,
 				Start: 0,
 				End:   8,
 				Value: "-1.123E4",
@@ -384,7 +406,7 @@ func TestLexesNumbers(t *testing.T) {
 		{
 			Body: "-1.123e-4",
 			Expected: Token{
-				Kind:  TokenKind[FLOAT],
+				Kind:  FLOAT,
 				Start: 0,
 				End:   9,
 				Value: "-1.123e-4",
@@ -393,7 +415,7 @@ func TestLexesNumbers(t *testing.T) {
 		{
 			Body: "-1.123e+4",
 			Expected: Token{
-				Kind:  TokenKind[FLOAT],
+				Kind:  FLOAT,
 				Start: 0,
 				End:   9,
 				Value: "-1.123e+4",
@@ -402,7 +424,7 @@ func TestLexesNumbers(t *testing.T) {
 		{
 			Body: "-1.123e4567",
 			Expected: Token{
-				Kind:  TokenKind[FLOAT],
+				Kind:  FLOAT,
 				Start: 0,
 				End:   11,
 				Value: "-1.123e4567",
@@ -410,7 +432,7 @@ func TestLexesNumbers(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		token, err := Lex(createSource(test.Body))(0)
+		token, err := New(createSource(test.Body)).NextToken()
 		if err != nil {
 			t.Fatalf("unexpected error: %v, test: %s", err, test)
 		}
@@ -488,7 +510,7 @@ func TestLexReportsUsefulNumbeErrors(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		_, err := Lex(createSource(test.Body))(0)
+		_, err := New(createSource(test.Body)).NextToken()
 		if err == nil {
 			t.Fatalf("unexpected nil error\nexpected:\n%v\n\ngot:\n%v", test.Expected, err)
 		}
@@ -503,7 +525,7 @@ func TestLexesPunctuation(t *testing.T) {
 		{
 			Body: "!",
 			Expected: Token{
-				Kind:  TokenKind[BANG],
+				Kind:  BANG,
 				Start: 0,
 				End:   1,
 				Value: "",
@@ -512,7 +534,7 @@ func TestLexesPunctuation(t *testing.T) {
 		{
 			Body: "$",
 			Expected: Token{
-				Kind:  TokenKind[DOLLAR],
+				Kind:  DOLLAR,
 				Start: 0,
 				End:   1,
 				Value: "",
@@ -521,7 +543,7 @@ func TestLexesPunctuation(t *testing.T) {
 		{
 			Body: "(",
 			Expected: Token{
-				Kind:  TokenKind[PAREN_L],
+				Kind:  PAREN_L,
 				Start: 0,
 				End:   1,
 				Value: "",
@@ -530,7 +552,7 @@ func TestLexesPunctuation(t *testing.T) {
 		{
 			Body: ")",
 			Expected: Token{
-				Kind:  TokenKind[PAREN_R],
+				Kind:  PAREN_R,
 				Start: 0,
 				End:   1,
 				Value: "",
@@ -539,7 +561,7 @@ func TestLexesPunctuation(t *testing.T) {
 		{
 			Body: "...",
 			Expected: Token{
-				Kind:  TokenKind[SPREAD],
+				Kind:  SPREAD,
 				Start: 0,
 				End:   3,
 				Value: "",
@@ -548,7 +570,7 @@ func TestLexesPunctuation(t *testing.T) {
 		{
 			Body: ":",
 			Expected: Token{
-				Kind:  TokenKind[COLON],
+				Kind:  COLON,
 				Start: 0,
 				End:   1,
 				Value: "",
@@ -557,7 +579,7 @@ func TestLexesPunctuation(t *testing.T) {
 		{
 			Body: "=",
 			Expected: Token{
-				Kind:  TokenKind[EQUALS],
+				Kind:  EQUALS,
 				Start: 0,
 				End:   1,
 				Value: "",
@@ -566,7 +588,7 @@ func TestLexesPunctuation(t *testing.T) {
 		{
 			Body: "@",
 			Expected: Token{
-				Kind:  TokenKind[AT],
+				Kind:  AT,
 				Start: 0,
 				End:   1,
 				Value: "",
@@ -575,7 +597,7 @@ func TestLexesPunctuation(t *testing.T) {
 		{
 			Body: "[",
 			Expected: Token{
-				Kind:  TokenKind[BRACKET_L],
+				Kind:  BRACKET_L,
 				Start: 0,
 				End:   1,
 				Value: "",
@@ -584,7 +606,7 @@ func TestLexesPunctuation(t *testing.T) {
 		{
 			Body: "]",
 			Expected: Token{
-				Kind:  TokenKind[BRACKET_R],
+				Kind:  BRACKET_R,
 				Start: 0,
 				End:   1,
 				Value: "",
@@ -593,7 +615,7 @@ func TestLexesPunctuation(t *testing.T) {
 		{
 			Body: "{",
 			Expected: Token{
-				Kind:  TokenKind[BRACE_L],
+				Kind:  BRACE_L,
 				Start: 0,
 				End:   1,
 				Value: "",
@@ -602,7 +624,7 @@ func TestLexesPunctuation(t *testing.T) {
 		{
 			Body: "|",
 			Expected: Token{
-				Kind:  TokenKind[PIPE],
+				Kind:  PIPE,
 				Start: 0,
 				End:   1,
 				Value: "",
@@ -611,7 +633,7 @@ func TestLexesPunctuation(t *testing.T) {
 		{
 			Body: "}",
 			Expected: Token{
-				Kind:  TokenKind[BRACE_R],
+				Kind:  BRACE_R,
 				Start: 0,
 				End:   1,
 				Value: "",
@@ -619,7 +641,7 @@ func TestLexesPunctuation(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		token, err := Lex(createSource(test.Body))(0)
+		token, err := New(createSource(test.Body)).NextToken()
 		if err != nil {
 			t.Fatalf("unexpected error :%v, test: %v", err, test)
 		}
@@ -657,7 +679,7 @@ func TestLexReportsUsefulUnknownCharacterError(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		_, err := Lex(createSource(test.Body))(0)
+		_, err := New(createSource(test.Body)).NextToken()
 		if err == nil {
 			t.Fatalf("unexpected nil error\nexpected:\n%v\n\ngot:\n%v", test.Expected, err)
 		}
@@ -669,13 +691,13 @@ func TestLexReportsUsefulUnknownCharacterError(t *testing.T) {
 
 func TestLexRerportsUsefulInformationForDashesInNames(t *testing.T) {
 	q := "a-b"
-	lexer := Lex(createSource(q))
-	firstToken, err := lexer(0)
+	lexer := New(createSource(q))
+	firstToken, err := lexer.NextToken()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	firstTokenExpected := Token{
-		Kind:  TokenKind[NAME],
+		Kind:  NAME,
 		Start: 0,
 		End:   1,
 		Value: "a",
@@ -688,7 +710,7 @@ func TestLexRerportsUsefulInformationForDashesInNames(t *testing.T) {
 1: a-b
      ^
 `
-	token, err := lexer(0)
+	token, err := lexer.NextToken()
 	if err == nil {
 		t.Fatalf("unexpected nil error: %v", err)
 	}

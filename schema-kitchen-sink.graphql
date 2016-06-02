@@ -1,8 +1,8 @@
 # Filename: schema-kitchen-sink.graphql
 
 type Foo implements Bar {
-  one: Type
-  two(argument: InputType!): Type
+  one: Type # Description comment
+  two(argument: InputType!): Type # DEPRECATED: for some reason
   three(argument: InputType, other: String): Int
   four(argument: String = "string"): String
   five(argument: [String] = ["string", "string"]): String

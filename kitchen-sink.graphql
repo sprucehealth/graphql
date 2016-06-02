@@ -1,11 +1,12 @@
 # Filename: kitchen-sink.graphql
 
 query namedQuery($foo: ComplexFooType, $bar: Bar = DefaultBarValue) {
+  # Comment inside query
   customUser: user(id: [987, 654]) {
     id,
     ... on User @defer {
       field2 {
-        id ,
+        id , # Comment after a field
         alias: field1(first:10, after:$foo,) @include(if: $foo) {
           id,
           ...frag
@@ -16,7 +17,7 @@ query namedQuery($foo: ComplexFooType, $bar: Bar = DefaultBarValue) {
 }
 
 mutation favPost {
-  fav(post: 123) @defer {
+  fav(post: 123) @defer { # Another comment
     post {
       id
     }

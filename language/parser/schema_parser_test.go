@@ -30,8 +30,8 @@ func testLoc(start int, end int) *ast.Location {
 		Start: start, End: end,
 	}
 }
-func TestSchemaParser_SimpleType(t *testing.T) {
 
+func TestSchemaParser_SimpleType(t *testing.T) {
 	body := `
 type Hello {
   world: String
@@ -71,7 +71,6 @@ type Hello {
 }
 
 func TestSchemaParser_SimpleExtension(t *testing.T) {
-
 	body := `
 extend type Hello {
   world: String
@@ -114,7 +113,6 @@ extend type Hello {
 }
 
 func TestSchemaParser_SimpleNonNullType(t *testing.T) {
-
 	body := `
 type Hello {
   world: String!
