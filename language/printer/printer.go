@@ -29,7 +29,7 @@ func wrap(start, maybeString, end string) string {
 }
 func block(sl []string) string {
 	if len(sl) == 0 {
-		return ""
+		return "{}"
 	}
 	return indent("{\n"+join(sl, "\n")) + "\n}"
 }
