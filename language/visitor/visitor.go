@@ -141,6 +141,9 @@ func visit(root ast.Node, visitorOpts *VisitorOptions, ancestors []ast.Node, par
 		for _, n := range root.Interfaces {
 			visit(n, visitorOpts, p.Ancestors, root)
 		}
+		for _, n := range root.Directives {
+			visit(n, visitorOpts, p.Ancestors, root)
+		}
 		for _, n := range root.Fields {
 			visit(n, visitorOpts, p.Ancestors, root)
 		}
@@ -150,31 +153,55 @@ func visit(root ast.Node, visitorOpts *VisitorOptions, ancestors []ast.Node, par
 			visit(n, visitorOpts, p.Ancestors, root)
 		}
 		visit(root.Type, visitorOpts, p.Ancestors, root)
+		for _, n := range root.Directives {
+			visit(n, visitorOpts, p.Ancestors, root)
+		}
 	case *ast.InputValueDefinition:
 		visit(root.Name, visitorOpts, p.Ancestors, root)
 		visit(root.Type, visitorOpts, p.Ancestors, root)
 		visit(root.DefaultValue, visitorOpts, p.Ancestors, root)
+		for _, n := range root.Directives {
+			visit(n, visitorOpts, p.Ancestors, root)
+		}
 	case *ast.InterfaceDefinition:
 		visit(root.Name, visitorOpts, p.Ancestors, root)
+		for _, n := range root.Directives {
+			visit(n, visitorOpts, p.Ancestors, root)
+		}
 		for _, n := range root.Fields {
 			visit(n, visitorOpts, p.Ancestors, root)
 		}
 	case *ast.UnionDefinition:
 		visit(root.Name, visitorOpts, p.Ancestors, root)
+		for _, n := range root.Directives {
+			visit(n, visitorOpts, p.Ancestors, root)
+		}
 		for _, n := range root.Types {
 			visit(n, visitorOpts, p.Ancestors, root)
 		}
 	case *ast.ScalarDefinition:
 		visit(root.Name, visitorOpts, p.Ancestors, root)
+		for _, n := range root.Directives {
+			visit(n, visitorOpts, p.Ancestors, root)
+		}
 	case *ast.EnumDefinition:
 		visit(root.Name, visitorOpts, p.Ancestors, root)
+		for _, n := range root.Directives {
+			visit(n, visitorOpts, p.Ancestors, root)
+		}
 		for _, n := range root.Values {
 			visit(n, visitorOpts, p.Ancestors, root)
 		}
 	case *ast.EnumValueDefinition:
 		visit(root.Name, visitorOpts, p.Ancestors, root)
+		for _, n := range root.Directives {
+			visit(n, visitorOpts, p.Ancestors, root)
+		}
 	case *ast.InputObjectDefinition:
 		visit(root.Name, visitorOpts, p.Ancestors, root)
+		for _, n := range root.Directives {
+			visit(n, visitorOpts, p.Ancestors, root)
+		}
 		for _, n := range root.Fields {
 			visit(n, visitorOpts, p.Ancestors, root)
 		}

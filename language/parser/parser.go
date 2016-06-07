@@ -791,6 +791,9 @@ func (p *Parser) parseOperationTypeDefinition() (interface{}, error) {
 
 /* Implements the parsing rules in the Type Definition section. */
 
+/**
+ * ScalarTypeDefinition : scalar Name Directives?
+ */
 func (p *Parser) parseScalarTypeDefinition() (*ast.ScalarDefinition, error) {
 	start := p.tok.Start
 	_, err := p.expectKeyWord("scalar")
@@ -801,18 +804,27 @@ func (p *Parser) parseScalarTypeDefinition() (*ast.ScalarDefinition, error) {
 	if err != nil {
 		return nil, err
 	}
+	directives, err := p.parseDirectives()
+	if err != nil {
+		return nil, err
+	}
 	def := &ast.ScalarDefinition{
-		Name: name,
-		Loc:  p.loc(start),
+		Name:       name,
+		Directives: directives,
+		Loc:        p.loc(start),
 	}
 	return def, nil
 }
 
+/**
+ * ObjectTypeDefinition : type Name ImplementsInterfaces? Directives? { FieldDefinition+ }
+ */
 func (p *Parser) parseObjectTypeDefinition() (*ast.ObjectDefinition, error) {
 	docComment := p.leadComment
 
 	start := p.tok.Start
 	_, err := p.expectKeyWord("type")
+
 	if err != nil {
 		return nil, err
 	}
@@ -821,6 +833,10 @@ func (p *Parser) parseObjectTypeDefinition() (*ast.ObjectDefinition, error) {
 		return nil, err
 	}
 	interfaces, err := p.parseImplementsInterfaces()
+	if err != nil {
+		return nil, err
+	}
+	directives, err := p.parseDirectives()
 	if err != nil {
 		return nil, err
 	}
@@ -838,6 +854,7 @@ func (p *Parser) parseObjectTypeDefinition() (*ast.ObjectDefinition, error) {
 		Name:       name,
 		Loc:        p.loc(start),
 		Interfaces: interfaces,
+		Directives: directives,
 		Fields:     fields,
 		Doc:        docComment,
 	}, nil
@@ -857,13 +874,14 @@ func (p *Parser) parseImplementsInterfaces() ([]*ast.Named, error) {
 			return types, err
 		}
 		types = append(types, ttype)
-		if p.peek(lexer.BRACE_L) {
+		if !p.peek(lexer.NAME) {
 			break
 		}
 	}
 	return types, nil
 }
 
+// FieldDefinition : Name ArgumentsDefinition? : Type Directives?
 func (p *Parser) parseFieldDefinition() (interface{}, error) {
 	docComment := p.leadComment
 
@@ -884,13 +902,18 @@ func (p *Parser) parseFieldDefinition() (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
+	directives, err := p.parseDirectives()
+	if err != nil {
+		return nil, err
+	}
 	return &ast.FieldDefinition{
-		Name:      name,
-		Arguments: args,
-		Type:      ttype,
-		Loc:       p.loc(start),
-		Doc:       docComment,
-		Comment:   p.lineComment,
+		Name:       name,
+		Arguments:  args,
+		Type:       ttype,
+		Directives: directives,
+		Loc:        p.loc(start),
+		Doc:        docComment,
+		Comment:    p.lineComment,
 	}, nil
 }
 
@@ -911,6 +934,9 @@ func (p *Parser) parseArgumentDefs() ([]*ast.InputValueDefinition, error) {
 	return inputValueDefinitions, err
 }
 
+/**
+ * InputValueDefinition : Name : Type DefaultValue? Directives?
+ */
 func (p *Parser) parseInputValueDef() (interface{}, error) {
 	docComment := p.leadComment
 	start := p.tok.Start
@@ -938,10 +964,15 @@ func (p *Parser) parseInputValueDef() (interface{}, error) {
 			defaultValue = val
 		}
 	}
+	directives, err := p.parseDirectives()
+	if err != nil {
+		return nil, err
+	}
 	return &ast.InputValueDefinition{
 		Name:         name,
 		Type:         ttype,
 		DefaultValue: defaultValue,
+		Directives:   directives,
 		Loc:          p.loc(start),
 		Doc:          docComment,
 		Comment:      p.lineComment,
@@ -959,6 +990,10 @@ func (p *Parser) parseInterfaceTypeDefinition() (*ast.InterfaceDefinition, error
 	if err != nil {
 		return nil, err
 	}
+	directives, err := p.parseDirectives()
+	if err != nil {
+		return nil, err
+	}
 	iFields, err := p.any(lexer.BRACE_L, p.parseFieldDefinition, lexer.BRACE_R)
 	if err != nil {
 		return nil, err
@@ -970,13 +1005,15 @@ func (p *Parser) parseInterfaceTypeDefinition() (*ast.InterfaceDefinition, error
 		}
 	}
 	return &ast.InterfaceDefinition{
-		Name:   name,
-		Loc:    p.loc(start),
-		Fields: fields,
-		Doc:    docComment,
+		Name:       name,
+		Directives: directives,
+		Loc:        p.loc(start),
+		Fields:     fields,
+		Doc:        docComment,
 	}, nil
 }
 
+// UnionTypeDefinition : union Name Directives? = UnionMembers
 func (p *Parser) parseUnionTypeDefinition() (*ast.UnionDefinition, error) {
 	docComment := p.leadComment
 	start := p.tok.Start
@@ -985,6 +1022,10 @@ func (p *Parser) parseUnionTypeDefinition() (*ast.UnionDefinition, error) {
 		return nil, err
 	}
 	name, err := p.parseName()
+	if err != nil {
+		return nil, err
+	}
+	directives, err := p.parseDirectives()
 	if err != nil {
 		return nil, err
 	}
@@ -997,11 +1038,12 @@ func (p *Parser) parseUnionTypeDefinition() (*ast.UnionDefinition, error) {
 		return nil, err
 	}
 	return &ast.UnionDefinition{
-		Name:    name,
-		Loc:     p.loc(start),
-		Types:   types,
-		Doc:     docComment,
-		Comment: p.lineComment,
+		Name:       name,
+		Directives: directives,
+		Loc:        p.loc(start),
+		Types:      types,
+		Doc:        docComment,
+		Comment:    p.lineComment,
 	}, nil
 }
 
@@ -1033,6 +1075,10 @@ func (p *Parser) parseEnumTypeDefinition() (*ast.EnumDefinition, error) {
 	if err != nil {
 		return nil, err
 	}
+	directives, err := p.parseDirectives()
+	if err != nil {
+		return nil, err
+	}
 	iEnumValueDefs, err := p.any(lexer.BRACE_L, p.parseEnumValueDefinition, lexer.BRACE_R)
 	if err != nil {
 		return nil, err
@@ -1044,10 +1090,11 @@ func (p *Parser) parseEnumTypeDefinition() (*ast.EnumDefinition, error) {
 		}
 	}
 	return &ast.EnumDefinition{
-		Name:   name,
-		Loc:    p.loc(start),
-		Values: values,
-		Doc:    docComment,
+		Name:       name,
+		Directives: directives,
+		Loc:        p.loc(start),
+		Values:     values,
+		Doc:        docComment,
 	}, nil
 }
 
@@ -1058,11 +1105,16 @@ func (p *Parser) parseEnumValueDefinition() (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
+	directives, err := p.parseDirectives()
+	if err != nil {
+		return nil, err
+	}
 	return &ast.EnumValueDefinition{
-		Name:    name,
-		Loc:     p.loc(start),
-		Doc:     docComment,
-		Comment: p.lineComment,
+		Name:       name,
+		Directives: directives,
+		Loc:        p.loc(start),
+		Doc:        docComment,
+		Comment:    p.lineComment,
 	}, nil
 }
 
@@ -1077,6 +1129,10 @@ func (p *Parser) parseInputObjectTypeDefinition() (*ast.InputObjectDefinition, e
 	if err != nil {
 		return nil, err
 	}
+	directives, err := p.parseDirectives()
+	if err != nil {
+		return nil, err
+	}
 	iInputValueDefinitions, err := p.any(lexer.BRACE_L, p.parseInputValueDef, lexer.BRACE_R)
 	if err != nil {
 		return nil, err
@@ -1088,10 +1144,11 @@ func (p *Parser) parseInputObjectTypeDefinition() (*ast.InputObjectDefinition, e
 		}
 	}
 	return &ast.InputObjectDefinition{
-		Name:   name,
-		Loc:    p.loc(start),
-		Fields: fields,
-		Doc:    docComment,
+		Name:       name,
+		Directives: directives,
+		Loc:        p.loc(start),
+		Fields:     fields,
+		Doc:        docComment,
 	}, nil
 }
 

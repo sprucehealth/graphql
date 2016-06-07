@@ -497,15 +497,7 @@ func KnownDirectivesRule(context *ValidationContext) *ValidationRuleInstance {
 					)
 				}
 
-				var appliedTo ast.Node
-				if len(p.Ancestors) > 0 {
-					appliedTo = p.Ancestors[len(p.Ancestors)-1]
-				}
-				if appliedTo == nil {
-					return visitor.ActionNoChange, nil
-				}
-
-				candidateLocation := getLocationForAppliedNode(appliedTo)
+				candidateLocation := getDirectiveLocationForASTPath(p.Ancestors)
 
 				directiveHasLocation := false
 				for _, loc := range directiveDef.Locations {
@@ -529,8 +521,14 @@ func KnownDirectivesRule(context *ValidationContext) *ValidationRuleInstance {
 		},
 	}
 }
-
-func getLocationForAppliedNode(appliedTo ast.Node) string {
+func getDirectiveLocationForASTPath(ancestors []ast.Node) string {
+	var appliedTo ast.Node
+	if len(ancestors) > 0 {
+		appliedTo = ancestors[len(ancestors)-1]
+	}
+	if appliedTo == nil {
+		return ""
+	}
 	switch appliedTo := appliedTo.(type) {
 	case *ast.OperationDefinition:
 		if appliedTo.Operation == ast.OperationTypeQuery {
@@ -550,6 +548,31 @@ func getLocationForAppliedNode(appliedTo ast.Node) string {
 		return DirectiveLocationInlineFragment
 	case *ast.FragmentDefinition:
 		return DirectiveLocationFragmentDefinition
+	case *ast.ScalarDefinition:
+		return DirectiveLocationScalar
+	case *ast.ObjectDefinition:
+		return DirectiveLocationObject
+	case *ast.FieldDefinition:
+		return DirectiveLocationFieldDefinition
+	case *ast.InterfaceDefinition:
+		return DirectiveLocationInterface
+	case *ast.UnionDefinition:
+		return DirectiveLocationUnion
+	case *ast.EnumDefinition:
+		return DirectiveLocationEnum
+	case *ast.EnumValueDefinition:
+		return DirectiveLocationEnumValue
+	case *ast.InputObjectDefinition:
+		return DirectiveLocationInputObject
+	case *ast.InputValueDefinition:
+		var parentNode ast.Node
+		if len(ancestors) >= 2 {
+			parentNode = ancestors[len(ancestors)-2]
+		}
+		if _, ok := parentNode.(*ast.InputObjectDefinition); ok {
+			return DirectiveLocationInputFieldDefinition
+		}
+		return DirectiveLocationArgumentDefinition
 	}
 	return ""
 }

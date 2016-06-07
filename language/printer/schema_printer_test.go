@@ -3,6 +3,8 @@ package printer_test
 import (
 	"io/ioutil"
 	"reflect"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/sprucehealth/graphql/language/ast"
@@ -67,18 +69,35 @@ type Foo implements Bar {
   six(argument: InputType = {key: "value"}): Type
 }
 
+type AnnotatedObject @onObject(arg: "value") {
+  annotatedField(arg: Type = "default" @onArg): Type @onField
+}
+
 interface Bar {
   one: Type
   four(argument: String = "string"): String
 }
 
+interface AnnotatedInterface @onInterface {
+  annotatedField(arg: Type @onArg): Type @onField
+}
+
 union Feed = Story | Article | Advert
 
+union AnnotatedUnion @onUnion = A | B
+
 scalar CustomScalar
+
+scalar AnnotatedScalar @onScalar
 
 enum Site {
   DESKTOP
   MOBILE
+}
+
+enum AnnotatedEnum @onEnum {
+  ANNOTATED_VALUE @onEnumValue
+  OTHER_VALUE
 }
 
 input InputType {
@@ -86,9 +105,15 @@ input InputType {
   answer: Int = 42
 }
 
+input AnnotatedInput @onInputObjectType {
+  annotatedField: Type @onField
+}
+
 extend type Foo {
   seven(argument: [String]): Type
 }
+
+extend type Foo @onType {}
 
 type NoFields {}
 
@@ -99,7 +124,18 @@ directive @include(if: Boolean!) on FIELD | FRAGMENT_SPREAD | INLINE_FRAGMENT
 	results := printer.Print(astDoc)
 	if !reflect.DeepEqual(expected, results) {
 		for _, l := range testutil.Diff(results, expected) {
-			t.Logf("%s", l)
+			x := strings.Split(l, " != ")
+			if len(x) != 2 {
+				t.Logf("%s", l)
+			} else {
+				x1, err1 := strconv.Unquote(x[0])
+				x2, err2 := strconv.Unquote(x[1])
+				if err1 != nil || err2 != nil {
+					t.Logf("%s", l)
+				} else {
+					t.Logf("%s\n!=\n%s", x1, x2)
+				}
+			}
 		}
 		t.Fatalf("Unexpected result")
 	}

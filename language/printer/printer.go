@@ -64,6 +64,16 @@ func (w *walker) walkASTSliceAndBlock(sl interface{}) string {
 	return block(strs)
 }
 
+func directiveNames(dirs []*ast.Directive) []string {
+	names := make([]string, 0, len(dirs))
+	for _, d := range dirs {
+		if d.Name != nil {
+			names = append(names, d.Name.Value)
+		}
+	}
+	return names
+}
+
 func (w *walker) walkAST(root ast.Node) string {
 	if root == nil {
 		return ""
@@ -177,40 +187,61 @@ func (w *walker) walkAST(root ast.Node) string {
 		return fmt.Sprintf("%v: %v", node.Operation, node.Type)
 	case *ast.ScalarDefinition:
 		name := w.walkAST(node.Name)
-		return "scalar " + name
+		directives := w.walkASTSliceAndJoin(node.Directives, " ")
+		return join([]string{"scalar", name, directives}, " ")
 	case *ast.ObjectDefinition:
 		name := w.walkAST(node.Name)
 		interfaces := w.walkASTSliceAndJoin(node.Interfaces, ", ")
 		fields := w.walkASTSliceAndBlock(node.Fields)
-		return joinComments(node.Doc, "", "\n") + "type " + name + " " + wrap("implements ", interfaces, " ") + fields
+		directives := w.walkASTSliceAndJoin(node.Directives, " ")
+		return join([]string{joinComments(node.Doc, "", "\n") + "type", name, wrap("implements ", interfaces, ""), directives, fields}, " ")
 	case *ast.FieldDefinition:
 		name := w.walkAST(node.Name)
 		ttype := w.walkAST(node.Type)
 		args := w.walkASTSliceAndJoin(node.Arguments, ", ")
-		return joinComments(node.Doc, "", "\n") + name + wrap("(", args, ")") + ": " + ttype + joinComments(node.Comment, " ", "")
+		directives := w.walkASTSliceAndJoin(node.Directives, " ")
+		return join([]string{
+			joinComments(node.Doc, "", "\n") + name + wrap("(", args, ")") + ":",
+			ttype, directives, joinComments(node.Comment, "", "")}, " ")
 	case *ast.InputValueDefinition:
 		name := w.walkAST(node.Name)
 		ttype := w.walkAST(node.Type)
 		defaultValue := w.walkAST(node.DefaultValue)
-		return joinComments(node.Doc, "", "\n") + name + ": " + ttype + wrap(" = ", defaultValue, "") + joinComments(node.Comment, " ", "")
+		directives := w.walkASTSliceAndJoin(node.Directives, " ")
+		return join([]string{
+			joinComments(node.Doc, "", "\n") + name + ":",
+			ttype, wrap("= ", defaultValue, ""), directives + joinComments(node.Comment, "", "")}, " ")
 	case *ast.InterfaceDefinition:
 		name := w.walkAST(node.Name)
 		fields := w.walkASTSliceAndBlock(node.Fields)
-		return joinComments(node.Doc, "", "\n") + "interface " + name + " " + fields
+		directives := w.walkASTSliceAndJoin(node.Directives, " ")
+		return join([]string{
+			joinComments(node.Doc, "", "\n") + "interface",
+			name, directives, fields}, " ")
 	case *ast.UnionDefinition:
 		name := w.walkAST(node.Name)
 		types := w.walkASTSliceAndJoin(node.Types, " | ")
-		return joinComments(node.Doc, "", "\n") + "union " + name + " = " + types + joinComments(node.Comment, " ", "")
+		directives := w.walkASTSliceAndJoin(node.Directives, " ")
+		return join([]string{
+			joinComments(node.Doc, "", "\n") + "union",
+			name, directives, "=", types + joinComments(node.Comment, " ", "")}, " ")
 	case *ast.EnumDefinition:
 		name := w.walkAST(node.Name)
 		values := w.walkASTSliceAndBlock(node.Values)
-		return joinComments(node.Doc, "", "\n") + "enum " + name + " " + values
+		directives := w.walkASTSliceAndJoin(node.Directives, " ")
+		return join([]string{
+			joinComments(node.Doc, "", "\n") + "enum",
+			name, directives, values}, " ")
 	case *ast.EnumValueDefinition:
-		return joinComments(node.Doc, "", "\n") + w.walkAST(node.Name) + joinComments(node.Comment, " ", "")
+		directives := w.walkASTSliceAndJoin(node.Directives, " ")
+		return join([]string{
+			joinComments(node.Doc, "", "\n") + w.walkAST(node.Name), directives, joinComments(node.Comment, "", "")}, " ")
 	case *ast.InputObjectDefinition:
 		name := w.walkAST(node.Name)
 		fields := w.walkASTSliceAndBlock(node.Fields)
-		return joinComments(node.Doc, "", "\n") + "input " + name + " " + fields
+		directives := w.walkASTSliceAndJoin(node.Directives, " ")
+		return join([]string{
+			joinComments(node.Doc, "", "\n") + "input", name, directives, fields}, " ")
 	case *ast.TypeExtensionDefinition:
 		return "extend " + w.walkAST(node.Definition)
 	case *ast.CommentGroup:
