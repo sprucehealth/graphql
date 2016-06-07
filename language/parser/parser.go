@@ -752,6 +752,10 @@ func (p *Parser) parseSchemaDefinition() (*ast.SchemaDefinition, error) {
 	if err != nil {
 		return nil, err
 	}
+	directives, err := p.parseDirectives()
+	if err != nil {
+		return nil, err
+	}
 	operationTypesI, err := p.many(lexer.BRACE_L, p.parseOperationTypeDefinition, lexer.BRACE_R)
 	if err != nil {
 		return nil, err
@@ -764,6 +768,7 @@ func (p *Parser) parseSchemaDefinition() (*ast.SchemaDefinition, error) {
 	}
 	return &ast.SchemaDefinition{
 		OperationTypes: operationTypes,
+		Directives:     directives,
 		Loc:            p.loc(start),
 	}, nil
 }

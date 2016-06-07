@@ -548,6 +548,8 @@ func getDirectiveLocationForASTPath(ancestors []ast.Node) string {
 		return DirectiveLocationInlineFragment
 	case *ast.FragmentDefinition:
 		return DirectiveLocationFragmentDefinition
+	case *ast.SchemaDefinition:
+		return DirectiveLocationSchema
 	case *ast.ScalarDefinition:
 		return DirectiveLocationScalar
 	case *ast.ObjectDefinition:

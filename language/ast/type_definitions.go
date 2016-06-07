@@ -29,6 +29,7 @@ var _ TypeSystemDefinition = (*DirectiveDefinition)(nil)
 // SchemaDefinition implements Node, Definition
 type SchemaDefinition struct {
 	Loc            Location
+	Directives     []*Directive
 	OperationTypes []*OperationTypeDefinition
 }
 

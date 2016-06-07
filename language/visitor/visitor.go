@@ -55,10 +55,19 @@ func visit(root ast.Node, visitorOpts *VisitorOptions, ancestors []ast.Node, par
 
 	switch root := root.(type) {
 	case *ast.Name:
+	case *ast.OperationTypeDefinition:
+		visit(root.Type, visitorOpts, p.Ancestors, root)
 	case *ast.Variable:
 		visit(root.Name, visitorOpts, p.Ancestors, root)
 	case *ast.Document:
 		for _, n := range root.Definitions {
+			visit(n, visitorOpts, p.Ancestors, root)
+		}
+	case *ast.SchemaDefinition:
+		for _, ot := range root.OperationTypes {
+			visit(ot, visitorOpts, p.Ancestors, root)
+		}
+		for _, n := range root.Directives {
 			visit(n, visitorOpts, p.Ancestors, root)
 		}
 	case *ast.OperationDefinition:

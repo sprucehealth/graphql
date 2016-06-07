@@ -182,7 +182,8 @@ func (w *walker) walkAST(root ast.Node) string {
 		return w.walkAST(node.Type) + "!"
 	case *ast.SchemaDefinition:
 		operationTypesBlock := w.walkASTSliceAndBlock(node.OperationTypes)
-		return fmt.Sprintf("schema %v", operationTypesBlock)
+		directives := w.walkASTSliceAndJoin(node.Directives, " ")
+		return join([]string{"schema", directives, operationTypesBlock}, " ")
 	case *ast.OperationTypeDefinition:
 		return fmt.Sprintf("%v: %v", node.Operation, node.Type)
 	case *ast.ScalarDefinition:

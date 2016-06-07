@@ -13,6 +13,7 @@ const (
 	DirectiveLocationInlineFragment     = "INLINE_FRAGMENT"
 
 	// Schema Definitions
+	DirectiveLocationSchema               = "SCHEMA"
 	DirectiveLocationScalar               = "SCALAR"
 	DirectiveLocationObject               = "OBJECT"
 	DirectiveLocationFieldDefinition      = "FIELD_DEFINITION"
