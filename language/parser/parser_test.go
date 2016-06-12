@@ -180,7 +180,8 @@ func TestDoesNotAllowNullAsValue(t *testing.T) {
 	testErrorMessage(t, test)
 }
 
-func TestParsesMultiByteCharacters(t *testing.T) {
+func TestParsesMultiByteCharacters_Unicode(t *testing.T) {
+
 	doc := `
         # This comment has a \u0A0A multi-byte character.
         { field(arg: "Has a \u0A0A multi-byte character.") }
@@ -216,6 +217,81 @@ func TestParsesMultiByteCharacters(t *testing.T) {
 									Value: &ast.StringValue{
 										Loc:   ast.Location{Start: 80, End: 116},
 										Value: "Has a \u0A0A multi-byte character.",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	astDocQuery := printer.Print(astDoc)
+	expectedASTDocQuery := printer.Print(expectedASTDoc)
+
+	if !reflect.DeepEqual(astDocQuery, expectedASTDocQuery) {
+		t.Fatalf("unexpected document, expected: %v, got: %v", astDocQuery, expectedASTDocQuery)
+	}
+}
+
+func TestParsesMultiByteCharacters_UnicodeText(t *testing.T) {
+
+	doc := `
+        # This comment has a фы世界 multi-byte character.
+        { field(arg: "Has a фы世界 multi-byte character.") }
+	`
+	astDoc := parse(t, doc)
+
+	expectedASTDoc := &ast.Document{
+		Loc: ast.Location{
+			Start: 67,
+			End:   121,
+		},
+		Definitions: []ast.Node{
+			&ast.OperationDefinition{
+				Loc: ast.Location{
+					Start: 67,
+					End:   119,
+				},
+				Operation: "query",
+				SelectionSet: &ast.SelectionSet{
+					Loc: ast.Location{
+						Start: 67,
+						End:   119,
+					},
+					Selections: []ast.Selection{
+						&ast.Field{
+							Loc: ast.Location{
+								Start: 67,
+								End:   117,
+							},
+							Name: &ast.Name{
+								Loc: ast.Location{
+									Start: 69,
+									End:   74,
+								},
+								Value: "field",
+							},
+							Arguments: []*ast.Argument{
+								&ast.Argument{
+									Loc: ast.Location{
+										Start: 75,
+										End:   116,
+									},
+									Name: &ast.Name{
+										Loc: ast.Location{
+											Start: 75,
+											End:   78,
+										},
+										Value: "arg",
+									},
+									Value: &ast.StringValue{
+										Loc: ast.Location{
+											Start: 80,
+											End:   116,
+										},
+										Value: "Has a фы世界 multi-byte character.",
 									},
 								},
 							},
@@ -274,6 +350,18 @@ func TestAllowsNonKeywordsAnywhereNameIsAllowed(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
+	}
+}
+
+func TestParsesExperimentalSubscriptionFeature(t *testing.T) {
+	source := `
+      subscription Foo {
+        subscriptionField
+      }
+    `
+	_, err := Parse(ParseParams{Source: source})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 

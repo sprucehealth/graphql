@@ -17,7 +17,54 @@ func createSource(body string) *source.Source {
 	return source.New("GraphQL", body)
 }
 
-func TestDisallowsUncommonControlCharacters(t *testing.T) {
+func TestLexer_GetTokenDesc(t *testing.T) {
+	expected := `Name "foo"`
+	tokenDescription := GetTokenDesc(Token{
+		Kind:  NAME,
+		Start: 2,
+		End:   5,
+		Value: "foo",
+	})
+	if expected != tokenDescription {
+		t.Errorf("Expected %v, got %v", expected, tokenDescription)
+	}
+
+	expected = `Name`
+	tokenDescription = GetTokenDesc(Token{
+		Kind:  NAME,
+		Start: 0,
+		End:   0,
+		Value: "",
+	})
+	if expected != tokenDescription {
+		t.Errorf("Expected %v, got %v", expected, tokenDescription)
+	}
+
+	expected = `String "foo"`
+	tokenDescription = GetTokenDesc(Token{
+		Kind:  STRING,
+		Start: 2,
+		End:   5,
+		Value: "foo",
+	})
+	if expected != tokenDescription {
+		t.Errorf("Expected %v, got %v", expected, tokenDescription)
+	}
+
+	expected = `String`
+	tokenDescription = GetTokenDesc(Token{
+		Kind:  STRING,
+		Start: 0,
+		End:   0,
+		Value: "",
+	})
+	if expected != tokenDescription {
+		t.Errorf("Expected %v, got %v", expected, tokenDescription)
+	}
+
+}
+
+func TestLexer_DisallowsUncommonControlCharacters(t *testing.T) {
 	tests := []Test{
 		Test{
 			Body: "\u0007",
@@ -31,15 +78,15 @@ func TestDisallowsUncommonControlCharacters(t *testing.T) {
 	for _, test := range tests {
 		_, err := New(source.New("GraphQL", test.Body)).NextToken()
 		if err == nil {
-			t.Fatalf("unexpected nil error\nexpected:\n%v\n\ngot:\n%v", test.Expected, err)
+			t.Errorf("unexpected nil error\nexpected:\n%v\n\ngot:\n%v", test.Expected, err)
 		}
 		if err.Error() != test.Expected {
-			t.Fatalf("unexpected error.\nexpected:\n%v\n\ngot:\n%v", test.Expected, err.Error())
+			t.Errorf("unexpected error.\nexpected:\n%v\n\ngot:\n%v", test.Expected, err.Error())
 		}
 	}
 }
 
-func TestAcceptsBOMHeader(t *testing.T) {
+func TestLexer_AcceptsBOMHeader(t *testing.T) {
 	tests := []Test{
 		Test{
 			Body: "\uFEFF foo",
@@ -54,15 +101,15 @@ func TestAcceptsBOMHeader(t *testing.T) {
 	for _, test := range tests {
 		token, err := New(source.New("GraphQL", test.Body)).NextToken()
 		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
+			t.Errorf("unexpected error: %v", err)
 		}
 		if !reflect.DeepEqual(token, test.Expected) {
-			t.Fatalf("unexpected token, expected: %+v, got: %+v", test.Expected, token)
+			t.Errorf("unexpected token, expected: %+v, got: %+v", test.Expected, token)
 		}
 	}
 }
 
-func TestSkipsWhiteSpace(t *testing.T) {
+func TestLexer_SkipsWhiteSpace(t *testing.T) {
 	tests := []Test{
 		{
 			Body: `
@@ -112,27 +159,33 @@ func TestSkipsWhiteSpace(t *testing.T) {
 				Value: "foo",
 			}},
 		},
+		{
+			Body:     ``,
+			Expected: ([]Token)(nil),
+		},
 	}
-	for _, test := range tests {
-		lex := New(source.New("", test.Body))
-		var tokens []Token
-		for {
-			tok, err := lex.NextToken()
-			if err != nil {
-				t.Fatal(err)
+	for i, test := range tests {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			lex := New(source.New("", test.Body))
+			var tokens []Token
+			for {
+				tok, err := lex.NextToken()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if tok.Kind == EOF {
+					break
+				}
+				tokens = append(tokens, tok)
 			}
-			if tok.Kind == EOF {
-				break
+			if !reflect.DeepEqual(tokens, test.Expected) {
+				t.Fatalf("unexpected token, expected: %+v, got: %+v, body: %s", test.Expected, tokens, test.Body)
 			}
-			tokens = append(tokens, tok)
-		}
-		if !reflect.DeepEqual(tokens, test.Expected) {
-			t.Fatalf("unexpected token, expected: %+v, got: %+v, body: %s", test.Expected, tokens, test.Body)
-		}
+		})
 	}
 }
 
-func TestErrorsRespectWhitespace(t *testing.T) {
+func TestLexer_ErrorsRespectWhitespace(t *testing.T) {
 	body := `
 
     ?
@@ -148,7 +201,39 @@ func TestErrorsRespectWhitespace(t *testing.T) {
 	}
 }
 
-func TestLexesStrings(t *testing.T) {
+func TestLexer_LexesNames(t *testing.T) {
+	tests := []Test{
+		{
+			Body: "simple",
+			Expected: Token{
+				Kind:  NAME,
+				Start: 0,
+				End:   6,
+				Value: "simple",
+			},
+		},
+		{
+			Body: "Capital",
+			Expected: Token{
+				Kind:  NAME,
+				Start: 0,
+				End:   7,
+				Value: "Capital",
+			},
+		},
+	}
+	for _, test := range tests {
+		token, err := New(createSource(test.Body)).NextToken()
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+		if !reflect.DeepEqual(token, test.Expected) {
+			t.Errorf("unexpected token, expected: %v, got: %v", test.Expected, token)
+		}
+	}
+}
+
+func TestLexer_LexesStrings(t *testing.T) {
 	tests := []Test{
 		{
 			Body: "\"simple\"",
@@ -187,12 +272,12 @@ func TestLexesStrings(t *testing.T) {
 			},
 		},
 		{
-			Body: "\"slashes \\\\ \\/\"",
+			Body: `"slashes \\ \/"`,
 			Expected: Token{
 				Kind:  STRING,
 				Start: 0,
 				End:   15,
-				Value: "slashes \\ \\/",
+				Value: `slashes \ /`,
 			},
 		},
 		{
@@ -204,19 +289,48 @@ func TestLexesStrings(t *testing.T) {
 				Value: "unicode \u1234\u5678\u90AB\uCDEF",
 			},
 		},
+		{
+			Body: "\"unicode фы世界\"",
+			Expected: Token{
+				Kind:  STRING,
+				Start: 0,
+				End:   14,
+				Value: "unicode фы世界",
+			},
+		},
+		{
+			Body: "\"фы世界\"",
+			Expected: Token{
+				Kind:  STRING,
+				Start: 0,
+				End:   6,
+				Value: "фы世界",
+			},
+		},
+		{
+			Body: "\"Has a фы世界 multi-byte character.\"",
+			Expected: Token{
+				Kind:  STRING,
+				Start: 0,
+				End:   34,
+				Value: "Has a фы世界 multi-byte character.",
+			},
+		},
 	}
-	for _, test := range tests {
-		token, err := New(source.New("", test.Body)).NextToken()
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if !reflect.DeepEqual(token, test.Expected) {
-			t.Fatalf("unexpected token, expected: %v, got: %v", test.Expected, token)
-		}
+	for i, test := range tests {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			token, err := New(source.New("", test.Body)).NextToken()
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if !reflect.DeepEqual(token, test.Expected) {
+				t.Fatalf("unexpected token, expected: %v, got: %v", test.Expected, token)
+			}
+		})
 	}
 }
 
-func TestLexReportsUsefulStringErrors(t *testing.T) {
+func TestLexer_ReportsUsefulStringErrors(t *testing.T) {
 	tests := []Test{
 		{
 			Body: "\"no end quote",
@@ -300,12 +414,30 @@ func TestLexReportsUsefulStringErrors(t *testing.T) {
          ^
 `,
 		},
+		{
+			Body: "\"bad \\u123",
+			Expected: `Syntax Error GraphQL (1:7) Invalid character escape sequence: \u123
+
+1: "bad \u123
+         ^
+`,
+		},
+		{
+			// some unicode chars take more than one column of text
+			// current implementation does not handle this
+			Body: "\"bфы世ыы𠱸d \\uXXXF esc\"",
+			Expected: `Syntax Error GraphQL (1:12) Invalid character escape sequence: \uXXXF
+
+1: "bфы世ыы𠱸d \uXXXF esc"
+              ^
+`,
+		},
 	}
 	for i, test := range tests {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			_, err := New(createSource(test.Body)).NextToken()
+			tok, err := New(createSource(test.Body)).NextToken()
 			if err == nil {
-				t.Fatalf("unexpected nil error\nexpected:\n%v\n\ngot:\n%v", test.Expected, err)
+				t.Fatalf("unexpected nil error\nexpected error: %v\ngot token: %#+v", test.Expected, tok)
 			}
 			if err.Error() != test.Expected {
 				t.Fatalf("unexpected error.\nexpected:\n%v\n\ngot:\n%v", test.Expected, err.Error())
@@ -314,7 +446,7 @@ func TestLexReportsUsefulStringErrors(t *testing.T) {
 	}
 }
 
-func TestLexesNumbers(t *testing.T) {
+func TestLexer_LexesNumbers(t *testing.T) {
 	tests := []Test{
 		{
 			Body: "4",
@@ -474,7 +606,7 @@ func TestLexesNumbers(t *testing.T) {
 	}
 }
 
-func TestLexReportsUsefulNumbeErrors(t *testing.T) {
+func TestLexer_ReportsUsefulNumberErrors(t *testing.T) {
 	tests := []Test{
 		{
 			Body: "00",
@@ -544,15 +676,15 @@ func TestLexReportsUsefulNumbeErrors(t *testing.T) {
 	for _, test := range tests {
 		_, err := New(createSource(test.Body)).NextToken()
 		if err == nil {
-			t.Fatalf("unexpected nil error\nexpected:\n%v\n\ngot:\n%v", test.Expected, err)
+			t.Errorf("unexpected nil error\nexpected:\n%v\n\ngot:\n%v", test.Expected, err)
 		}
 		if err.Error() != test.Expected {
-			t.Fatalf("unexpected error.\nexpected:\n%v\n\ngot:\n%v", test.Expected, err.Error())
+			t.Errorf("unexpected error.\nexpected:\n%v\n\ngot:\n%v", test.Expected, err.Error())
 		}
 	}
 }
 
-func TestLexesPunctuation(t *testing.T) {
+func TestLexer_LexesPunctuation(t *testing.T) {
 	tests := []Test{
 		{
 			Body: "!",
@@ -675,15 +807,15 @@ func TestLexesPunctuation(t *testing.T) {
 	for _, test := range tests {
 		token, err := New(createSource(test.Body)).NextToken()
 		if err != nil {
-			t.Fatalf("unexpected error :%v, test: %v", err, test)
+			t.Errorf("unexpected error :%v, test: %v", err, test)
 		}
 		if !reflect.DeepEqual(token, test.Expected) {
-			t.Fatalf("unexpected token, expected: %v, got: %v, test: %v", test.Expected, token, test)
+			t.Errorf("unexpected token, expected: %v, got: %v, test: %v", test.Expected, token, test)
 		}
 	}
 }
 
-func TestLexReportsUsefulUnknownCharacterError(t *testing.T) {
+func TestLexer_ReportsUsefulUnknownCharacterError(t *testing.T) {
 	tests := []Test{
 		{
 			Body: "..",
@@ -709,19 +841,37 @@ func TestLexReportsUsefulUnknownCharacterError(t *testing.T) {
    ^
 `,
 		},
+		{
+			Body: "\u203b",
+			Expected: `Syntax Error GraphQL (1:1) Unexpected character "\\u203B".
+
+1: ※
+   ^
+`,
+		},
+		{
+			Body: "ф",
+			Expected: `Syntax Error GraphQL (1:1) Unexpected character "\\u0444".
+
+1: ф
+   ^
+`,
+		},
 	}
-	for _, test := range tests {
-		_, err := New(createSource(test.Body)).NextToken()
-		if err == nil {
-			t.Fatalf("unexpected nil error\nexpected:\n%v\n\ngot:\n%v", test.Expected, err)
-		}
-		if err.Error() != test.Expected {
-			t.Fatalf("unexpected error.\nexpected:\n%v\n\ngot:\n%v", test.Expected, err.Error())
-		}
+	for i, test := range tests {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			tok, err := New(createSource(test.Body)).NextToken()
+			if err == nil {
+				t.Fatalf("unexpected nil error\nexpected error: %v\ngot token: %#+v", test.Expected, tok)
+			}
+			if err.Error() != test.Expected {
+				t.Fatalf("unexpected error.\nexpected:\n%v\n\ngot:\n%v", test.Expected, err.Error())
+			}
+		})
 	}
 }
 
-func TestLexRerportsUsefulInformationForDashesInNames(t *testing.T) {
+func TestLexer_ReportsUsefulInformationForDashesInNames(t *testing.T) {
 	q := "a-b"
 	lexer := New(createSource(q))
 	firstToken, err := lexer.NextToken()

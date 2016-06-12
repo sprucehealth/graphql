@@ -225,7 +225,7 @@ func (l *Lexer) readString() (Token, error) {
 			case '"':
 				value = append(value, "\"")
 			case '/':
-				value = append(value, "\\/")
+				value = append(value, "/")
 			case '\\':
 				value = append(value, "\\")
 			case 'b':
@@ -386,7 +386,7 @@ func (l *Lexer) sliceBody(start, end offset) string {
 }
 
 func isLetter(ch rune) bool {
-	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_' || ch >= utf8.RuneSelf && unicode.IsLetter(ch)
+	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_'
 }
 
 func isDigit(ch rune) bool {
