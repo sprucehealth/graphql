@@ -754,9 +754,6 @@ func fieldInfoForStruct(structType reflect.Type) map[string]structFieldInfo {
 	}
 
 	// Cache a mapping of fields for the struct
-	// Use json tag for the field name. We could potentially create a custom `graphql` tag,
-	// but its unnecessary at this point since graphql speaks to client in a json-like way
-	// anyway so json tags are a good way to start with
 
 	structTypeCacheMu.Lock()
 	defer structTypeCacheMu.Unlock()
@@ -774,14 +771,17 @@ func fieldInfoForStruct(structType reflect.Type) map[string]structFieldInfo {
 			continue
 		}
 		tag := field.Tag
-		jsonTag := tag.Get("json")
-		jsonOptions := strings.Split(jsonTag, ",")
-		if len(jsonOptions) == 0 {
+		t := tag.Get("graphql")
+		if t == "" {
+			t = tag.Get("json")
+		}
+		tOpts := strings.Split(t, ",")
+		if len(tOpts) == 0 {
 			sm[field.Name] = structFieldInfo{index: i}
 		} else {
-			omitempty := len(jsonOptions) > 1 && jsonOptions[1] == "omitempty"
+			omitempty := len(tOpts) > 1 && tOpts[1] == "omitempty"
 			sm[field.Name] = structFieldInfo{index: i, omitempty: omitempty}
-			sm[jsonOptions[0]] = structFieldInfo{index: i, omitempty: omitempty}
+			sm[tOpts[0]] = structFieldInfo{index: i, omitempty: omitempty}
 		}
 	}
 	structTypeCache[structType] = sm
