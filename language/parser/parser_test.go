@@ -411,6 +411,12 @@ func toError(err error) *gqlerrors.Error {
 	}
 }
 
+func TestBadQueryHang(t *testing.T) {
+	Parse(ParseParams{
+		Source: source.New("GraphQL", "{g(d:[d[\xb9\x19 rp\\�{\xef\xbf\xbd2~� c"),
+	})
+}
+
 func BenchmarkParser(b *testing.B) {
 	body := `
 mutation _ {

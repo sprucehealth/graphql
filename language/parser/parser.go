@@ -1110,7 +1110,7 @@ func unexpected(parser *Parser, atToken lexer.Token) error {
 // to the next lex token after the closing token.
 func any(parser *Parser, openKind int, parseFn parseFn, closeKind int) ([]interface{}, error) {
 	if _, err := expect(parser, openKind); err != nil {
-		return nil, nil
+		return nil, err
 	}
 	var nodes []interface{}
 	for {
