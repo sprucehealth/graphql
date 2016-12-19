@@ -381,7 +381,7 @@ func GetTokenDesc(token Token) string {
 	if token.Value == "" {
 		return GetTokenKindDesc(token.Kind)
 	}
-	return fmt.Sprintf("%s \"%s\"", GetTokenKindDesc(token.Kind), token.Value)
+	return fmt.Sprintf("%s %q", GetTokenKindDesc(token.Kind), token.Value)
 }
 
 func GetTokenKindDesc(kind int) string {

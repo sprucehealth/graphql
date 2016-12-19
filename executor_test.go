@@ -7,11 +7,12 @@ import (
 	"reflect"
 	"testing"
 
+	"context"
+
 	"github.com/sprucehealth/graphql"
 	"github.com/sprucehealth/graphql/gqlerrors"
 	"github.com/sprucehealth/graphql/language/location"
 	"github.com/sprucehealth/graphql/testutil"
-	"golang.org/x/net/context"
 )
 
 func TestExecutesArbitraryCode(t *testing.T) {

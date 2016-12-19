@@ -6,8 +6,9 @@ import (
 	"log"
 	"net/http"
 
+	"context"
+
 	"github.com/sprucehealth/graphql"
-	"golang.org/x/net/context"
 )
 
 var Schema graphql.Schema

@@ -4,9 +4,10 @@ import (
 	"reflect"
 	"testing"
 
+	"context"
+
 	"github.com/sprucehealth/graphql"
 	"github.com/sprucehealth/graphql/testutil"
-	"golang.org/x/net/context"
 )
 
 type T struct {
