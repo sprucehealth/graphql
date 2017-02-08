@@ -1823,6 +1823,7 @@ func TestContextDeadline(t *testing.T) {
 		{
 			Message:   context.DeadlineExceeded.Error(),
 			Locations: []location.SourceLocation{},
+			Type:      "INTERNAL",
 		},
 	}
 
