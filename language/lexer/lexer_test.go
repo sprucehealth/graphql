@@ -39,9 +39,9 @@ func TestSkipsWhiteSpace(t *testing.T) {
 			Expected: []Token{
 				{
 					Kind:  COMMENT,
-					Start: 6,
+					Start: 5,
 					End:   14,
-					Value: "comment1",
+					Value: "#comment1",
 				},
 				{
 					Kind:  NAME,
@@ -51,9 +51,9 @@ func TestSkipsWhiteSpace(t *testing.T) {
 				},
 				{
 					Kind:  COMMENT,
-					Start: 23,
+					Start: 22,
 					End:   31,
-					Value: "comment2",
+					Value: "#comment2",
 				},
 			},
 		},

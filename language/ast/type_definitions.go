@@ -15,6 +15,7 @@ type ObjectDefinition struct {
 	Name       *Name
 	Interfaces []*Named
 	Fields     []*FieldDefinition
+	Doc        *CommentGroup
 }
 
 func (def *ObjectDefinition) GetLoc() Location {
@@ -43,6 +44,8 @@ type FieldDefinition struct {
 	Name      *Name
 	Arguments []*InputValueDefinition
 	Type      Type
+	Doc       *CommentGroup
+	Comment   *CommentGroup
 }
 
 func (def *FieldDefinition) GetLoc() Location {
@@ -55,6 +58,8 @@ type InputValueDefinition struct {
 	Name         *Name
 	Type         Type
 	DefaultValue Value
+	Doc          *CommentGroup
+	Comment      *CommentGroup
 }
 
 func (def *InputValueDefinition) GetLoc() Location {
@@ -66,6 +71,7 @@ type InterfaceDefinition struct {
 	Loc    Location
 	Name   *Name
 	Fields []*FieldDefinition
+	Doc    *CommentGroup
 }
 
 func (def *InterfaceDefinition) GetLoc() Location {
@@ -90,9 +96,11 @@ func (def *InterfaceDefinition) GetOperation() string {
 
 // UnionDefinition implements Node, Definition
 type UnionDefinition struct {
-	Loc   Location
-	Name  *Name
-	Types []*Named
+	Loc     Location
+	Name    *Name
+	Types   []*Named
+	Doc     *CommentGroup
+	Comment *CommentGroup
 }
 
 func (def *UnionDefinition) GetLoc() Location {
@@ -146,6 +154,7 @@ type EnumDefinition struct {
 	Loc    Location
 	Name   *Name
 	Values []*EnumValueDefinition
+	Doc    *CommentGroup
 }
 
 func (def *EnumDefinition) GetLoc() Location {
@@ -170,8 +179,10 @@ func (def *EnumDefinition) GetOperation() string {
 
 // EnumValueDefinition implements Node, Definition
 type EnumValueDefinition struct {
-	Loc  Location
-	Name *Name
+	Loc     Location
+	Name    *Name
+	Doc     *CommentGroup
+	Comment *CommentGroup
 }
 
 func (def *EnumValueDefinition) GetLoc() Location {
@@ -183,6 +194,7 @@ type InputObjectDefinition struct {
 	Loc    Location
 	Name   *Name
 	Fields []*InputValueDefinition
+	Doc    *CommentGroup
 }
 
 func (def *InputObjectDefinition) GetLoc() Location {

@@ -9,10 +9,11 @@ import (
 	"github.com/sprucehealth/graphql/language/source"
 )
 
-type parseFn func(parser *Parser) (interface{}, error)
+type parseFn func() (interface{}, error)
 
 type ParseOptions struct {
-	NoSource bool
+	NoSource     bool
+	KeepComments bool
 }
 
 type ParseParams struct {
@@ -24,8 +25,12 @@ type Parser struct {
 	Lexer   *lexer.Lexer
 	Source  *source.Source
 	Options ParseOptions
-	PrevEnd int
-	Token   lexer.Token
+
+	prevEnd     int
+	tok         lexer.Token
+	comments    []*ast.CommentGroup
+	leadComment *ast.CommentGroup
+	lineComment *ast.CommentGroup
 }
 
 func Parse(p ParseParams) (*ast.Document, error) {
@@ -41,7 +46,7 @@ func Parse(p ParseParams) (*ast.Document, error) {
 	if err != nil {
 		return nil, err
 	}
-	doc, err := parseDocument(parser)
+	doc, err := parser.parseDocument()
 	if err != nil {
 		return nil, err
 	}
@@ -49,14 +54,14 @@ func Parse(p ParseParams) (*ast.Document, error) {
 }
 
 // Converts a name lex token into a name parse node.
-func parseName(parser *Parser) (*ast.Name, error) {
-	token, err := expect(parser, lexer.NAME)
+func (p *Parser) parseName() (*ast.Name, error) {
+	token, err := p.expect(lexer.NAME)
 	if err != nil {
 		return nil, err
 	}
 	return &ast.Name{
 		Value: token.Value,
-		Loc:   loc(parser, token.Start),
+		Loc:   p.loc(token.Start),
 	}, nil
 }
 
@@ -65,137 +70,135 @@ func makeParser(s *source.Source, opts ParseOptions) (*Parser, error) {
 		Lexer:   lexer.New(s),
 		Source:  s,
 		Options: opts,
-		PrevEnd: 0,
 	}
-	var err error
-	p.Token, err = nextToken(p)
-	return p, err
+	return p, p.next()
 }
 
 /* Implements the parsing rules in the Document section. */
 
-func parseDocument(parser *Parser) (*ast.Document, error) {
-	start := parser.Token.Start
+func (p *Parser) parseDocument() (*ast.Document, error) {
+	start := p.tok.Start
 	var nodes []ast.Node
 	for {
-		if skp, err := skip(parser, lexer.EOF); err != nil {
+		if skp, err := p.skip(lexer.EOF); err != nil {
 			return nil, err
 		} else if skp {
 			break
 		}
 		switch {
-		case peek(parser, lexer.BRACE_L):
-			node, err := parseOperationDefinition(parser)
+		case p.peek(lexer.BRACE_L):
+			node, err := p.parseOperationDefinition()
 			if err != nil {
 				return nil, err
 			}
 			nodes = append(nodes, node)
-		case peek(parser, lexer.NAME):
-			switch parser.Token.Value {
+		case p.peek(lexer.NAME):
+			switch p.tok.Value {
 			case "query", "mutation", "subscription": // Note: subscription is an experimental non-spec addition.
-				node, err := parseOperationDefinition(parser)
+				node, err := p.parseOperationDefinition()
 				if err != nil {
 					return nil, err
 				}
 				nodes = append(nodes, node)
 			case "fragment":
-				node, err := parseFragmentDefinition(parser)
+				node, err := p.parseFragmentDefinition()
 				if err != nil {
 					return nil, err
 				}
 				nodes = append(nodes, node)
 			case "type":
-				node, err := parseObjectTypeDefinition(parser)
+				node, err := p.parseObjectTypeDefinition()
 				if err != nil {
 					return nil, err
 				}
 				nodes = append(nodes, node)
 			case "interface":
-				node, err := parseInterfaceTypeDefinition(parser)
+				node, err := p.parseInterfaceTypeDefinition()
 				if err != nil {
 					return nil, err
 				}
 				nodes = append(nodes, node)
 			case "union":
-				node, err := parseUnionTypeDefinition(parser)
+				node, err := p.parseUnionTypeDefinition()
 				if err != nil {
 					return nil, err
 				}
 				nodes = append(nodes, node)
 			case "scalar":
-				node, err := parseScalarTypeDefinition(parser)
+				node, err := p.parseScalarTypeDefinition()
 				if err != nil {
 					return nil, err
 				}
 				nodes = append(nodes, node)
 			case "enum":
-				node, err := parseEnumTypeDefinition(parser)
+				node, err := p.parseEnumTypeDefinition()
 				if err != nil {
 					return nil, err
 				}
 				nodes = append(nodes, node)
 			case "input":
-				node, err := parseInputObjectTypeDefinition(parser)
+				node, err := p.parseInputObjectTypeDefinition()
 				if err != nil {
 					return nil, err
 				}
 				nodes = append(nodes, node)
 			case "extend":
-				node, err := parseTypeExtensionDefinition(parser)
+				node, err := p.parseTypeExtensionDefinition()
 				if err != nil {
 					return nil, err
 				}
 				nodes = append(nodes, node)
 			default:
-				if err := unexpected(parser, lexer.Token{}); err != nil {
+				if err := p.unexpected(lexer.Token{}); err != nil {
 					return nil, err
 				}
 			}
 		default:
-			if err := unexpected(parser, lexer.Token{}); err != nil {
+			if err := p.unexpected(lexer.Token{}); err != nil {
 				return nil, err
 			}
 		}
 	}
 	return &ast.Document{
-		Loc:         loc(parser, start),
+		Loc:         p.loc(start),
 		Definitions: nodes,
+		Comments:    p.comments,
 	}, nil
 }
 
 /* Implements the parsing rules in the Operations section. */
 
-func parseOperationDefinition(parser *Parser) (*ast.OperationDefinition, error) {
-	start := parser.Token.Start
-	if peek(parser, lexer.BRACE_L) {
-		selectionSet, err := parseSelectionSet(parser)
+func (p *Parser) parseOperationDefinition() (*ast.OperationDefinition, error) {
+	start := p.tok.Start
+	if p.peek(lexer.BRACE_L) {
+		selectionSet, err := p.parseSelectionSet()
 		if err != nil {
 			return nil, err
 		}
 		return &ast.OperationDefinition{
 			Operation:    "query",
 			SelectionSet: selectionSet,
-			Loc:          loc(parser, start),
+			Loc:          p.loc(start),
 		}, nil
 	}
-	operationToken, err := expect(parser, lexer.NAME)
+	operationToken, err := p.expect(lexer.NAME)
 	if err != nil {
 		return nil, err
 	}
 	operation := operationToken.Value
-	name, err := parseName(parser)
+	name, err := p.parseName()
 	if err != nil {
 		return nil, err
 	}
-	variableDefinitions, err := parseVariableDefinitions(parser)
+	variableDefinitions, err := p.parseVariableDefinitions()
 	if err != nil {
 		return nil, err
 	}
-	directives, err := parseDirectives(parser)
+	directives, err := p.parseDirectives()
 	if err != nil {
 		return nil, err
 	}
-	selectionSet, err := parseSelectionSet(parser)
+	selectionSet, err := p.parseSelectionSet()
 	if err != nil {
 		return nil, err
 	}
@@ -205,47 +208,46 @@ func parseOperationDefinition(parser *Parser) (*ast.OperationDefinition, error) 
 		VariableDefinitions: variableDefinitions,
 		Directives:          directives,
 		SelectionSet:        selectionSet,
-		Loc:                 loc(parser, start),
+		Loc:                 p.loc(start),
 	}, nil
 }
 
-func parseVariableDefinitions(parser *Parser) ([]*ast.VariableDefinition, error) {
-	var variableDefinitions []*ast.VariableDefinition
-	if peek(parser, lexer.PAREN_L) {
-		vdefs, err := many(parser, lexer.PAREN_L, parseVariableDefinition, lexer.PAREN_R)
-		if err != nil {
-			return variableDefinitions, err
+func (p *Parser) parseVariableDefinitions() ([]*ast.VariableDefinition, error) {
+	if !p.peek(lexer.PAREN_L) {
+		return nil, nil
+	}
+	vdefs, err := p.many(lexer.PAREN_L, p.parseVariableDefinition, lexer.PAREN_R)
+	if err != nil {
+		return nil, err
+	}
+	variableDefinitions := make([]*ast.VariableDefinition, 0, len(vdefs))
+	for _, vdef := range vdefs {
+		if vdef != nil {
+			variableDefinitions = append(variableDefinitions, vdef.(*ast.VariableDefinition))
 		}
-		variableDefinitions := make([]*ast.VariableDefinition, 0, len(vdefs))
-		for _, vdef := range vdefs {
-			if vdef != nil {
-				variableDefinitions = append(variableDefinitions, vdef.(*ast.VariableDefinition))
-			}
-		}
-		return variableDefinitions, nil
 	}
 	return variableDefinitions, nil
 }
 
-func parseVariableDefinition(parser *Parser) (interface{}, error) {
-	start := parser.Token.Start
-	variable, err := parseVariable(parser)
+func (p *Parser) parseVariableDefinition() (interface{}, error) {
+	start := p.tok.Start
+	variable, err := p.parseVariable()
 	if err != nil {
 		return nil, err
 	}
-	_, err = expect(parser, lexer.COLON)
+	_, err = p.expect(lexer.COLON)
 	if err != nil {
 		return nil, err
 	}
-	ttype, err := parseType(parser)
+	ttype, err := p.parseType()
 	if err != nil {
 		return nil, err
 	}
 	var defaultValue ast.Value
-	if skp, err := skip(parser, lexer.EQUALS); err != nil {
+	if skp, err := p.skip(lexer.EQUALS); err != nil {
 		return nil, err
 	} else if skp {
-		dv, err := parseValueLiteral(parser, true)
+		dv, err := p.parseValueLiteral(true)
 		if err != nil {
 			return nil, err
 		}
@@ -255,29 +257,29 @@ func parseVariableDefinition(parser *Parser) (interface{}, error) {
 		Variable:     variable,
 		Type:         ttype,
 		DefaultValue: defaultValue,
-		Loc:          loc(parser, start),
+		Loc:          p.loc(start),
 	}, nil
 }
 
-func parseVariable(parser *Parser) (*ast.Variable, error) {
-	start := parser.Token.Start
-	_, err := expect(parser, lexer.DOLLAR)
+func (p *Parser) parseVariable() (*ast.Variable, error) {
+	start := p.tok.Start
+	_, err := p.expect(lexer.DOLLAR)
 	if err != nil {
 		return nil, err
 	}
-	name, err := parseName(parser)
+	name, err := p.parseName()
 	if err != nil {
 		return nil, err
 	}
 	return &ast.Variable{
 		Name: name,
-		Loc:  loc(parser, start),
+		Loc:  p.loc(start),
 	}, nil
 }
 
-func parseSelectionSet(parser *Parser) (*ast.SelectionSet, error) {
-	start := parser.Token.Start
-	iSelections, err := many(parser, lexer.BRACE_L, parseSelection, lexer.BRACE_R)
+func (p *Parser) parseSelectionSet() (*ast.SelectionSet, error) {
+	start := p.tok.Start
+	iSelections, err := p.many(lexer.BRACE_L, p.parseSelection, lexer.BRACE_R)
 	if err != nil {
 		return nil, err
 	}
@@ -291,21 +293,21 @@ func parseSelectionSet(parser *Parser) (*ast.SelectionSet, error) {
 
 	return &ast.SelectionSet{
 		Selections: selections,
-		Loc:        loc(parser, start),
+		Loc:        p.loc(start),
 	}, nil
 }
 
-func parseSelection(parser *Parser) (interface{}, error) {
-	if peek(parser, lexer.SPREAD) {
-		r, err := parseFragment(parser)
+func (p *Parser) parseSelection() (interface{}, error) {
+	if p.peek(lexer.SPREAD) {
+		r, err := p.parseFragment()
 		return r, err
 	}
-	return parseField(parser)
+	return p.parseField()
 }
 
-func parseField(parser *Parser) (*ast.Field, error) {
-	start := parser.Token.Start
-	nameOrAlias, err := parseName(parser)
+func (p *Parser) parseField() (*ast.Field, error) {
+	start := p.tok.Start
+	nameOrAlias, err := p.parseName()
 	if err != nil {
 		return nil, err
 	}
@@ -313,29 +315,29 @@ func parseField(parser *Parser) (*ast.Field, error) {
 		name  *ast.Name
 		alias *ast.Name
 	)
-	skp, err := skip(parser, lexer.COLON)
+	skp, err := p.skip(lexer.COLON)
 	if err != nil {
 		return nil, err
 	} else if skp {
 		alias = nameOrAlias
-		name, err = parseName(parser)
+		name, err = p.parseName()
 		if err != nil {
 			return nil, err
 		}
 	} else {
 		name = nameOrAlias
 	}
-	arguments, err := parseArguments(parser)
+	arguments, err := p.parseArguments()
 	if err != nil {
 		return nil, err
 	}
-	directives, err := parseDirectives(parser)
+	directives, err := p.parseDirectives()
 	if err != nil {
 		return nil, err
 	}
 	var selectionSet *ast.SelectionSet
-	if peek(parser, lexer.BRACE_L) {
-		sSet, err := parseSelectionSet(parser)
+	if p.peek(lexer.BRACE_L) {
+		sSet, err := p.parseSelectionSet()
 		if err != nil {
 			return nil, err
 		}
@@ -347,69 +349,68 @@ func parseField(parser *Parser) (*ast.Field, error) {
 		Arguments:    arguments,
 		Directives:   directives,
 		SelectionSet: selectionSet,
-		Loc:          loc(parser, start),
+		Loc:          p.loc(start),
 	}, nil
 }
 
-func parseArguments(parser *Parser) ([]*ast.Argument, error) {
-	var arguments []*ast.Argument
-	if peek(parser, lexer.PAREN_L) {
-		iArguments, err := many(parser, lexer.PAREN_L, parseArgument, lexer.PAREN_R)
-		if err != nil {
-			return arguments, err
+func (p *Parser) parseArguments() ([]*ast.Argument, error) {
+	if !p.peek(lexer.PAREN_L) {
+		return nil, nil
+	}
+	iArguments, err := p.many(lexer.PAREN_L, p.parseArgument, lexer.PAREN_R)
+	if err != nil {
+		return nil, err
+	}
+	arguments := make([]*ast.Argument, 0, len(iArguments))
+	for _, iArgument := range iArguments {
+		if iArgument != nil {
+			arguments = append(arguments, iArgument.(*ast.Argument))
 		}
-		arguments := make([]*ast.Argument, 0, len(iArguments))
-		for _, iArgument := range iArguments {
-			if iArgument != nil {
-				arguments = append(arguments, iArgument.(*ast.Argument))
-			}
-		}
-		return arguments, nil
 	}
 	return arguments, nil
 }
 
-func parseArgument(parser *Parser) (interface{}, error) {
-	start := parser.Token.Start
-	name, err := parseName(parser)
+func (p *Parser) parseArgument() (interface{}, error) {
+	start := p.tok.Start
+	name, err := p.parseName()
 	if err != nil {
 		return nil, err
 	}
-	_, err = expect(parser, lexer.COLON)
+	_, err = p.expect(lexer.COLON)
 	if err != nil {
 		return nil, err
 	}
-	value, err := parseValueLiteral(parser, false)
+	value, err := p.parseValueLiteral(false)
 	if err != nil {
 		return nil, err
 	}
 	return &ast.Argument{
 		Name:  name,
 		Value: value,
-		Loc:   loc(parser, start),
+		Loc:   p.loc(start),
 	}, nil
 }
 
 /* Implements the parsing rules in the Fragments section. */
 
-func parseFragment(parser *Parser) (interface{}, error) {
-	start := parser.Token.Start
-	if _, err := expect(parser, lexer.SPREAD); err != nil {
+func (p *Parser) parseFragment() (interface{}, error) {
+	start := p.tok.Start
+	if _, err := p.expect(lexer.SPREAD); err != nil {
 		return nil, err
 	}
-	if parser.Token.Value == "on" {
-		if err := advance(parser); err != nil {
+	if p.tok.Value == "on" {
+		if err := p.advance(); err != nil {
 			return nil, err
 		}
-		name, err := parseNamed(parser)
+		name, err := p.parseNamed()
 		if err != nil {
 			return nil, err
 		}
-		directives, err := parseDirectives(parser)
+		directives, err := p.parseDirectives()
 		if err != nil {
 			return nil, err
 		}
-		selectionSet, err := parseSelectionSet(parser)
+		selectionSet, err := p.parseSelectionSet()
 		if err != nil {
 			return nil, err
 		}
@@ -417,47 +418,47 @@ func parseFragment(parser *Parser) (interface{}, error) {
 			TypeCondition: name,
 			Directives:    directives,
 			SelectionSet:  selectionSet,
-			Loc:           loc(parser, start),
+			Loc:           p.loc(start),
 		}, nil
 	}
-	name, err := parseFragmentName(parser)
+	name, err := p.parseFragmentName()
 	if err != nil {
 		return nil, err
 	}
-	directives, err := parseDirectives(parser)
+	directives, err := p.parseDirectives()
 	if err != nil {
 		return nil, err
 	}
 	return &ast.FragmentSpread{
 		Name:       name,
 		Directives: directives,
-		Loc:        loc(parser, start),
+		Loc:        p.loc(start),
 	}, nil
 }
 
-func parseFragmentDefinition(parser *Parser) (*ast.FragmentDefinition, error) {
-	start := parser.Token.Start
-	_, err := expectKeyWord(parser, "fragment")
+func (p *Parser) parseFragmentDefinition() (*ast.FragmentDefinition, error) {
+	start := p.tok.Start
+	_, err := p.expectKeyWord("fragment")
 	if err != nil {
 		return nil, err
 	}
-	name, err := parseFragmentName(parser)
+	name, err := p.parseFragmentName()
 	if err != nil {
 		return nil, err
 	}
-	_, err = expectKeyWord(parser, "on")
+	_, err = p.expectKeyWord("on")
 	if err != nil {
 		return nil, err
 	}
-	typeCondition, err := parseNamed(parser)
+	typeCondition, err := p.parseNamed()
 	if err != nil {
 		return nil, err
 	}
-	directives, err := parseDirectives(parser)
+	directives, err := p.parseDirectives()
 	if err != nil {
 		return nil, err
 	}
-	selectionSet, err := parseSelectionSet(parser)
+	selectionSet, err := p.parseSelectionSet()
 	if err != nil {
 		return nil, err
 	}
@@ -466,97 +467,93 @@ func parseFragmentDefinition(parser *Parser) (*ast.FragmentDefinition, error) {
 		TypeCondition: typeCondition,
 		Directives:    directives,
 		SelectionSet:  selectionSet,
-		Loc:           loc(parser, start),
+		Loc:           p.loc(start),
 	}, nil
 }
 
-func parseFragmentName(parser *Parser) (*ast.Name, error) {
-	if parser.Token.Value == "on" {
-		return nil, unexpected(parser, lexer.Token{})
+func (p *Parser) parseFragmentName() (*ast.Name, error) {
+	if p.tok.Value == "on" {
+		return nil, p.unexpected(lexer.Token{})
 	}
-	return parseName(parser)
+	return p.parseName()
 }
 
 /* Implements the parsing rules in the Values section. */
 
-func parseValueLiteral(parser *Parser, isConst bool) (ast.Value, error) {
-	token := parser.Token
+func (p *Parser) parseValueLiteral(isConst bool) (ast.Value, error) {
+	token := p.tok
 	switch token.Kind {
 	case lexer.BRACKET_L:
-		return parseList(parser, isConst)
+		return p.parseList(isConst)
 	case lexer.BRACE_L:
-		return parseObject(parser, isConst)
+		return p.parseObject(isConst)
 	case lexer.INT:
-		if err := advance(parser); err != nil {
+		if err := p.advance(); err != nil {
 			return nil, err
 		}
 		return &ast.IntValue{
 			Value: token.Value,
-			Loc:   loc(parser, token.Start),
+			Loc:   p.loc(token.Start),
 		}, nil
 	case lexer.FLOAT:
-		if err := advance(parser); err != nil {
+		if err := p.advance(); err != nil {
 			return nil, err
 		}
 		return &ast.FloatValue{
 			Value: token.Value,
-			Loc:   loc(parser, token.Start),
+			Loc:   p.loc(token.Start),
 		}, nil
 	case lexer.STRING:
-		if err := advance(parser); err != nil {
+		if err := p.advance(); err != nil {
 			return nil, err
 		}
 		return &ast.StringValue{
 			Value: token.Value,
-			Loc:   loc(parser, token.Start),
+			Loc:   p.loc(token.Start),
 		}, nil
 	case lexer.NAME:
 		if token.Value == "true" || token.Value == "false" {
-			if err := advance(parser); err != nil {
+			if err := p.advance(); err != nil {
 				return nil, err
 			}
-			value := true
-			if token.Value == "false" {
-				value = false
-			}
 			return &ast.BooleanValue{
-				Value: value,
-				Loc:   loc(parser, token.Start),
+				Value: token.Value == "true",
+				Loc:   p.loc(token.Start),
 			}, nil
 		} else if token.Value != "null" {
-			if err := advance(parser); err != nil {
+			if err := p.advance(); err != nil {
 				return nil, err
 			}
 			return &ast.EnumValue{
 				Value: token.Value,
-				Loc:   loc(parser, token.Start),
+				Loc:   p.loc(token.Start),
 			}, nil
 		}
 	case lexer.DOLLAR:
 		if !isConst {
-			return parseVariable(parser)
+			return p.parseVariable()
 		}
 	}
-	return nil, unexpected(parser, lexer.Token{})
+	return nil, p.unexpected(lexer.Token{})
 }
 
-func parseConstValue(parser *Parser) (interface{}, error) {
-	return parseValueLiteral(parser, true)
+func (p *Parser) parseConstValue() (interface{}, error) {
+	return p.parseValueLiteral(true)
 }
 
-func parseValueValue(parser *Parser) (interface{}, error) {
-	return parseValueLiteral(parser, false)
+func (p *Parser) parseValueValue() (interface{}, error) {
+	return p.parseValueLiteral(false)
 }
 
-func parseList(parser *Parser, isConst bool) (*ast.ListValue, error) {
-	start := parser.Token.Start
+func (p *Parser) parseList(isConst bool) (*ast.ListValue, error) {
+	start := p.tok.Start
 	var item parseFn
 	if isConst {
-		item = parseConstValue
+		item = p.parseConstValue
 	} else {
-		item = parseValueValue
+		item = p.parseValueValue
 	}
-	iValues, err := any(parser, lexer.BRACKET_L, item, lexer.BRACKET_R)
+	iValues, err := p.any(lexer.BRACKET_L, item, lexer.BRACKET_R)
 	if err != nil {
 		return nil, err
 	}
@@ -566,25 +563,25 @@ func parseList(parser *Parser, isConst bool) (*ast.ListValue, error) {
 	}
 	return &ast.ListValue{
 		Values: values,
-		Loc:    loc(parser, start),
+		Loc:    p.loc(start),
 	}, nil
 }
 
-func parseObject(parser *Parser, isConst bool) (*ast.ObjectValue, error) {
-	start := parser.Token.Start
-	_, err := expect(parser, lexer.BRACE_L)
+func (p *Parser) parseObject(isConst bool) (*ast.ObjectValue, error) {
+	start := p.tok.Start
+	_, err := p.expect(lexer.BRACE_L)
 	if err != nil {
 		return nil, err
 	}
 	var fields []*ast.ObjectField
 	fieldNames := make(map[string]struct{})
 	for {
-		if skp, err := skip(parser, lexer.BRACE_R); err != nil {
+		if skp, err := p.skip(lexer.BRACE_R); err != nil {
 			return nil, err
 		} else if skp {
 			break
 		}
-		field, fieldName, err := parseObjectField(parser, isConst, fieldNames)
+		field, fieldName, err := p.parseObjectField(isConst, fieldNames)
 		if err != nil {
 			return nil, err
 		}
@@ -593,45 +590,45 @@ func parseObject(parser *Parser, isConst bool) (*ast.ObjectValue, error) {
 	}
 	return &ast.ObjectValue{
 		Fields: fields,
-		Loc:    loc(parser, start),
+		Loc:    p.loc(start),
 	}, nil
 }
 
-func parseObjectField(parser *Parser, isConst bool, fieldNames map[string]struct{}) (*ast.ObjectField, string, error) {
-	start := parser.Token.Start
-	name, err := parseName(parser)
+func (p *Parser) parseObjectField(isConst bool, fieldNames map[string]struct{}) (*ast.ObjectField, string, error) {
+	start := p.tok.Start
+	name, err := p.parseName()
 	if err != nil {
 		return nil, "", err
 	}
 	fieldName := name.Value
 	if _, ok := fieldNames[fieldName]; ok {
 		descp := fmt.Sprintf("Duplicate input object field %v.", fieldName)
-		return nil, "", gqlerrors.NewSyntaxError(parser.Source, start, descp)
+		return nil, "", gqlerrors.NewSyntaxError(p.Source, start, descp)
 	}
-	_, err = expect(parser, lexer.COLON)
+	_, err = p.expect(lexer.COLON)
 	if err != nil {
 		return nil, "", err
 	}
-	value, err := parseValueLiteral(parser, isConst)
+	value, err := p.parseValueLiteral(isConst)
 	if err != nil {
 		return nil, "", err
 	}
 	return &ast.ObjectField{
 		Name:  name,
 		Value: value,
-		Loc:   loc(parser, start),
+		Loc:   p.loc(start),
 	}, fieldName, nil
 }
 
 /* Implements the parsing rules in the Directives section. */
 
-func parseDirectives(parser *Parser) ([]*ast.Directive, error) {
+func (p *Parser) parseDirectives() ([]*ast.Directive, error) {
 	var directives []*ast.Directive
 	for {
-		if !peek(parser, lexer.AT) {
+		if !p.peek(lexer.AT) {
 			break
 		}
-		directive, err := parseDirective(parser)
+		directive, err := p.parseDirective()
 		if err != nil {
 			return directives, err
 		}
@@ -640,96 +637,98 @@ func parseDirectives(parser *Parser) ([]*ast.Directive, error) {
 	return directives, nil
 }
 
-func parseDirective(parser *Parser) (*ast.Directive, error) {
-	start := parser.Token.Start
-	_, err := expect(parser, lexer.AT)
+func (p *Parser) parseDirective() (*ast.Directive, error) {
+	start := p.tok.Start
+	_, err := p.expect(lexer.AT)
 	if err != nil {
 		return nil, err
 	}
-	name, err := parseName(parser)
+	name, err := p.parseName()
 	if err != nil {
 		return nil, err
 	}
-	args, err := parseArguments(parser)
+	args, err := p.parseArguments()
 	if err != nil {
 		return nil, err
 	}
 	return &ast.Directive{
 		Name:      name,
 		Arguments: args,
-		Loc:       loc(parser, start),
+		Loc:       p.loc(start),
 	}, nil
 }
 
 /* Implements the parsing rules in the Types section. */
 
-func parseType(parser *Parser) (ast.Type, error) {
-	start := parser.Token.Start
+func (p *Parser) parseType() (ast.Type, error) {
+	start := p.tok.Start
 	var ttype ast.Type
-	if skp, err := skip(parser, lexer.BRACKET_L); err != nil {
+	if skp, err := p.skip(lexer.BRACKET_L); err != nil {
 		return nil, err
 	} else if skp {
-		t, err := parseType(parser)
+		t, err := p.parseType()
 		if err != nil {
 			return t, err
 		}
 		ttype = t
-		_, err = expect(parser, lexer.BRACKET_R)
+		_, err = p.expect(lexer.BRACKET_R)
 		if err != nil {
 			return ttype, err
 		}
 		ttype = &ast.List{
 			Type: ttype,
-			Loc:  loc(parser, start),
+			Loc:  p.loc(start),
 		}
 	} else {
-		name, err := parseNamed(parser)
+		name, err := p.parseNamed()
 		if err != nil {
 			return ttype, err
 		}
 		ttype = name
 	}
-	if skp, err := skip(parser, lexer.BANG); err != nil {
+	if skp, err := p.skip(lexer.BANG); err != nil {
 		return nil, err
 	} else if skp {
 		ttype = &ast.NonNull{
 			Type: ttype,
-			Loc:  loc(parser, start),
+			Loc:  p.loc(start),
 		}
 		return ttype, nil
 	}
 	return ttype, nil
 }
 
-func parseNamed(parser *Parser) (*ast.Named, error) {
-	start := parser.Token.Start
-	name, err := parseName(parser)
+func (p *Parser) parseNamed() (*ast.Named, error) {
+	start := p.tok.Start
+	name, err := p.parseName()
 	if err != nil {
 		return nil, err
 	}
 	return &ast.Named{
 		Name: name,
-		Loc:  loc(parser, start),
+		Loc:  p.loc(start),
 	}, nil
 }
 
 /* Implements the parsing rules in the Type Definition section. */
 
-func parseObjectTypeDefinition(parser *Parser) (*ast.ObjectDefinition, error) {
-	start := parser.Token.Start
-	_, err := expectKeyWord(parser, "type")
+func (p *Parser) parseObjectTypeDefinition() (*ast.ObjectDefinition, error) {
+	docComment := p.leadComment
+
+	start := p.tok.Start
+	_, err := p.expectKeyWord("type")
 	if err != nil {
 		return nil, err
 	}
-	name, err := parseName(parser)
+	name, err := p.parseName()
 	if err != nil {
 		return nil, err
 	}
-	interfaces, err := parseImplementsInterfaces(parser)
+	interfaces, err := p.parseImplementsInterfaces()
 	if err != nil {
 		return nil, err
 	}
-	iFields, err := any(parser, lexer.BRACE_L, parseFieldDefinition, lexer.BRACE_R)
+	iFields, err := p.any(lexer.BRACE_L, p.parseFieldDefinition, lexer.BRACE_R)
 	if err != nil {
 		return nil, err
 	}
@@ -741,47 +740,51 @@ func parseObjectTypeDefinition(parser *Parser) (*ast.ObjectDefinition, error) {
 	}
 	return &ast.ObjectDefinition{
 		Name:       name,
-		Loc:        loc(parser, start),
+		Loc:        p.loc(start),
 		Interfaces: interfaces,
 		Fields:     fields,
+		Doc:        docComment,
 	}, nil
 }
 
-func parseImplementsInterfaces(parser *Parser) ([]*ast.Named, error) {
+func (p *Parser) parseImplementsInterfaces() ([]*ast.Named, error) {
+	if p.tok.Value != "implements" {
+		return nil, nil
+	}
+	if err := p.advance(); err != nil {
+		return nil, err
+	}
 	var types []*ast.Named
-	if parser.Token.Value == "implements" {
-		if err := advance(parser); err != nil {
-			return nil, err
+	for {
+		ttype, err := p.parseNamed()
+		if err != nil {
+			return types, err
 		}
-		for {
-			ttype, err := parseNamed(parser)
-			if err != nil {
-				return types, err
-			}
-			types = append(types, ttype)
-			if peek(parser, lexer.BRACE_L) {
-				break
-			}
+		types = append(types, ttype)
+		if p.peek(lexer.BRACE_L) {
+			break
 		}
 	}
 	return types, nil
 }
 
-func parseFieldDefinition(parser *Parser) (interface{}, error) {
-	start := parser.Token.Start
-	name, err := parseName(parser)
+func (p *Parser) parseFieldDefinition() (interface{}, error) {
+	docComment := p.leadComment
+
+	start := p.tok.Start
+	name, err := p.parseName()
 	if err != nil {
 		return nil, err
 	}
-	args, err := parseArgumentDefs(parser)
+	args, err := p.parseArgumentDefs()
 	if err != nil {
 		return nil, err
 	}
-	_, err = expect(parser, lexer.COLON)
+	_, err = p.expect(lexer.COLON)
 	if err != nil {
 		return nil, err
 	}
-	ttype, err := parseType(parser)
+	ttype, err := p.parseType()
 	if err != nil {
 		return nil, err
 	}
@@ -789,15 +792,17 @@ func parseFieldDefinition(parser *Parser) (interface{}, error) {
 		Name:      name,
 		Arguments: args,
 		Type:      ttype,
-		Loc:       loc(parser, start),
+		Loc:       p.loc(start),
+		Doc:       docComment,
+		Comment:   p.lineComment,
 	}, nil
 }
 
-func parseArgumentDefs(parser *Parser) ([]*ast.InputValueDefinition, error) {
-	if !peek(parser, lexer.PAREN_L) {
+func (p *Parser) parseArgumentDefs() ([]*ast.InputValueDefinition, error) {
+	if !p.peek(lexer.PAREN_L) {
 		return nil, nil
 	}
-	iInputValueDefinitions, err := many(parser, lexer.PAREN_L, parseInputValueDef, lexer.PAREN_R)
+	iInputValueDefinitions, err := p.many(lexer.PAREN_L, p.parseInputValueDef, lexer.PAREN_R)
 	if err != nil {
 		return nil, err
 	}
@@ -810,25 +815,26 @@ func parseArgumentDefs(parser *Parser) ([]*ast.InputValueDefinition, error) {
 	return inputValueDefinitions, err
 }
 
-func parseInputValueDef(parser *Parser) (interface{}, error) {
-	start := parser.Token.Start
-	name, err := parseName(parser)
+func (p *Parser) parseInputValueDef() (interface{}, error) {
+	docComment := p.leadComment
+	start := p.tok.Start
+	name, err := p.parseName()
 	if err != nil {
 		return nil, err
 	}
-	_, err = expect(parser, lexer.COLON)
+	_, err = p.expect(lexer.COLON)
 	if err != nil {
 		return nil, err
 	}
-	ttype, err := parseType(parser)
+	ttype, err := p.parseType()
 	if err != nil {
 		return nil, err
 	}
 	var defaultValue ast.Value
-	if skp, err := skip(parser, lexer.EQUALS); err != nil {
+	if skp, err := p.skip(lexer.EQUALS); err != nil {
 		return nil, err
 	} else if skp {
-		val, err := parseConstValue(parser)
+		val, err := p.parseConstValue()
 		if err != nil {
 			return nil, err
 		}
@@ -840,21 +846,24 @@ func parseInputValueDef(parser *Parser) (interface{}, error) {
 		Name:         name,
 		Type:         ttype,
 		DefaultValue: defaultValue,
-		Loc:          loc(parser, start),
+		Loc:          p.loc(start),
+		Doc:          docComment,
+		Comment:      p.lineComment,
 	}, nil
 }
 
-func parseInterfaceTypeDefinition(parser *Parser) (*ast.InterfaceDefinition, error) {
-	start := parser.Token.Start
-	_, err := expectKeyWord(parser, "interface")
+func (p *Parser) parseInterfaceTypeDefinition() (*ast.InterfaceDefinition, error) {
+	docComment := p.leadComment
+	start := p.tok.Start
+	_, err := p.expectKeyWord("interface")
 	if err != nil {
 		return nil, err
 	}
-	name, err := parseName(parser)
+	name, err := p.parseName()
 	if err != nil {
 		return nil, err
 	}
-	iFields, err := any(parser, lexer.BRACE_L, parseFieldDefinition, lexer.BRACE_R)
+	iFields, err := p.any(lexer.BRACE_L, p.parseFieldDefinition, lexer.BRACE_R)
 	if err != nil {
 		return nil, err
 	}
@@ -866,45 +875,49 @@ func parseInterfaceTypeDefinition(parser *Parser) (*ast.InterfaceDefinition, err
 	}
 	return &ast.InterfaceDefinition{
 		Name:   name,
-		Loc:    loc(parser, start),
+		Loc:    p.loc(start),
 		Fields: fields,
+		Doc:    docComment,
 	}, nil
 }
 
-func parseUnionTypeDefinition(parser *Parser) (*ast.UnionDefinition, error) {
-	start := parser.Token.Start
-	_, err := expectKeyWord(parser, "union")
+func (p *Parser) parseUnionTypeDefinition() (*ast.UnionDefinition, error) {
+	docComment := p.leadComment
+	start := p.tok.Start
+	_, err := p.expectKeyWord("union")
 	if err != nil {
 		return nil, err
 	}
-	name, err := parseName(parser)
+	name, err := p.parseName()
 	if err != nil {
 		return nil, err
 	}
-	_, err = expect(parser, lexer.EQUALS)
+	_, err = p.expect(lexer.EQUALS)
 	if err != nil {
 		return nil, err
 	}
-	types, err := parseUnionMembers(parser)
+	types, err := p.parseUnionMembers()
 	if err != nil {
 		return nil, err
 	}
 	return &ast.UnionDefinition{
-		Name:  name,
-		Loc:   loc(parser, start),
-		Types: types,
+		Name:    name,
+		Loc:     p.loc(start),
+		Types:   types,
+		Doc:     docComment,
+		Comment: p.lineComment,
 	}, nil
 }
 
-func parseUnionMembers(parser *Parser) ([]*ast.Named, error) {
+func (p *Parser) parseUnionMembers() ([]*ast.Named, error) {
 	var members []*ast.Named
 	for {
-		member, err := parseNamed(parser)
+		member, err := p.parseNamed()
 		if err != nil {
 			return members, err
 		}
 		members = append(members, member)
-		if skp, err := skip(parser, lexer.PIPE); err != nil {
+		if skp, err := p.skip(lexer.PIPE); err != nil {
 			return nil, err
 		} else if !skp {
 			break
@@ -913,34 +926,35 @@ func parseUnionMembers(parser *Parser) ([]*ast.Named, error) {
 	return members, nil
 }
 
-func parseScalarTypeDefinition(parser *Parser) (*ast.ScalarDefinition, error) {
-	start := parser.Token.Start
-	_, err := expectKeyWord(parser, "scalar")
+func (p *Parser) parseScalarTypeDefinition() (*ast.ScalarDefinition, error) {
+	start := p.tok.Start
+	_, err := p.expectKeyWord("scalar")
 	if err != nil {
 		return nil, err
 	}
-	name, err := parseName(parser)
+	name, err := p.parseName()
 	if err != nil {
 		return nil, err
 	}
 	def := &ast.ScalarDefinition{
 		Name: name,
-		Loc:  loc(parser, start),
+		Loc:  p.loc(start),
 	}
 	return def, nil
 }
 
-func parseEnumTypeDefinition(parser *Parser) (*ast.EnumDefinition, error) {
-	start := parser.Token.Start
-	_, err := expectKeyWord(parser, "enum")
+func (p *Parser) parseEnumTypeDefinition() (*ast.EnumDefinition, error) {
+	docComment := p.leadComment
+	start := p.tok.Start
+	_, err := p.expectKeyWord("enum")
 	if err != nil {
 		return nil, err
 	}
-	name, err := parseName(parser)
+	name, err := p.parseName()
 	if err != nil {
 		return nil, err
 	}
-	iEnumValueDefs, err := any(parser, lexer.BRACE_L, parseEnumValueDefinition, lexer.BRACE_R)
+	iEnumValueDefs, err := p.any(lexer.BRACE_L, p.parseEnumValueDefinition, lexer.BRACE_R)
 	if err != nil {
 		return nil, err
 	}
@@ -952,34 +966,39 @@ func parseEnumTypeDefinition(parser *Parser) (*ast.EnumDefinition, error) {
 	}
 	return &ast.EnumDefinition{
 		Name:   name,
-		Loc:    loc(parser, start),
+		Loc:    p.loc(start),
 		Values: values,
+		Doc:    docComment,
 	}, nil
 }
 
-func parseEnumValueDefinition(parser *Parser) (interface{}, error) {
-	start := parser.Token.Start
-	name, err := parseName(parser)
+func (p *Parser) parseEnumValueDefinition() (interface{}, error) {
+	docComment := p.leadComment
+	start := p.tok.Start
+	name, err := p.parseName()
 	if err != nil {
 		return nil, err
 	}
 	return &ast.EnumValueDefinition{
-		Name: name,
-		Loc:  loc(parser, start),
+		Name:    name,
+		Loc:     p.loc(start),
+		Doc:     docComment,
+		Comment: p.lineComment,
 	}, nil
 }
 
-func parseInputObjectTypeDefinition(parser *Parser) (*ast.InputObjectDefinition, error) {
-	start := parser.Token.Start
-	_, err := expectKeyWord(parser, "input")
+func (p *Parser) parseInputObjectTypeDefinition() (*ast.InputObjectDefinition, error) {
+	docComment := p.leadComment
+	start := p.tok.Start
+	_, err := p.expectKeyWord("input")
 	if err != nil {
 		return nil, err
 	}
-	name, err := parseName(parser)
+	name, err := p.parseName()
 	if err != nil {
 		return nil, err
 	}
-	iInputValueDefinitions, err := any(parser, lexer.BRACE_L, parseInputValueDef, lexer.BRACE_R)
+	iInputValueDefinitions, err := p.any(lexer.BRACE_L, p.parseInputValueDef, lexer.BRACE_R)
 	if err != nil {
 		return nil, err
 	}
@@ -991,24 +1010,25 @@ func parseInputObjectTypeDefinition(parser *Parser) (*ast.InputObjectDefinition,
 	}
 	return &ast.InputObjectDefinition{
 		Name:   name,
-		Loc:    loc(parser, start),
+		Loc:    p.loc(start),
 		Fields: fields,
+		Doc:    docComment,
 	}, nil
 }
 
-func parseTypeExtensionDefinition(parser *Parser) (*ast.TypeExtensionDefinition, error) {
-	start := parser.Token.Start
-	_, err := expectKeyWord(parser, "extend")
+func (p *Parser) parseTypeExtensionDefinition() (*ast.TypeExtensionDefinition, error) {
+	start := p.tok.Start
+	_, err := p.expectKeyWord("extend")
 	if err != nil {
 		return nil, err
 	}
 
-	definition, err := parseObjectTypeDefinition(parser)
+	definition, err := p.parseObjectTypeDefinition()
 	if err != nil {
 		return nil, err
 	}
 	return &ast.TypeExtensionDefinition{
-		Loc:        loc(parser, start),
+		Loc:        p.loc(start),
 		Definition: definition,
 	}, nil
 }
@@ -1017,109 +1037,185 @@ func parseTypeExtensionDefinition(parser *Parser) (*ast.TypeExtensionDefinition,
 
 // Returns a location object, used to identify the place in
 // the source that created a given parsed object.
-func loc(parser *Parser, start int) ast.Location {
-	if parser.Options.NoSource {
+func (p *Parser) loc(start int) ast.Location {
+	if p.Options.NoSource {
 		return ast.Location{
 			Start: start,
-			End:   parser.PrevEnd,
+			End:   p.prevEnd,
 		}
 	}
 	return ast.Location{
 		Start:  start,
-		End:    parser.PrevEnd,
-		Source: parser.Source,
+		End:    p.prevEnd,
+		Source: p.Source,
 	}
 }
 
-// Moves the internal parser object to the next lexed token.
-func advance(parser *Parser) error {
-	prevEnd := parser.Token.End
-	parser.PrevEnd = prevEnd
-	parser.Lexer.Seek(prevEnd)
-	token, err := nextToken(parser)
-	if err != nil {
+// advance moves the internal parser object to the next lexed token.
+func (p *Parser) advance() error {
+	p.prevEnd = p.tok.End
+	return p.next()
+}
+
+func (p *Parser) next0() error {
+	var err error
+	p.tok, err = p.Lexer.NextToken()
+	return err
+}
+
+// next returns the next token from the lexer skipping over comments
+func (p *Parser) next() error {
+	if !p.Options.KeepComments {
+		for {
+			if err := p.next0(); err != nil {
+				return err
+			}
+			if p.tok.Kind != lexer.COMMENT {
+				return nil
+			}
+		}
+	}
+
+	p.leadComment = nil
+	p.lineComment = nil
+	prev := p.tok.Start
+	if err := p.next0(); err != nil {
 		return err
 	}
-	parser.Token = token
+
+	if p.tok.Kind == lexer.COMMENT {
+		var comment *ast.CommentGroup
+		var endline int
+		var err error
+
+		if p.posToLine(p.tok.Start) == p.posToLine(prev) {
+			// The comment is on same line as the previous token; it
+			// cannot be a lead comment but may be a line comment.
+			comment, endline, err = p.consumeCommentGroup(0)
+			if err != nil {
+				return err
+			}
+			if p.posToLine(p.tok.Start) != endline {
+				// The next token is on a different line, thus
+				// the last comment group is a line comment.
+				p.lineComment = comment
+			}
+		}
+
+		// consume successor comments, if any
+		endline = -1
+		for p.tok.Kind == lexer.COMMENT {
+			comment, endline, err = p.consumeCommentGroup(1)
+			if err != nil {
+				return err
+			}
+		}
+
+		if endline+1 == p.posToLine(p.tok.Start) {
+			// The next token is following on the line immediately after the
+			// comment group, thus the last comment group is a lead comment.
+			p.leadComment = comment
+		}
+	}
+
 	return nil
 }
 
-// nextToken returns the next token from the lexer skipping over comments
-func nextToken(parser *Parser) (lexer.Token, error) {
-	for {
-		tok, err := parser.Lexer.NextToken()
-		if err != nil {
-			return tok, err
+func (p *Parser) posToLine(pos int) int {
+	return p.Source.Position(pos).Line
+}
+
+func (p *Parser) consumeCommentGroup(n int) (comments *ast.CommentGroup, endline int, err error) {
+	var list []*ast.Comment
+	endline = p.posToLine(p.tok.Start)
+	for p.tok.Kind == lexer.COMMENT && p.posToLine(p.tok.Start) <= endline+n {
+		endline = p.posToLine(p.tok.Start)
+		comment := &ast.Comment{
+			Loc:  ast.Location{Start: p.tok.Start, End: p.tok.End},
+			Text: p.tok.Value,
 		}
-		if tok.Kind != lexer.COMMENT {
-			return tok, nil
+		if !p.Options.NoSource {
+			comment.Loc.Source = p.Source
+		}
+		list = append(list, comment)
+		if err := p.next0(); err != nil {
+			return nil, 0, err
 		}
 	}
+
+	// add comment group to the comments list
+	comments = &ast.CommentGroup{
+		Loc:  ast.Location{Start: list[0].Loc.Start, End: list[len(list)-1].Loc.End, Source: list[0].Loc.Source},
+		List: list,
+	}
+	p.comments = append(p.comments, comments)
+
+	return
 }
 
 // Determines if the next token is of a given kind
-func peek(parser *Parser, Kind int) bool {
-	return parser.Token.Kind == Kind
+func (p *Parser) peek(Kind int) bool {
+	return p.tok.Kind == Kind
 }
 
 // If the next token is of the given kind, return true after advancing
 // the parser. Otherwise, do not change the parser state and return false.
-func skip(parser *Parser, Kind int) (bool, error) {
-	if parser.Token.Kind == Kind {
-		return true, advance(parser)
+func (p *Parser) skip(Kind int) (bool, error) {
+	if p.tok.Kind == Kind {
+		return true, p.advance()
 	}
 	return false, nil
 }
 
 // If the next token is of the given kind, return that token after advancing
 // the parser. Otherwise, do not change the parser state and return false.
-func expect(parser *Parser, kind int) (lexer.Token, error) {
-	token := parser.Token
+func (p *Parser) expect(kind int) (lexer.Token, error) {
+	token := p.tok
 	if token.Kind == kind {
-		return token, advance(parser)
+		return token, p.advance()
 	}
 	descp := fmt.Sprintf("Expected %s, found %s", lexer.GetTokenKindDesc(kind), lexer.GetTokenDesc(token))
-	return token, gqlerrors.NewSyntaxError(parser.Source, token.Start, descp)
+	return token, gqlerrors.NewSyntaxError(p.Source, token.Start, descp)
 }
 
 // If the next token is a keyword with the given value, return that token after
 // advancing the parser. Otherwise, do not change the parser state and return false.
-func expectKeyWord(parser *Parser, value string) (lexer.Token, error) {
-	token := parser.Token
+func (p *Parser) expectKeyWord(value string) (lexer.Token, error) {
+	token := p.tok
 	if token.Kind == lexer.NAME && token.Value == value {
-		return token, advance(parser)
+		return token, p.advance()
 	}
 	descp := fmt.Sprintf("Expected \"%s\", found %s", value, lexer.GetTokenDesc(token))
-	return token, gqlerrors.NewSyntaxError(parser.Source, token.Start, descp)
+	return token, gqlerrors.NewSyntaxError(p.Source, token.Start, descp)
 }
 
 // Helper function for creating an error when an unexpected lexed token
 // is encountered.
-func unexpected(parser *Parser, atToken lexer.Token) error {
+func (p *Parser) unexpected(atToken lexer.Token) error {
 	token := atToken
 	if (token == lexer.Token{}) {
-		token = parser.Token
+		token = p.tok
 	}
 	description := fmt.Sprintf("Unexpected %v", lexer.GetTokenDesc(token))
-	return gqlerrors.NewSyntaxError(parser.Source, token.Start, description)
+	return gqlerrors.NewSyntaxError(p.Source, token.Start, description)
 }
 
 // any returns a possibly empty list of parse nodes, determined by
 // the parseFn. This list begins with a lex token of openKind
 // and ends with a lex token of closeKind. Advances the parser
 // to the next lex token after the closing token.
-func any(parser *Parser, openKind int, parseFn parseFn, closeKind int) ([]interface{}, error) {
-	if _, err := expect(parser, openKind); err != nil {
+func (p *Parser) any(openKind int, parseFn parseFn, closeKind int) ([]interface{}, error) {
+	if _, err := p.expect(openKind); err != nil {
 		return nil, err
 	}
 	var nodes []interface{}
 	for {
-		if skp, err := skip(parser, closeKind); err != nil {
+		if skp, err := p.skip(closeKind); err != nil {
 			return nil, err
 		} else if skp {
 			break
 		}
-		n, err := parseFn(parser)
+		n, err := parseFn()
 		if err != nil {
 			return nodes, err
 		}
@@ -1132,24 +1228,24 @@ func any(parser *Parser, openKind int, parseFn parseFn, closeKind int) ([]interf
 // the parseFn. This list begins with a lex token of openKind
 // and ends with a lex token of closeKind. Advances the parser
 // to the next lex token after the closing token.
-func many(parser *Parser, openKind int, parseFn parseFn, closeKind int) ([]interface{}, error) {
-	_, err := expect(parser, openKind)
+func (p *Parser) many(openKind int, parseFn parseFn, closeKind int) ([]interface{}, error) {
+	_, err := p.expect(openKind)
 	if err != nil {
 		return nil, err
 	}
-	node, err := parseFn(parser)
+	node, err := parseFn()
 	if err != nil {
 		return nil, err
 	}
 	var nodes []interface{}
 	nodes = append(nodes, node)
 	for {
-		if skp, err := skip(parser, closeKind); err != nil {
+		if skp, err := p.skip(closeKind); err != nil {
 			return nil, err
 		} else if skp {
 			break
 		}
-		node, err := parseFn(parser)
+		node, err := parseFn()
 		if err != nil {
 			return nodes, err
 		}

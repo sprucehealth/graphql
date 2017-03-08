@@ -1,15 +1,23 @@
 package source
 
-const (
-	name = "GraphQL"
-)
+import "sort"
 
+// Source is used with the lexer.
 type Source struct {
-	body  string
-	name  string
-	runes []rune
+	body       string
+	name       string
+	runes      []rune
+	linesIndex []int // offset for each line: start offset of line n -> linesIndex[n-1] when line numbers start at 1
 }
 
+// Position represents a rune position in the source.
+type Position struct {
+	Offset int // offset, starting at 0
+	Line   int // line number, starting at 1
+	Column int // column number, starting at 1 (byte count)
+}
+
+// New initializes a new source with the provided name and body.
 func New(name, body string) *Source {
 	return &Source{
 		name:  name,
@@ -18,17 +26,49 @@ func New(name, body string) *Source {
 	}
 }
 
+// Name returns the name of the source
 func (s *Source) Name() string {
 	return s.name
 }
 
+// Body returns the body of the source
 func (s *Source) Body() string {
 	return s.body
 }
 
-func (s *Source) RuneAt(i int) rune {
-	if i >= len(s.runes) {
+// RuneAt returns the rune at the provided offset
+func (s *Source) RuneAt(offset int) rune {
+	if offset >= len(s.runes) {
 		return 0
 	}
-	return s.runes[i]
+	return s.runes[offset]
+}
+
+// Position returns the line:column position from the provided absolute offset
+func (s *Source) Position(offset int) Position {
+	// Lazilly generate line index
+	if len(s.linesIndex) == 0 {
+		s.linesIndex = stringToLineIndex(s.runes)
+	}
+	line := sort.SearchInts(s.linesIndex, offset+1)
+	lineStart := s.linesIndex[len(s.linesIndex)-1]
+	if line <= len(s.linesIndex) {
+		lineStart = s.linesIndex[line-1]
+	}
+	return Position{
+		Offset: offset,
+		Line:   line,
+		Column: offset - lineStart + 1,
+	}
+}
+
+func stringToLineIndex(s []rune) []int {
+	index := []int{0}
+	for i, r := range s {
+		if r == '\n' {
+			// Record start of next line
+			index = append(index, i+1)
+		}
+	}
+	return index
 }

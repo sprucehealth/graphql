@@ -671,7 +671,6 @@ func TestUsesTheOnlyOperationIfNoOperationIsProvided(t *testing.T) {
 }
 
 func TestThrowsIfNoOperationIsProvidedWithMultipleOperations(t *testing.T) {
-
 	doc := `query Example { a } query OtherExample { a }`
 	data := map[string]interface{}{
 		"a": "b",
@@ -679,6 +678,7 @@ func TestThrowsIfNoOperationIsProvidedWithMultipleOperations(t *testing.T) {
 
 	expectedErrors := []gqlerrors.FormattedError{
 		{
+			Type:      "INTERNAL",
 			Message:   "Must provide operation name if query contains multiple operations.",
 			Locations: []location.SourceLocation{},
 		},
@@ -720,7 +720,6 @@ func TestThrowsIfNoOperationIsProvidedWithMultipleOperations(t *testing.T) {
 }
 
 func TestUsesTheQuerySchemaForQueries(t *testing.T) {
-
 	doc := `query Q { a } mutation M { c }`
 	data := map[string]interface{}{
 		"a": "b",
@@ -1089,7 +1088,6 @@ type testNotSpecialType struct {
 }
 
 func TestFailsWhenAnIsTypeOfCheckIsNotMet(t *testing.T) {
-
 	query := `{ specials { value } }`
 
 	data := map[string]interface{}{
@@ -1110,6 +1108,7 @@ func TestFailsWhenAnIsTypeOfCheckIsNotMet(t *testing.T) {
 		},
 		Errors: []gqlerrors.FormattedError{
 			{
+				Type:      "INTERNAL",
 				Message:   `Expected value of type "SpecialType" but got: graphql_test.testNotSpecialType.`,
 				Locations: []location.SourceLocation{},
 			},
@@ -1169,7 +1168,6 @@ func TestFailsWhenAnIsTypeOfCheckIsNotMet(t *testing.T) {
 }
 
 func TestFailsToExecuteQueryContainingATypeDefinition(t *testing.T) {
-
 	query := `
       { foo }
 
@@ -1179,6 +1177,7 @@ func TestFailsToExecuteQueryContainingATypeDefinition(t *testing.T) {
 		Data: nil,
 		Errors: []gqlerrors.FormattedError{
 			{
+				Type:      "INTERNAL",
 				Message:   "GraphQL cannot execute a request containing a ObjectDefinition",
 				Locations: []location.SourceLocation{},
 			},

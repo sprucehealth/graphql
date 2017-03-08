@@ -4,6 +4,7 @@ package ast
 type Document struct {
 	Loc         Location
 	Definitions []Node
+	Comments    []*CommentGroup
 }
 
 func (node *Document) GetLoc() Location {

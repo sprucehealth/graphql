@@ -89,7 +89,7 @@ func (l *Lexer) NextToken() (Token, error) {
 	return token, err
 }
 
-// Reads an alphanumeric + underscore name from the source.
+// readName reads an alphanumeric + underscore name from the source.
 // [_A-Za-z][_0-9A-Za-z]*
 func readName(s *source.Source, position int) Token {
 	end := position + 1
@@ -106,7 +106,7 @@ func readName(s *source.Source, position int) Token {
 	return makeToken(NAME, position, end, s.Body()[position:end])
 }
 
-// Reads a number token from the source file, either a float
+// readNumber reads a number token from the source file, either a float
 // or an int depending on whether a decimal point appears.
 // Int:   -?(0|[1-9][0-9]*)
 // Float: -?(0|[1-9][0-9]*)(\.[0-9]+)?((E|e)(+|-)?[0-9]+)?
@@ -314,8 +314,8 @@ func readToken(s *source.Source, fromPosition int) (Token, error) {
 	case '}':
 		return makeToken(BRACE_R, position, position+1, ""), nil
 	case '#':
-		position++
 		startPosition := position
+		position++
 		for {
 			code := s.RuneAt(position)
 			if !(position < bodyLength &&
