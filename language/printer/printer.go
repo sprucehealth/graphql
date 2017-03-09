@@ -167,46 +167,64 @@ func (w *walker) walkAST(root ast.Node) string {
 		name := w.walkAST(node.Name)
 		interfaces := w.walkASTSliceAndJoin(node.Interfaces, ", ")
 		fields := w.walkASTSliceAndBlock(node.Fields)
-		return "type " + name + " " + wrap("implements ", interfaces, " ") + fields
+		return joinComments(node.Doc, "", "\n") + "type " + name + " " + wrap("implements ", interfaces, " ") + fields
 	case *ast.FieldDefinition:
 		name := w.walkAST(node.Name)
 		ttype := w.walkAST(node.Type)
 		args := w.walkASTSliceAndJoin(node.Arguments, ", ")
-		return name + wrap("(", args, ")") + ": " + ttype
+		return joinComments(node.Doc, "", "\n") + name + wrap("(", args, ")") + ": " + ttype + joinComments(node.Comment, " ", "")
 	case *ast.InputValueDefinition:
 		name := w.walkAST(node.Name)
 		ttype := w.walkAST(node.Type)
 		defaultValue := w.walkAST(node.DefaultValue)
-		return name + ": " + ttype + wrap(" = ", defaultValue, "")
+		return joinComments(node.Doc, "", "\n") + name + ": " + ttype + wrap(" = ", defaultValue, "") + joinComments(node.Comment, " ", "")
 	case *ast.InterfaceDefinition:
 		name := w.walkAST(node.Name)
 		fields := w.walkASTSliceAndBlock(node.Fields)
-		return "interface " + name + " " + fields
+		return joinComments(node.Doc, "", "\n") + "interface " + name + " " + fields
 	case *ast.UnionDefinition:
 		name := w.walkAST(node.Name)
 		types := w.walkASTSliceAndJoin(node.Types, " | ")
-		return "union " + name + " = " + types
+		return joinComments(node.Doc, "", "\n") + "union " + name + " = " + types + joinComments(node.Comment, " ", "")
 	case *ast.ScalarDefinition:
 		name := w.walkAST(node.Name)
 		return "scalar " + name
 	case *ast.EnumDefinition:
 		name := w.walkAST(node.Name)
 		values := w.walkASTSliceAndBlock(node.Values)
-		return "enum " + name + " " + values
+		return joinComments(node.Doc, "", "\n") + "enum " + name + " " + values
 	case *ast.EnumValueDefinition:
-		return w.walkAST(node.Name)
+		return joinComments(node.Doc, "", "\n") + w.walkAST(node.Name) + joinComments(node.Comment, " ", "")
 	case *ast.InputObjectDefinition:
 		name := w.walkAST(node.Name)
 		fields := w.walkASTSliceAndBlock(node.Fields)
-		return "input " + name + " " + fields
+		return joinComments(node.Doc, "", "\n") + "input " + name + " " + fields
 	case *ast.TypeExtensionDefinition:
 		return "extend " + w.walkAST(node.Definition)
+	case *ast.CommentGroup:
+		lines := make([]string, len(node.List))
+		for i, c := range node.List {
+			lines[i] = c.Text
+		}
+		fmt.Printf("%v\n", lines)
+		return strings.Join(lines, "\n")
 	case ast.Type:
 		return node.String()
 	case ast.Value:
 		return fmt.Sprintf("%v", node.GetValue())
 	}
 	return fmt.Sprintf("[Unknown node type %T]", root)
+}
+
+func joinComments(cg *ast.CommentGroup, prefix, suffix string) string {
+	if cg == nil {
+		return ""
+	}
+	lines := make([]string, len(cg.List))
+	for i, c := range cg.List {
+		lines[i] = c.Text
+	}
+	return prefix + strings.Join(lines, "\n") + suffix
 }
 
 func Print(node ast.Node) string {

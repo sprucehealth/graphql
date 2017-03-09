@@ -2,6 +2,7 @@ package lexer
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/sprucehealth/graphql/gqlerrors"
 	"github.com/sprucehealth/graphql/language/source"
@@ -324,7 +325,7 @@ func readToken(s *source.Source, fromPosition int) (Token, error) {
 			}
 			position++
 		}
-		return makeToken(COMMENT, startPosition, position, s.Body()[startPosition:position]), nil
+		return makeToken(COMMENT, startPosition, position, strings.TrimSpace(s.Body()[startPosition:position])), nil
 	case '"':
 		token, err := readString(s, position)
 		if err != nil {

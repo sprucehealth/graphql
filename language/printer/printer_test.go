@@ -22,7 +22,7 @@ func parse(t testing.TB, query string) *ast.Document {
 	return astDoc
 }
 
-func TestPrinter_DoesNotAlterAST(t *testing.T) {
+func TestDoesNotAlterAST(t *testing.T) {
 	b, err := ioutil.ReadFile("../../kitchen-sink.graphql")
 	if err != nil {
 		t.Fatalf("unable to load kitchen-sink.graphql")
@@ -44,7 +44,7 @@ func TestPrinter_DoesNotAlterAST(t *testing.T) {
 	}
 }
 
-func TestPrinter_PrintsMinimalAST(t *testing.T) {
+func TestPrintsMinimalAST(t *testing.T) {
 	astDoc := &ast.Field{
 		Name: &ast.Name{
 			Value: "foo",
@@ -57,7 +57,7 @@ func TestPrinter_PrintsMinimalAST(t *testing.T) {
 	}
 }
 
-func TestPrinter_PrintsKitchenSink(t *testing.T) {
+func TestPrintsKitchenSink(t *testing.T) {
 	b, err := ioutil.ReadFile("../../kitchen-sink.graphql")
 	if err != nil {
 		t.Fatalf("unable to load kitchen-sink.graphql")
@@ -101,6 +101,78 @@ fragment frag on Follower {
 	results := printer.Print(astDoc)
 	if !reflect.DeepEqual(expected, results) {
 		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(results, expected))
+	}
+}
+
+func TestComments(t *testing.T) {
+	source := `# Unconnected comment
+# part of the same group
+
+# Type doc comment
+# two lines
+type Foo {
+	# Field comment
+	bar: String! # Line comment
+}
+
+# enum doc
+enum SomeType {
+	RED # yep
+	# color 2
+	BLUE
+}
+
+# Blah
+interface SettingValue {
+	# key doc
+	key: Boolean # key line
+}
+
+# non doc comment
+# booo
+
+# input doc
+input SomeInput {
+	# bar doc
+	bar: String # bar comment
+}
+`
+	document, err := parser.Parse(parser.ParseParams{Source: source, Options: parser.ParseOptions{NoSource: true, KeepComments: true}})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// TODO: the printer doesn't yet handle non doc or line comments
+	expected := `# Type doc comment
+# two lines
+type Foo {
+  # Field comment
+  bar: String! # Line comment
+}
+
+# enum doc
+enum SomeType {
+  RED # yep
+  # color 2
+  BLUE
+}
+
+# Blah
+interface SettingValue {
+  # key doc
+  key: Boolean # key line
+}
+
+# input doc
+input SomeInput {
+  # bar doc
+  bar: String # bar comment
+}
+`
+
+	res := printer.Print(document)
+	if res != expected {
+		println(len(res), len(expected))
+		t.Fatalf("Expected:\n%s\ngot:\n%s", expected, res)
 	}
 }
 
