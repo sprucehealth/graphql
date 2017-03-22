@@ -12,7 +12,7 @@ type intSerializationTest struct {
 	Value    interface{}
 	Expected interface{}
 }
-type float32SerializationTest struct {
+type float64SerializationTest struct {
 	Value    interface{}
 	Expected interface{}
 }
@@ -32,12 +32,12 @@ func TestTypeSystem_Scalar_SerializesOutputInt(t *testing.T) {
 		{1, 1},
 		{0, 0},
 		{-1, -1},
-		{float32(0.1), 0},
-		{float32(1.1), 1},
-		{float32(-1.1), -1},
+		{float64(0.1), 0},
+		{float64(1.1), 1},
+		{float64(-1.1), -1},
 		// Bigger than 2^32, but still representable as an Int
-		{float32(1e5), 100000},
-		{float32(math.MaxFloat32), nil},
+		{float64(1e5), 100000},
+		{float64(math.MaxFloat64), nil},
 		{9876504321, 9876504321},
 		{-9876504321, -9876504321},
 		{float64(1e100), nil},
@@ -76,17 +76,17 @@ func TestTypeSystem_Scalar_SerializesOutputInt(t *testing.T) {
 }
 
 func TestTypeSystem_Scalar_SerializesOutputFloat(t *testing.T) {
-	tests := []float32SerializationTest{
-		{int(1), float32(1.0)},
-		{int(0), float32(0.0)},
-		{int(-1), float32(-1.0)},
-		{float32(0.1), float32(0.1)},
-		{float32(1.1), float32(1.1)},
-		{float32(-1.1), float32(-1.1)},
-		{"-1.1", float32(-1.1)},
+	tests := []float64SerializationTest{
+		{int(1), float64(1.0)},
+		{int(0), float64(0.0)},
+		{int(-1), float64(-1.0)},
+		{float64(0.1), float64(0.1)},
+		{float64(1.1), float64(1.1)},
+		{float64(-1.1), float64(-1.1)},
+		{"-1.1", float64(-1.1)},
 		{"one", nil},
-		{false, float32(0.0)},
-		{true, float32(1.0)},
+		{false, float64(0.0)},
+		{true, float64(1.0)},
 	}
 
 	for i, test := range tests {
@@ -102,7 +102,7 @@ func TestTypeSystem_Scalar_SerializesOutputStrings(t *testing.T) {
 	tests := []stringSerializationTest{
 		{"string", "string"},
 		{int(1), "1"},
-		{float32(-1.1), "-1.1"},
+		{float64(-1.1), "-1.1"},
 		{true, "true"},
 		{false, "false"},
 	}

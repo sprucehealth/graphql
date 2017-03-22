@@ -50,7 +50,7 @@ func coerceInt(value interface{}) interface{} {
 		}
 		return int(value)
 	case float64:
-		if value < float64(math.MinInt32) || value > float64(math.MaxInt32) {
+		if value < float64(math.MinInt64) || value > float64(math.MaxInt64) {
 			return nil
 		}
 		return int(value)
@@ -83,42 +83,42 @@ var Int *Scalar = NewScalar(ScalarConfig{
 	},
 })
 
-func coerceFloat32(value interface{}) interface{} {
+func coerceFloat64(value interface{}) interface{} {
 	switch value := value.(type) {
 	case bool:
 		if value {
-			return float32(1)
+			return float64(1)
 		}
-		return float32(0)
+		return float64(0)
 	case int:
-		return float32(value)
+		return float64(value)
 	case float32:
-		return value
+		return float64(value)
 	case float64:
-		return float32(value)
+		return value
 	case string:
-		val, err := strconv.ParseFloat(value, 0)
+		val, err := strconv.ParseFloat(value, 64)
 		if err != nil {
 			return nil
 		}
-		return coerceFloat32(val)
+		return val
 	}
-	return float32(0)
+	return float64(0)
 }
 
 // Float is the GraphQL float type definition.
 var Float *Scalar = NewScalar(ScalarConfig{
 	Name:       "Float",
-	Serialize:  coerceFloat32,
-	ParseValue: coerceFloat32,
+	Serialize:  coerceFloat64,
+	ParseValue: coerceFloat64,
 	ParseLiteral: func(valueAST ast.Value) interface{} {
 		switch valueAST := valueAST.(type) {
 		case *ast.FloatValue:
-			if floatValue, err := strconv.ParseFloat(valueAST.Value, 32); err == nil {
+			if floatValue, err := strconv.ParseFloat(valueAST.Value, 64); err == nil {
 				return floatValue
 			}
 		case *ast.IntValue:
-			if floatValue, err := strconv.ParseFloat(valueAST.Value, 32); err == nil {
+			if floatValue, err := strconv.ParseFloat(valueAST.Value, 64); err == nil {
 				return floatValue
 			}
 		}
