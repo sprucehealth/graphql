@@ -209,6 +209,73 @@ func TestExecutesArbitraryCode(t *testing.T) {
 	}
 }
 
+func TestAliasedString(t *testing.T) {
+	query := `
+		query _ {
+			foo
+			bar
+		}
+    `
+
+	expected := &graphql.Result{
+		Data: map[string]interface{}{
+			"foo": "bar",
+			"bar": "foo",
+		},
+	}
+
+	type LikeAString string
+
+	const fooEnumValue LikeAString = "foo"
+
+	enumType := graphql.NewEnum(graphql.EnumConfig{
+		Name: "Bar",
+		Values: graphql.EnumValueConfigMap{
+			string(fooEnumValue): &graphql.EnumValueConfig{
+				Value: fooEnumValue,
+			},
+		},
+	})
+
+	schema, err := graphql.NewSchema(graphql.SchemaConfig{
+		Query: graphql.NewObject(graphql.ObjectConfig{
+			Name: "Query",
+			Fields: graphql.Fields{
+				"foo": &graphql.Field{
+					Type: graphql.NewNonNull(graphql.String),
+					Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+						return LikeAString("bar"), nil
+					},
+				},
+				"bar": &graphql.Field{
+					Type: graphql.NewNonNull(enumType),
+					Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+						return fooEnumValue, nil
+					},
+				},
+			},
+		}),
+	})
+	if err != nil {
+		t.Fatalf("Error in schema %s", err)
+	}
+
+	// parse query
+	astDoc := testutil.TestParse(t, query)
+
+	ep := graphql.ExecuteParams{
+		Schema: schema,
+		AST:    astDoc,
+	}
+	result := testutil.TestExecute(t, ep)
+	if len(result.Errors) > 0 {
+		t.Fatalf("wrong result, unexpected errors: %v", result.Errors)
+	}
+	if !reflect.DeepEqual(expected, result) {
+		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expected, result))
+	}
+}
+
 func TestMergesParallelFragments(t *testing.T) {
 
 	query := `
@@ -297,7 +364,6 @@ func TestMergesParallelFragments(t *testing.T) {
 }
 
 func TestThreadsSourceCorrectly(t *testing.T) {
-
 	query := `
       query Example { a }
     `
@@ -406,7 +472,6 @@ func TestOmitEmpty(t *testing.T) {
 }
 
 func TestCorrectlyThreadsArguments(t *testing.T) {
-
 	query := `
       query Example {
         b(numArg: 123, stringArg: "foo")
