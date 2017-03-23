@@ -12,12 +12,15 @@ import (
 	"github.com/sprucehealth/graphql/language/ast"
 )
 
+const defaultMaxConcurrency = 1
+
 type ExecuteParams struct {
-	Schema        Schema
-	Root          interface{}
-	AST           *ast.Document
-	OperationName string
-	Args          map[string]interface{}
+	Schema         Schema
+	Root           interface{}
+	AST            *ast.Document
+	OperationName  string
+	Args           map[string]interface{}
+	MaxConcurrency int
 
 	// Context may be provided to pass application-specific per-request
 	// information to resolve functions.
@@ -28,14 +31,15 @@ func Execute(p ExecuteParams) (result *Result) {
 	result = &Result{}
 
 	exeContext, err := buildExecutionContext(BuildExecutionCtxParams{
-		Schema:        p.Schema,
-		Root:          p.Root,
-		AST:           p.AST,
-		OperationName: p.OperationName,
-		Args:          p.Args,
-		Errors:        nil,
-		Result:        result,
-		Context:       p.Context,
+		Schema:         p.Schema,
+		Root:           p.Root,
+		AST:            p.AST,
+		OperationName:  p.OperationName,
+		Args:           p.Args,
+		Errors:         nil,
+		Result:         result,
+		Context:        p.Context,
+		MaxConcurrency: p.MaxConcurrency,
 	})
 
 	if err != nil {
@@ -46,8 +50,8 @@ func Execute(p ExecuteParams) (result *Result) {
 	defer func() {
 		if r := recover(); r != nil {
 			err := gqlerrors.FormatPanic(r)
-			exeContext.Errors = append(exeContext.Errors, gqlerrors.FormatError(err))
-			result.Errors = exeContext.Errors
+			exeContext.AddErrors(gqlerrors.FormatError(err))
+			result.Errors = exeContext.Errors()
 		}
 	}()
 
@@ -59,14 +63,15 @@ func Execute(p ExecuteParams) (result *Result) {
 }
 
 type BuildExecutionCtxParams struct {
-	Schema        Schema
-	Root          interface{}
-	AST           *ast.Document
-	OperationName string
-	Args          map[string]interface{}
-	Errors        []gqlerrors.FormattedError
-	Result        *Result
-	Context       context.Context
+	Schema         Schema
+	Root           interface{}
+	AST            *ast.Document
+	OperationName  string
+	Args           map[string]interface{}
+	Errors         []gqlerrors.FormattedError
+	Result         *Result
+	Context        context.Context
+	MaxConcurrency int
 }
 type ExecutionContext struct {
 	Schema         Schema
@@ -74,8 +79,23 @@ type ExecutionContext struct {
 	Root           interface{}
 	Operation      ast.Definition
 	VariableValues map[string]interface{}
-	Errors         []gqlerrors.FormattedError
 	Context        context.Context
+	MaxConcurrency int
+
+	mu     sync.Mutex
+	errors []gqlerrors.FormattedError
+}
+
+func (ec *ExecutionContext) AddErrors(errs ...gqlerrors.FormattedError) {
+	ec.mu.Lock()
+	ec.errors = append(ec.errors, errs...)
+	ec.mu.Unlock()
+}
+
+func (ec *ExecutionContext) Errors() []gqlerrors.FormattedError {
+	ec.mu.Lock()
+	defer ec.mu.Unlock()
+	return ec.errors
 }
 
 func safeNodeType(n ast.Node) string {
@@ -83,6 +103,10 @@ func safeNodeType(n ast.Node) string {
 }
 
 func buildExecutionContext(p BuildExecutionCtxParams) (*ExecutionContext, error) {
+	if p.MaxConcurrency <= 0 {
+		p.MaxConcurrency = defaultMaxConcurrency
+	}
+
 	operations := make(map[string]ast.Definition)
 	fragments := make(map[string]ast.Definition)
 	for _, statement := range p.AST.Definitions {
@@ -133,8 +157,9 @@ func buildExecutionContext(p BuildExecutionCtxParams) (*ExecutionContext, error)
 		Root:           p.Root,
 		Operation:      operation,
 		VariableValues: variableValues,
-		Errors:         p.Errors,
 		Context:        p.Context,
+		MaxConcurrency: p.MaxConcurrency,
+		errors:         p.Errors,
 	}
 	return eCtx, nil
 }
@@ -216,7 +241,7 @@ func executeFieldsSerially(p ExecuteFieldsParams) *Result {
 
 	return &Result{
 		Data:   finalResults,
-		Errors: p.ExecutionContext.Errors,
+		Errors: p.ExecutionContext.Errors(),
 	}
 }
 
@@ -230,17 +255,51 @@ func executeFields(p ExecuteFieldsParams) *Result {
 	}
 
 	finalResults := make(map[string]interface{})
-	for responseName, fieldASTs := range p.Fields {
-		resolved, state := resolveField(p.ExecutionContext, p.ParentType, p.Source, fieldASTs)
-		if state.hasNoFieldDefs {
-			continue
+	if p.ExecutionContext.MaxConcurrency <= 1 || len(p.Fields) <= 1 {
+		for responseName, fieldASTs := range p.Fields {
+			resolved, state := resolveField(p.ExecutionContext, p.ParentType, p.Source, fieldASTs)
+			if !state.hasNoFieldDefs {
+				finalResults[responseName] = resolved
+			}
 		}
-		finalResults[responseName] = resolved
+	} else {
+		var mu sync.Mutex
+		var wg sync.WaitGroup
+		panicCh := make(chan interface{}, 1)
+		concCh := make(chan struct{}, p.ExecutionContext.MaxConcurrency)
+		for responseName, fieldASTs := range p.Fields {
+			wg.Add(1)
+			go func(responseName string, fieldASTs []*ast.Field) {
+				concCh <- struct{}{}
+				defer func() {
+					if r := recover(); r != nil {
+						select {
+						case panicCh <- r:
+						default:
+						}
+					}
+					_ = <-concCh
+					wg.Done()
+				}()
+				resolved, state := resolveField(p.ExecutionContext, p.ParentType, p.Source, fieldASTs)
+				if !state.hasNoFieldDefs {
+					mu.Lock()
+					finalResults[responseName] = resolved
+					mu.Unlock()
+				}
+			}(responseName, fieldASTs)
+		}
+		wg.Wait()
+		select {
+		case r := <-panicCh:
+			panic(r)
+		default:
+		}
 	}
 
 	return &Result{
 		Data:   finalResults,
-		Errors: p.ExecutionContext.Errors,
+		Errors: p.ExecutionContext.Errors(),
 	}
 }
 
@@ -453,14 +512,14 @@ func resolveField(eCtx *ExecutionContext, parentType *Object, source interface{}
 			if _, ok := returnType.(*NonNull); ok {
 				panic(gqlerrors.FormatError(err))
 			}
-			eCtx.Errors = append(eCtx.Errors, gqlerrors.FormatError(err))
+			eCtx.AddErrors(gqlerrors.FormatError(err))
 			return result, resultState
 		}
 		return result, resultState
 	}()
 
 	fieldAST := fieldASTs[0]
-	fieldName := ""
+	var fieldName string
 	if fieldAST.Name != nil {
 		fieldName = fieldAST.Name.Value
 	}
@@ -525,7 +584,7 @@ func completeValueCatchingError(eCtx *ExecutionContext, returnType Type, fieldAS
 				panic(r)
 			}
 			if err, ok := r.(gqlerrors.FormattedError); ok {
-				eCtx.Errors = append(eCtx.Errors, err)
+				eCtx.AddErrors(err)
 			}
 			return completed
 		}

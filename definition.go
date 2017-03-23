@@ -801,6 +801,7 @@ type Union struct {
 
 	typeConfig    UnionConfig
 	types         []*Object
+	mu            sync.RWMutex
 	possibleTypes map[string]struct{}
 
 	err error
@@ -857,17 +858,25 @@ func (ut *Union) IsPossibleType(ttype *Object) bool {
 	if ttype == nil {
 		return false
 	}
-	if len(ut.possibleTypes) == 0 {
-		possibleTypes := make(map[string]struct{}, len(ut.PossibleTypes()))
-		for _, possibleType := range ut.PossibleTypes() {
-			if possibleType == nil {
-				continue
+	ut.mu.RLock()
+	possibleTypes := ut.possibleTypes
+	ut.mu.RUnlock()
+	if len(possibleTypes) == 0 {
+		ut.mu.Lock()
+		possibleTypes = ut.possibleTypes
+		if len(ut.possibleTypes) == 0 {
+			possibleTypes = make(map[string]struct{}, len(ut.PossibleTypes()))
+			for _, possibleType := range ut.PossibleTypes() {
+				if possibleType == nil {
+					continue
+				}
+				possibleTypes[possibleType.PrivateName] = struct{}{}
 			}
-			possibleTypes[possibleType.PrivateName] = struct{}{}
+			ut.possibleTypes = possibleTypes
 		}
-		ut.possibleTypes = possibleTypes
+		ut.mu.Unlock()
 	}
-	_, ok := ut.possibleTypes[ttype.PrivateName]
+	_, ok := possibleTypes[ttype.PrivateName]
 	return ok
 }
 func (ut *Union) ObjectType(value interface{}, info ResolveInfo) *Object {
@@ -916,6 +925,7 @@ type Enum struct {
 
 	enumConfig   EnumConfig
 	values       []*EnumValueDefinition
+	mu           sync.RWMutex
 	valuesLookup map[interface{}]*EnumValueDefinition
 	nameLookup   map[string]*EnumValueDefinition
 
@@ -1026,27 +1036,45 @@ func (gt *Enum) Error() error {
 	return gt.err
 }
 func (gt *Enum) getValueLookup() map[interface{}]*EnumValueDefinition {
+	gt.mu.RLock()
+	valuesLookup := gt.valuesLookup
+	gt.mu.RUnlock()
+	if len(valuesLookup) != 0 {
+		return valuesLookup
+	}
+
+	gt.mu.Lock()
+	defer gt.mu.Unlock()
 	if len(gt.valuesLookup) > 0 {
 		return gt.valuesLookup
 	}
-	valuesLookup := map[interface{}]*EnumValueDefinition{}
+	valuesLookup = map[interface{}]*EnumValueDefinition{}
 	for _, value := range gt.Values() {
 		valuesLookup[value.Value] = value
 	}
 	gt.valuesLookup = valuesLookup
-	return gt.valuesLookup
+	return valuesLookup
 }
 
 func (gt *Enum) getNameLookup() map[string]*EnumValueDefinition {
+	gt.mu.RLock()
+	nameLookup := gt.nameLookup
+	gt.mu.RUnlock()
+	if len(nameLookup) != 0 {
+		return nameLookup
+	}
+
+	gt.mu.Lock()
+	defer gt.mu.Unlock()
 	if len(gt.nameLookup) > 0 {
 		return gt.nameLookup
 	}
-	nameLookup := map[string]*EnumValueDefinition{}
+	nameLookup = map[string]*EnumValueDefinition{}
 	for _, value := range gt.Values() {
 		nameLookup[value.Name] = value
 	}
 	gt.nameLookup = nameLookup
-	return gt.nameLookup
+	return nameLookup
 }
 
 /**
