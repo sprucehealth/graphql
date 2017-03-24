@@ -3,6 +3,8 @@ package lexer
 import (
 	"fmt"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/sprucehealth/graphql/gqlerrors"
 	"github.com/sprucehealth/graphql/language/source"
@@ -24,7 +26,6 @@ const (
 	PIPE
 	BRACE_R
 	NAME
-	VARIABLE
 	INT
 	FLOAT
 	STRING
@@ -50,7 +51,6 @@ func init() {
 	tokenDescription[PIPE] = "|"
 	tokenDescription[BRACE_R] = "}"
 	tokenDescription[NAME] = "Name"
-	tokenDescription[VARIABLE] = "Variable"
 	tokenDescription[INT] = "Int"
 	tokenDescription[FLOAT] = "Float"
 	tokenDescription[STRING] = "String"
@@ -71,180 +71,202 @@ func (t *Token) String() string {
 }
 
 type Lexer struct {
-	s   *source.Source
-	pos int
+	src      *source.Source
+	body     string
+	offset   offset
+	rdOffset offset
+	runePos  int
+	ch       rune
+}
+
+type offset struct {
+	bytes int
+	runes int
 }
 
 func New(s *source.Source) *Lexer {
-	return &Lexer{s: s}
-}
-
-func (l *Lexer) Seek(pos int) {
-	l.pos = pos
+	lex := &Lexer{
+		src:  s,
+		body: s.Body(),
+	}
+	lex.nextRune()
+	return lex
 }
 
 func (l *Lexer) NextToken() (Token, error) {
-	token, err := readToken(l.s, l.pos)
+	token, err := l.readToken()
 	if err != nil {
 		return token, err
 	}
-	l.pos = token.End
-	return token, err
+	return token, nil
+}
+
+func (l *Lexer) nextRune() {
+	l.offset = l.rdOffset
+	if l.rdOffset.bytes >= len(l.body) {
+		l.ch = 0
+		return
+	}
+	l.offset = l.rdOffset
+	r, w := rune(l.body[l.offset.bytes]), 1
+	// case r == 0:
+	// 	s.error(s.offset, "illegal character NUL")
+	if r >= utf8.RuneSelf {
+		r, w = utf8.DecodeRuneInString(l.body[l.offset.bytes:])
+		// if r == utf8.RuneError && w == 1 {
+		// 	s.error(s.offset, "illegal UTF-8 encoding")
+		// } else if r == bom && s.offset > 0 {
+		// 	s.error(s.offset, "illegal byte order mark")
+		// }
+	}
+	l.ch = r
+	l.rdOffset.bytes += w
+	l.rdOffset.runes++
 }
 
 // readName reads an alphanumeric + underscore name from the source.
 // [_A-Za-z][_0-9A-Za-z]*
-func readName(s *source.Source, position int) Token {
-	end := position + 1
+func (l *Lexer) readName() (Token, error) {
+	start := l.offset
 	for {
-		code := s.RuneAt(end)
-		if !(code != 0 && (code == 95 ||
-			code >= 48 && code <= 57 ||
-			code >= 65 && code <= 90 ||
-			code >= 97 && code <= 122)) {
+		if !(l.ch != 0 && (l.ch == 95 || // _
+			l.ch >= 48 && l.ch <= 57 || // 0-9
+			l.ch >= 65 && l.ch <= 90 || // A-Z
+			l.ch >= 97 && l.ch <= 122)) { // a-z
 			break
 		}
-		end++
+		l.nextRune()
 	}
-	return makeToken(NAME, position, end, s.Body()[position:end])
+	return makeToken(NAME, start, l.offset, l.sliceBody(start, l.offset)), nil
 }
 
 // readNumber reads a number token from the source file, either a float
 // or an int depending on whether a decimal point appears.
 // Int:   -?(0|[1-9][0-9]*)
 // Float: -?(0|[1-9][0-9]*)(\.[0-9]+)?((E|e)(+|-)?[0-9]+)?
-func readNumber(s *source.Source, start int, firstCode rune) (Token, error) {
-	code := firstCode
-	position := start
+func (l *Lexer) readNumber() (Token, error) {
+	start := l.offset
 	isFloat := false
-	if code == '-' {
-		position++
-		code = s.RuneAt(position)
+	if l.ch == '-' {
+		l.nextRune()
 	}
-	if code == '0' {
-		position++
-		code = s.RuneAt(position)
-		if code >= 48 && code <= 57 {
-			description := fmt.Sprintf("Invalid number, unexpected digit after 0: \"%c\".", code)
-			return Token{}, gqlerrors.NewSyntaxError(s, position, description)
+	if l.ch == '0' {
+		l.nextRune()
+		if l.ch >= '0' && l.ch <= '9' {
+			description := fmt.Sprintf("Invalid number, unexpected digit after 0: %v.", printCharCode(l.ch))
+			return Token{}, gqlerrors.NewSyntaxError(l.src, l.offset.runes, description)
 		}
 	} else {
-		p, err := readDigits(s, position, code)
+		err := l.readDigits()
 		if err != nil {
 			return Token{}, err
 		}
-		position = p
-		code = s.RuneAt(position)
 	}
-	if code == '.' {
+	if l.ch == '.' {
 		isFloat = true
-		position++
-		code = s.RuneAt(position)
-		p, err := readDigits(s, position, code)
+		l.nextRune()
+		err := l.readDigits()
 		if err != nil {
 			return Token{}, err
 		}
-		position = p
-		code = s.RuneAt(position)
 	}
-	if code == 'E' || code == 'e' {
+	if l.ch == 'E' || l.ch == 'e' {
 		isFloat = true
-		position++
-		code = s.RuneAt(position)
-		if code == '+' || code == '-' {
-			position++
-			code = s.RuneAt(position)
+		l.nextRune()
+		if l.ch == '+' || l.ch == '-' {
+			l.nextRune()
 		}
-		p, err := readDigits(s, position, code)
+		err := l.readDigits()
 		if err != nil {
 			return Token{}, err
 		}
-		position = p
 	}
 	kind := INT
 	if isFloat {
 		kind = FLOAT
 	}
-	return makeToken(kind, start, position, s.Body()[start:position]), nil
+	return makeToken(kind, start, l.offset, l.sliceBody(start, l.offset)), nil
 }
 
 // Returns the new position in the source after reading digits.
-func readDigits(s *source.Source, start int, firstCode rune) (int, error) {
-	if firstCode < '0' || firstCode > '9' {
+func (l *Lexer) readDigits() error {
+	if l.ch < '0' || l.ch > '9' {
 		var description string
-		if firstCode != 0 {
-			description = fmt.Sprintf("Invalid number, expected digit but got: \"%c\".", firstCode)
+		if l.ch != 0 {
+			description = fmt.Sprintf("Invalid number, expected digit but got: %v.", printCharCode(l.ch))
 		} else {
 			description = "Invalid number, expected digit but got: EOF."
 		}
-		return start, gqlerrors.NewSyntaxError(s, start, description)
+		return gqlerrors.NewSyntaxError(l.src, l.offset.runes, description)
 	}
-
-	position := start
-	code := firstCode
-	for code >= '0' && code <= '9' {
-		position++
-		code = s.RuneAt(position)
+	for l.ch >= '0' && l.ch <= '9' {
+		l.nextRune()
 	}
-	return position, nil
+	return nil
 }
 
-func readString(s *source.Source, start int) (Token, error) {
-	body := s.Body()
-	position := start + 1
-	chunkStart := position
-	var code rune
-	var value string
+func (l *Lexer) readString() (Token, error) {
+	start := l.offset
+	chunkStart := l.rdOffset
+	value := make([]string, 0, 16)
 	for {
-		code = s.RuneAt(position)
-		if !(position < len(body) && code != '"' && code != 10 && code != 13 && code != 0x2028 && code != 0x2029) {
+		l.nextRune()
+
+		if l.ch == 0 || l.ch == '"' || l.ch == 10 || l.ch == 13 {
 			break
 		}
-		position++
-		if code == '\\' {
-			value += body[chunkStart : position-1]
-			code = s.RuneAt(position)
-			switch code {
+		if l.ch < 0x0020 && l.ch != 0x0009 {
+			return Token{}, gqlerrors.NewSyntaxError(l.src, l.offset.runes, fmt.Sprintf(`Invalid character within String: %v.`, printCharCode(l.ch)))
+		}
+		if l.ch == '\\' {
+			value = append(value, l.sliceBody(chunkStart, l.offset))
+			l.nextRune()
+			switch l.ch {
 			case '"':
-				value += "\""
+				value = append(value, "\"")
 			case '/':
-				value += "\\/"
+				value = append(value, "\\/")
 			case '\\':
-				value += "\\"
+				value = append(value, "\\")
 			case 'b':
-				value += "\b"
+				value = append(value, "\b")
 			case 'f':
-				value += "\f"
+				value = append(value, "\f")
 			case 'n':
-				value += "\n"
+				value = append(value, "\n")
 			case 'r':
-				value += "\r"
+				value = append(value, "\r")
 			case 't':
-				value += "\t"
+				value = append(value, "\t")
 			case 'u':
-				charCode := uniCharCode(
-					s.RuneAt(position+1),
-					s.RuneAt(position+2),
-					s.RuneAt(position+3),
-					s.RuneAt(position+4),
-				)
+				offs := l.rdOffset
+				l.nextRune()
+				u1 := l.ch
+				l.nextRune()
+				u2 := l.ch
+				l.nextRune()
+				u3 := l.ch
+				l.nextRune()
+				u4 := l.ch
+				charCode := uniCharCode(u1, u2, u3, u4)
 				if charCode < 0 {
-					return Token{}, gqlerrors.NewSyntaxError(s, position, "Bad character escape sequence.")
+					return Token{}, gqlerrors.NewSyntaxError(l.src, offs.runes-1, fmt.Sprintf(`Invalid character escape sequence: \u%s`, l.sliceBody(offs, l.rdOffset)))
 				}
-				value += fmt.Sprintf("%c", charCode)
-				position += 4
+				value = append(value, string(charCode))
 			default:
-				return Token{}, gqlerrors.NewSyntaxError(s, position, "Bad character escape sequence.")
+				return Token{}, gqlerrors.NewSyntaxError(l.src, l.offset.runes, fmt.Sprintf(`Invalid character escape sequence: \%c.`, l.ch))
 			}
-			position++
-			chunkStart = position
+			chunkStart = l.rdOffset
 		}
 	}
-	if code != '"' {
-		return Token{}, gqlerrors.NewSyntaxError(s, position, "Unterminated string.")
+	if l.ch != '"' {
+		return Token{}, gqlerrors.NewSyntaxError(l.src, l.offset.runes, "Unterminated string.")
 	}
-	value += body[chunkStart:position]
-	return makeToken(STRING, start, position+1, value), nil
+	if chunkStart.bytes != l.offset.bytes {
+		value = append(value, l.sliceBody(chunkStart, l.offset))
+	}
+	l.nextRune()
+	return makeToken(STRING, start, l.offset, strings.Join(value, "")), nil
 }
 
 // Converts four hexidecimal chars to the integer that the
@@ -274,110 +296,115 @@ func char2hex(a rune) int {
 	return -1
 }
 
-func makeToken(kind, start, end int, value string) Token {
-	return Token{Kind: kind, Start: start, End: end, Value: value}
+func makeToken(kind int, start, end offset, value string) Token {
+	return Token{Kind: kind, Start: start.runes, End: end.runes, Value: value}
 }
 
-func readToken(s *source.Source, fromPosition int) (Token, error) {
-	body := s.Body()
-	bodyLength := len(body)
-	position := positionAfterWhitespace(s, fromPosition)
-	code := s.RuneAt(position)
-	if position >= bodyLength {
-		return makeToken(EOF, position, position, ""), nil
+func printCharCode(code rune) string {
+	// NaN/undefined represents access beyond the end of the file.
+	if code < 0 {
+		return "<EOF>"
 	}
-	switch code {
-	case '!':
-		return makeToken(BANG, position, position+1, ""), nil
-	case '$':
-		return makeToken(DOLLAR, position, position+1, ""), nil
-	case '(':
-		return makeToken(PAREN_L, position, position+1, ""), nil
-	case ')':
-		return makeToken(PAREN_R, position, position+1, ""), nil
-	case '.':
-		if s.RuneAt(position+1) == '.' && s.RuneAt(position+2) == '.' {
-			return makeToken(SPREAD, position, position+3, ""), nil
-		}
-		break
-	case ':':
-		return makeToken(COLON, position, position+1, ""), nil
-	case '=':
-		return makeToken(EQUALS, position, position+1, ""), nil
-	case '@':
-		return makeToken(AT, position, position+1, ""), nil
-	case '[':
-		return makeToken(BRACKET_L, position, position+1, ""), nil
-	case ']':
-		return makeToken(BRACKET_R, position, position+1, ""), nil
-	case '{':
-		return makeToken(BRACE_L, position, position+1, ""), nil
-	case '|':
-		return makeToken(PIPE, position, position+1, ""), nil
-	case '}':
-		return makeToken(BRACE_R, position, position+1, ""), nil
-	case '#':
-		startPosition := position
-		position++
-		for {
-			code := s.RuneAt(position)
-			if !(position < bodyLength &&
-				code != 10 && code != 13 && code != 0x2028 && code != 0x2029) {
-				break
+	// print as ASCII for printable range
+	if code >= 0x0020 && code < 0x007F {
+		return fmt.Sprintf(`"%c"`, code)
+	}
+	// Otherwise print the escaped form. e.g. `"\\u0007"`
+	return fmt.Sprintf(`"\\u%04X"`, code)
+}
+
+func (l *Lexer) readToken() (Token, error) {
+	l.skipWhitespace()
+	if l.ch == 0 {
+		return makeToken(EOF, l.rdOffset, l.rdOffset, ""), nil
+	}
+	// SourceCharacter
+	if l.ch < 0x0020 && l.ch != 0x0009 && l.ch != 0x000A && l.ch != 0x000D {
+		return Token{}, gqlerrors.NewSyntaxError(l.src, l.offset.runes, fmt.Sprintf(`Invalid character %v`, printCharCode(l.ch)))
+	}
+	startOffset := l.offset
+	ch := l.ch
+	switch {
+	case isLetter(ch):
+		return l.readName()
+	case isDigit(ch) || ch == '-':
+		return l.readNumber()
+	case ch == '"':
+		return l.readString()
+	default:
+		l.nextRune() // always make progress
+		switch ch {
+		case '!':
+			return makeToken(BANG, startOffset, l.offset, ""), nil
+		case '$':
+			return makeToken(DOLLAR, startOffset, l.offset, ""), nil
+		case '(':
+			return makeToken(PAREN_L, startOffset, l.offset, ""), nil
+		case ')':
+			return makeToken(PAREN_R, startOffset, l.offset, ""), nil
+		case '.':
+			if l.ch == '.' {
+				l.nextRune()
+				if l.ch == '.' {
+					l.nextRune()
+					return makeToken(SPREAD, startOffset, l.offset, ""), nil
+				}
 			}
-			position++
+			break
+		case ':':
+			return makeToken(COLON, startOffset, l.offset, ""), nil
+		case '=':
+			return makeToken(EQUALS, startOffset, l.offset, ""), nil
+		case '@':
+			return makeToken(AT, startOffset, l.offset, ""), nil
+		case '[':
+			return makeToken(BRACKET_L, startOffset, l.offset, ""), nil
+		case ']':
+			return makeToken(BRACKET_R, startOffset, l.offset, ""), nil
+		case '{':
+			return makeToken(BRACE_L, startOffset, l.offset, ""), nil
+		case '|':
+			return makeToken(PIPE, startOffset, l.offset, ""), nil
+		case '}':
+			return makeToken(BRACE_R, startOffset, l.offset, ""), nil
+		case '#':
+			for {
+				if l.ch == '\n' || l.ch == '\r' || l.ch == 0 {
+					break
+				}
+				l.nextRune()
+			}
+			return makeToken(COMMENT, startOffset, l.offset, strings.TrimSpace(l.sliceBody(startOffset, l.offset))), nil
 		}
-		return makeToken(COMMENT, startPosition, position, strings.TrimSpace(s.Body()[startPosition:position])), nil
-	case '"':
-		token, err := readString(s, position)
-		if err != nil {
-			return token, err
-		}
-		return token, nil
-	// A-Z
-	// a-z
-	// _
-	case 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81,
-		82, 83, 84, 85, 86, 87, 88, 89, 90, 95, 97, 98, 99, 100, 101, 102,
-		103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116,
-		117, 118, 119, 120, 121, 122:
-		return readName(s, position), nil
-	// -
-	// 0-9
-	case 45, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57:
-		token, err := readNumber(s, position, code)
-		if err != nil {
-			return token, err
-		}
-		return token, nil
 	}
-	description := fmt.Sprintf("Unexpected character \"%c\".", code)
-	return Token{}, gqlerrors.NewSyntaxError(s, position, description)
+	description := fmt.Sprintf("Unexpected character %v.", printCharCode(ch))
+	return Token{}, gqlerrors.NewSyntaxError(l.src, startOffset.runes, description)
+}
+
+func (l *Lexer) sliceBody(start, end offset) string {
+	return l.body[start.bytes:end.bytes]
+}
+
+func isLetter(ch rune) bool {
+	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_' || ch >= utf8.RuneSelf && unicode.IsLetter(ch)
+}
+
+func isDigit(ch rune) bool {
+	return '0' <= ch && ch <= '9' || ch >= utf8.RuneSelf && unicode.IsDigit(ch)
 }
 
 // Reads from body starting at startPosition until it finds a non-whitespace
 // or commented character, then returns the position of that character for lexing.
 // lexing.
-func positionAfterWhitespace(s *source.Source, startPosition int) int {
-	bodyLength := len(s.Body())
-	position := startPosition
+func (l *Lexer) skipWhitespace() {
 	for {
-		if position >= bodyLength {
-			break
+		switch l.ch {
+		case 0xFEFF, ' ', ',', '\n', '\r', '\t':
+		default:
+			return
 		}
-		code := s.RuneAt(position)
-		if code == ' ' ||
-			code == ',' ||
-			code == '\xa0' ||
-			code == 0x2028 || // line separator
-			code == 0x2029 || // paragraph separator
-			code > 8 && code < 14 { // whitespace
-			position++
-		} else {
-			break
-		}
+		l.nextRune()
 	}
-	return position
 }
 
 func GetTokenDesc(token Token) string {

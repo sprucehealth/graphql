@@ -3,11 +3,30 @@ package gqlerrors
 import (
 	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/sprucehealth/graphql/language/ast"
 	"github.com/sprucehealth/graphql/language/location"
 	"github.com/sprucehealth/graphql/language/source"
 )
+
+// printCharCode here is slightly different from lexer.printCharCode()
+func printCharCode(code rune) string {
+	// print as ASCII for printable range
+	if code >= 0x0020 {
+		return fmt.Sprintf(`%c`, code)
+	}
+	// Otherwise print the escaped form. e.g. `"\\u0007"`
+	return fmt.Sprintf(`\u%04X`, code)
+}
+
+func printLine(str string) string {
+	strSlice := []string{}
+	for _, runeValue := range str {
+		strSlice = append(strSlice, printCharCode(runeValue))
+	}
+	return fmt.Sprintf(`%s`, strings.Join(strSlice, ""))
+}
 
 func NewSyntaxError(s *source.Source, position int, description string) *Error {
 	l := location.GetLocation(s, position)
@@ -30,15 +49,15 @@ func highlightSourceAtLocation(s *source.Source, l location.SourceLocation) stri
 	lines := regexp.MustCompile("\r\n|[\n\r]").Split(s.Body(), -1)
 	var highlight string
 	if line >= 2 {
-		highlight += fmt.Sprintf("%s: %s\n", lpad(padLen, prevLineNum), lines[line-2])
+		highlight += fmt.Sprintf("%s: %s\n", lpad(padLen, prevLineNum), printLine(lines[line-2]))
 	}
-	highlight += fmt.Sprintf("%s: %s\n", lpad(padLen, lineNum), lines[line-1])
+	highlight += fmt.Sprintf("%s: %s\n", lpad(padLen, lineNum), printLine(lines[line-1]))
 	for i := 1; i < (2 + padLen + l.Column); i++ {
 		highlight += " "
 	}
 	highlight += "^\n"
 	if line < len(lines) {
-		highlight += fmt.Sprintf("%s: %s\n", lpad(padLen, nextLineNum), lines[line])
+		highlight += fmt.Sprintf("%s: %s\n", lpad(padLen, nextLineNum), printLine(lines[line]))
 	}
 	return highlight
 }

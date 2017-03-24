@@ -40,7 +40,7 @@ func TestStringToLineIndex(t *testing.T) {
 		{st: "foo\nbar\n", ix: []int{0, 4, 8}},
 	}
 	for _, c := range cases {
-		v := stringToLineIndex([]rune(c.st))
+		v := stringToLineIndex(c.st)
 		if !reflect.DeepEqual(v, c.ix) {
 			t.Errorf("stringToLineIndex(%q) = %+v, expected %v", c.st, v, c.ix)
 		}
