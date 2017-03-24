@@ -1,17 +1,22 @@
 package graphql
 
 import (
+	"errors"
+
 	"github.com/sprucehealth/graphql/gqlerrors"
 	"github.com/sprucehealth/graphql/language/ast"
 )
 
 func NewLocatedError(err interface{}, nodes []ast.Node) *gqlerrors.Error {
 	message := "An unknown error occurred."
-	if err, ok := err.(error); ok {
+	var origError error
+	switch err := err.(type) {
+	case error:
 		message = err.Error()
-	}
-	if err, ok := err.(string); ok {
+		origError = err
+	case string:
 		message = err
+		origError = errors.New(err)
 	}
 	stack := message
 	return gqlerrors.NewError(
@@ -20,6 +25,7 @@ func NewLocatedError(err interface{}, nodes []ast.Node) *gqlerrors.Error {
 		stack,
 		nil,
 		[]int{},
+		origError,
 	)
 }
 

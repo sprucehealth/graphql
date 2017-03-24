@@ -53,6 +53,7 @@ func newValidationRuleError(message string, nodes []ast.Node) (string, error) {
 		"",
 		nil,
 		[]int{},
+		nil,
 	)
 }
 
