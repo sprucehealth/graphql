@@ -10,6 +10,7 @@ type Definition interface {
 // Ensure that all definition types implements Definition interface
 var _ Definition = (*OperationDefinition)(nil)
 var _ Definition = (*FragmentDefinition)(nil)
+var _ Definition = (*TypeExtensionDefinition)(nil)
 var _ Definition = (Definition)(nil)
 
 // OperationDefinition implements Node, Definition
@@ -87,4 +88,26 @@ type VariableDefinition struct {
 
 func (vd *VariableDefinition) GetLoc() Location {
 	return vd.Loc
+}
+
+// TypeExtensionDefinition implements Node, Definition
+type TypeExtensionDefinition struct {
+	Loc        Location
+	Definition *ObjectDefinition
+}
+
+func (def *TypeExtensionDefinition) GetLoc() Location {
+	return def.Loc
+}
+
+func (def *TypeExtensionDefinition) GetVariableDefinitions() []*VariableDefinition {
+	return []*VariableDefinition{}
+}
+
+func (def *TypeExtensionDefinition) GetSelectionSet() *SelectionSet {
+	return &SelectionSet{}
+}
+
+func (def *TypeExtensionDefinition) GetOperation() string {
+	return ""
 }
