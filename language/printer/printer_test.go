@@ -52,8 +52,62 @@ func TestPrintsMinimalAST(t *testing.T) {
 	}
 	results := printer.Print(astDoc)
 	expected := "foo"
-	if !reflect.DeepEqual(results, expected) {
+	if expected != results {
 		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expected, results))
+	}
+}
+
+func TestPrinter_CorrectlyPrintsNonQueryOperationsWithoutName(t *testing.T) {
+	// Test #1
+	queryAstShorthanded := `query { id, name }`
+	expected := `{
+  id
+  name
+}
+`
+	astDoc := parse(t, queryAstShorthanded)
+	results := printer.Print(astDoc)
+	if expected != results {
+		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(results, expected))
+	}
+
+	// Test #2
+	mutationAst := `mutation { id, name }`
+	expected = `mutation {
+  id
+  name
+}
+`
+	astDoc = parse(t, mutationAst)
+	results = printer.Print(astDoc)
+	if expected != results {
+		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(results, expected))
+	}
+
+	// Test #3
+	queryAstWithArtifacts := `query ($foo: TestType) @testDirective { id, name }`
+	expected = `query ($foo: TestType) @testDirective {
+  id
+  name
+}
+`
+	astDoc = parse(t, queryAstWithArtifacts)
+	results = printer.Print(astDoc)
+	if expected != results {
+		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(results, expected))
+	}
+
+	// Test #4
+	mutationAstWithArtifacts := `mutation ($foo: TestType) @testDirective { id, name }`
+	expected = `mutation ($foo: TestType) @testDirective {
+  id
+  name
+}
+`
+	astDoc = parse(t, mutationAstWithArtifacts)
+	results = printer.Print(astDoc)
+	if expected != results {
+		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(results, expected))
 	}
 }
 
