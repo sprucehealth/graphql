@@ -252,6 +252,7 @@ func TestAllowsNonKeywordsAnywhereNameIsAllowed(t *testing.T) {
 		"fragment",
 		"query",
 		"mutation",
+		"subscription",
 		"true",
 		"false",
 	}
@@ -276,9 +277,21 @@ func TestAllowsNonKeywordsAnywhereNameIsAllowed(t *testing.T) {
 	}
 }
 
-func TestParsesExperimentalSubscriptionFeature(t *testing.T) {
+func TestParsesAnonymousMutationOperations(t *testing.T) {
 	source := `
-      subscription Foo {
+		mutation {
+			mutationField
+		}
+	`
+	_, err := Parse(ParseParams{Source: source})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestParsesAnonymousSubscriptionOperations(t *testing.T) {
+	source := `
+      subscription {
         subscriptionField
       }
     `
@@ -288,12 +301,24 @@ func TestParsesExperimentalSubscriptionFeature(t *testing.T) {
 	}
 }
 
-func TestParsesAnonymousOperations(t *testing.T) {
+func TestParsesNamedMutationOperations(t *testing.T) {
 	source := `
-		mutation {
-			mutationField
-			}
-	`
+      mutation Foo {
+        mutationField
+      }
+    `
+	_, err := Parse(ParseParams{Source: source})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestParsesNamedSubscriptionOperations(t *testing.T) {
+	source := `
+      subscription Foo {
+        subscriptionField
+      }
+    `
 	_, err := Parse(ParseParams{Source: source})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
