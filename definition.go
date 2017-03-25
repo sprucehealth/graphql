@@ -659,14 +659,17 @@ type Interface struct {
 	implementations []*Object
 	possibleTypes   map[string]struct{}
 
-	err error
+	muErr sync.RWMutex
+	err   error
 }
+
 type InterfaceConfig struct {
-	Name        string `json:"name"`
-	Fields      Fields `json:"fields"`
+	Name        string      `json:"name"`
+	Fields      interface{} `json:"fields"`
 	ResolveType ResolveTypeFn
 	Description string `json:"description"`
 }
+
 type ResolveTypeFn func(value interface{}, info ResolveInfo) *Object
 
 func NewInterface(config InterfaceConfig) *Interface {
@@ -693,15 +696,21 @@ func (it *Interface) AddFieldConfig(fieldName string, fieldConfig *Field) {
 	}
 	it.mu.Lock()
 	defer it.mu.Unlock()
-	it.typeConfig.Fields[fieldName] = fieldConfig
-	it.fields = nil
+	switch it.typeConfig.Fields.(type) {
+	case Fields:
+		it.typeConfig.Fields.(Fields)[fieldName] = fieldConfig
+		it.fields = nil
+	}
 }
+
 func (it *Interface) Name() string {
 	return it.PrivateName
 }
+
 func (it *Interface) Description() string {
 	return it.PrivateDescription
 }
+
 func (it *Interface) Fields() FieldDefinitionMap {
 	it.mu.RLock()
 	fields := it.fields
@@ -712,12 +721,26 @@ func (it *Interface) Fields() FieldDefinitionMap {
 
 	it.mu.Lock()
 	defer it.mu.Unlock()
-	it.fields, it.err = defineFieldMap(it, it.typeConfig.Fields)
+
+	var configureFields Fields
+	switch it.typeConfig.Fields.(type) {
+	case Fields:
+		configureFields = it.typeConfig.Fields.(Fields)
+	case FieldsThunk:
+		configureFields = it.typeConfig.Fields.(FieldsThunk)()
+	}
+	fields, err := defineFieldMap(it, configureFields)
+	it.fields = fields
+	it.muErr.Lock()
+	it.err = err
+	it.muErr.Unlock()
 	return it.fields
 }
+
 func (it *Interface) PossibleTypes() []*Object {
 	return it.implementations
 }
+
 func (it *Interface) IsPossibleType(ttype *Object) bool {
 	if ttype == nil {
 		return false
@@ -753,8 +776,8 @@ func (it *Interface) String() string {
 	return it.PrivateName
 }
 func (it *Interface) Error() error {
-	it.mu.RLock()
-	defer it.mu.RUnlock()
+	it.muErr.RLock()
+	defer it.muErr.RUnlock()
 	return it.err
 }
 
