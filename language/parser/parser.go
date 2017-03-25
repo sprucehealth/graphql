@@ -196,9 +196,12 @@ func (p *Parser) parseOperationDefinition() (*ast.OperationDefinition, error) {
 	default:
 		return nil, p.unexpected(operationToken)
 	}
-	name, err := p.parseName()
-	if err != nil {
-		return nil, err
+	var name *ast.Name
+	if p.peek(lexer.NAME) {
+		name, err = p.parseName()
+		if err != nil {
+			return nil, err
+		}
 	}
 	variableDefinitions, err := p.parseVariableDefinitions()
 	if err != nil {
