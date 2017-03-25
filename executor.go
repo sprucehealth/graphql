@@ -523,10 +523,6 @@ func resolveField(eCtx *ExecutionContext, parentType *Object, source interface{}
 		VariableValues: eCtx.VariableValues,
 	}
 
-	// TODO: If an error occurs while calling the field `resolve` function, ensure that
-	// it is wrapped as a Error with locations. Log this error and return
-	// null if allowed, otherwise throw the error so the parent field can handle
-	// it.
 	var resolveFnError error
 
 	result, resolveFnError = resolveFn(ResolveParams{
@@ -607,8 +603,12 @@ func completeValue(eCtx *ExecutionContext, returnType Type, fieldASTs []*ast.Fie
 	// If field type is List, complete each item in the list with the inner type
 	if returnType, ok := returnType.(*List); ok {
 		resultVal := reflect.ValueOf(result)
+		parentTypeName := ""
+		if info.ParentType != nil {
+			parentTypeName = info.ParentType.Name()
+		}
 		if !resultVal.IsValid() || resultVal.Type().Kind() != reflect.Slice {
-			panic(gqlerrors.NewFormattedError("User Error: expected iterable, but did not find one."))
+			panic(gqlerrors.NewFormattedError(fmt.Sprintf("User Error: expected iterable, but did not find one for field %v.%v", parentTypeName, info.FieldName)))
 		}
 
 		itemType := returnType.OfType
