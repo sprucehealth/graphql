@@ -280,7 +280,7 @@ func assertObjectImplementsInterface(object *Object, iface *Interface) error {
 		}
 
 		// Assert interface field type matches object field type.
-		if !isEqualType(ifaceField.Type, objectField.Type) {
+		if !isTypeSubTypeOf(objectField.Type, ifaceField.Type) {
 			return gqlerrors.NewFormattedError(fmt.Sprintf(`%v.%v expects type "%v" but %v.%v provides type "%v".`,
 				iface, fieldName, ifaceField.Type,
 				object, fieldName, objectField.Type))
@@ -333,16 +333,70 @@ func assertObjectImplementsInterface(object *Object, iface *Interface) error {
 	return nil
 }
 
-func isEqualType(typeA Type, typeB Type) bool {
+func isEqualType(typeA, typeB Type) bool {
+	// Equivalent type is a valid subtype
+	if typeA == typeB {
+		return true
+	}
+	// If either type is non-null, the other must also be non-null.
 	if typeA, ok := typeA.(*NonNull); ok {
 		if typeB, ok := typeB.(*NonNull); ok {
 			return isEqualType(typeA.OfType, typeB.OfType)
 		}
 	}
+	// If either type is a list, the other must also be a list.
 	if typeA, ok := typeA.(*List); ok {
 		if typeB, ok := typeB.(*List); ok {
 			return isEqualType(typeA.OfType, typeB.OfType)
 		}
 	}
 	return typeA == typeB
+}
+
+// isTypeSubTypeOf, provided a type and a super type, return true if the first type is either
+// equal or a subset of the second super type (covariant).
+func isTypeSubTypeOf(maybeSubType Type, superType Type) bool {
+	// Equivalent type is a valid subtype
+	if maybeSubType == superType {
+		return true
+	}
+
+	// If superType is non-null, maybeSubType must also be nullable.
+	if superType, ok := superType.(*NonNull); ok {
+		if maybeSubType, ok := maybeSubType.(*NonNull); ok {
+			return isTypeSubTypeOf(maybeSubType.OfType, superType.OfType)
+		}
+		return false
+	}
+	if maybeSubType, ok := maybeSubType.(*NonNull); ok {
+		// If superType is nullable, maybeSubType may be non-null.
+		return isTypeSubTypeOf(maybeSubType.OfType, superType)
+	}
+
+	// If superType type is a list, maybeSubType type must also be a list.
+	if superType, ok := superType.(*List); ok {
+		if maybeSubType, ok := maybeSubType.(*List); ok {
+			return isTypeSubTypeOf(maybeSubType.OfType, superType.OfType)
+		}
+		return false
+	} else if _, ok := maybeSubType.(*List); ok {
+		// If superType is not a list, maybeSubType must also be not a list.
+		return false
+	}
+
+	// If superType type is an abstract type, maybeSubType type may be a currently
+	// possible object type.
+	if superType, ok := superType.(*Interface); ok {
+		if maybeSubType, ok := maybeSubType.(*Object); ok && superType.IsPossibleType(maybeSubType) {
+			return true
+		}
+	}
+	if superType, ok := superType.(*Union); ok {
+		if maybeSubType, ok := maybeSubType.(*Object); ok && superType.IsPossibleType(maybeSubType) {
+			return true
+		}
+	}
+
+	// Otherwise, the child type is not a valid subtype of the parent type.
+	return false
 }

@@ -932,9 +932,6 @@ func sameValue(value1 ast.Value, value2 ast.Value) bool {
 
 	return val1 == val2
 }
-func sameType(type1 Type, type2 Type) bool {
-	return type1.String() == type2.String()
-}
 
 // OverlappingFieldsCanBeMergedRule
 // Overlapping fields can be merged
@@ -984,7 +981,7 @@ func OverlappingFieldsCanBeMergedRule(context *ValidationContext) *ValidationRul
 			type2 = def2.Type
 		}
 
-		if type1 != nil && type2 != nil && !sameType(type1, type2) {
+		if type1 != nil && type2 != nil && !isEqualType(type1, type2) {
 			return &conflict{
 				Reason: conflictReason{
 					Name:    responseName,
@@ -1509,28 +1506,6 @@ func effectiveType(varType Type, varDef *ast.VariableDefinition) Type {
 	return NewNonNull(varType)
 }
 
-// A var type is allowed if it is the same or more strict than the expected
-// type. It can be more strict if the variable type is non-null when the
-// expected type is nullable. If both are list types, the variable item type can
-// be more strict than the expected item type.
-func varTypeAllowedForType(varType Type, expectedType Type) bool {
-	if expectedType, ok := expectedType.(*NonNull); ok {
-		if varType, ok := varType.(*NonNull); ok {
-			return varTypeAllowedForType(varType.OfType, expectedType.OfType)
-		}
-		return false
-	}
-	if varType, ok := varType.(*NonNull); ok {
-		return varTypeAllowedForType(varType.OfType, expectedType)
-	}
-	if varType, ok := varType.(*List); ok {
-		if expectedType, ok := expectedType.(*List); ok {
-			return varTypeAllowedForType(varType.OfType, expectedType.OfType)
-		}
-	}
-	return varType == expectedType
-}
-
 /**
  * VariablesInAllowedPositionRule
  * Variables passed to field arguments conform to type
@@ -1573,10 +1548,15 @@ func VariablesInAllowedPositionRule(context *ValidationContext) *ValidationRuleI
 				varDef, _ := varDefMap[varName]
 				var varType Type
 				if varDef != nil {
+					// A var type is allowed if it is the same or more strict (e.g. is
+					// a subtype of) than the expected type. It can be more strict if
+					// the variable type is non-null when the expected type is nullable.
+					// If both are list types, the variable item type can be more strict
+					// than the expected item type (contravariant).
 					varType, _ = typeFromAST(*context.Schema(), varDef.Type)
 				}
 				inputType := context.InputType()
-				if varType != nil && inputType != nil && !varTypeAllowedForType(effectiveType(varType, varDef), inputType) {
+				if varType != nil && inputType != nil && !isTypeSubTypeOf(effectiveType(varType, varDef), inputType) {
 					return reportErrorAndReturn(
 						context,
 						fmt.Sprintf(`Variable "$%v" of type "%v" used in position `+
