@@ -13,6 +13,12 @@ query namedQuery($foo: ComplexFooType, $bar: Bar = DefaultBarValue) {
         }
       }
     }
+    ... @skip(unless: $foo) {
+      id
+    }
+    ... {
+      id
+    }
   }
 }
 

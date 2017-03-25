@@ -128,7 +128,11 @@ func (w *walker) walkAST(root ast.Node) string {
 		typeCondition := w.walkAST(node.TypeCondition)
 		directives := w.walkASTSliceAndJoin(node.Directives, " ")
 		selectionSet := w.walkAST(node.SelectionSet)
-		return "... on " + typeCondition + " " + wrap("", directives, " ") + selectionSet
+		if typeCondition == "" {
+			return "... " + wrap("", directives, " ") + selectionSet
+		} else {
+			return "... on " + typeCondition + " " + wrap("", directives, " ") + selectionSet
+		}
 	case *ast.FragmentDefinition:
 		name := w.walkAST(node.Name)
 		typeCondition := w.walkAST(node.TypeCondition)
@@ -158,6 +162,9 @@ func (w *walker) walkAST(root ast.Node) string {
 		args := w.walkASTSliceAndJoin(node.Arguments, ", ")
 		return "@" + name + wrap("(", args, ")")
 	case *ast.Named:
+		if node == nil {
+			return ""
+		}
 		return w.walkAST(node.Name)
 	case *ast.List:
 		return "[" + w.walkAST(node.Type) + "]"

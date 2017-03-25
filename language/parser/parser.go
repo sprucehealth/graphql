@@ -403,11 +403,32 @@ func (p *Parser) parseArgument() (interface{}, error) {
 
 /* Implements the parsing rules in the Fragments section. */
 
+// parseFragment corresponds to both FragmentSpread and InlineFragment in the spec.
+//
+// FragmentSpread : ... FragmentName Directives?
+//
+// InlineFragment : ... TypeCondition? Directives? SelectionSet
 func (p *Parser) parseFragment() (interface{}, error) {
 	start := p.tok.Start
 	if _, err := p.expect(lexer.SPREAD); err != nil {
 		return nil, err
 	}
+	if p.peek(lexer.NAME) && p.tok.Value != "on" {
+		name, err := p.parseFragmentName()
+		if err != nil {
+			return nil, err
+		}
+		directives, err := p.parseDirectives()
+		if err != nil {
+			return nil, err
+		}
+		return &ast.FragmentSpread{
+			Name:       name,
+			Directives: directives,
+			Loc:        p.loc(start),
+		}, nil
+	}
+	var typeCondition *ast.Named
 	if p.tok.Value == "on" {
 		if err := p.advance(); err != nil {
 			return nil, err
@@ -416,33 +437,22 @@ func (p *Parser) parseFragment() (interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
-		directives, err := p.parseDirectives()
-		if err != nil {
-			return nil, err
-		}
-		selectionSet, err := p.parseSelectionSet()
-		if err != nil {
-			return nil, err
-		}
-		return &ast.InlineFragment{
-			TypeCondition: name,
-			Directives:    directives,
-			SelectionSet:  selectionSet,
-			Loc:           p.loc(start),
-		}, nil
-	}
-	name, err := p.parseFragmentName()
-	if err != nil {
-		return nil, err
+		typeCondition = name
+
 	}
 	directives, err := p.parseDirectives()
 	if err != nil {
 		return nil, err
 	}
-	return &ast.FragmentSpread{
-		Name:       name,
-		Directives: directives,
-		Loc:        p.loc(start),
+	selectionSet, err := p.parseSelectionSet()
+	if err != nil {
+		return nil, err
+	}
+	return &ast.InlineFragment{
+		TypeCondition: typeCondition,
+		Directives:    directives,
+		SelectionSet:  selectionSet,
+		Loc:           p.loc(start),
 	}, nil
 }
 

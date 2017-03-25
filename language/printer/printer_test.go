@@ -77,6 +77,12 @@ func TestPrintsKitchenSink(t *testing.T) {
         }
       }
     }
+    ... @skip(unless: $foo) {
+      id
+    }
+    ... {
+      id
+    }
   }
 }
 
@@ -99,8 +105,8 @@ fragment frag on Follower {
 `
 
 	results := printer.Print(astDoc)
-	if !reflect.DeepEqual(expected, results) {
-		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(results, expected))
+	if results != expected {
+		t.Fatalf("Unexpected result, expected\n%s\ngot\n%s", expected, results)
 	}
 }
 

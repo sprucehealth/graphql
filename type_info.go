@@ -98,11 +98,19 @@ func (ti *TypeInfo) Enter(node ast.Node) {
 		}
 		ti.typeStack = append(ti.typeStack, ttype)
 	case *ast.InlineFragment:
-		ttype, _ = typeFromAST(*schema, node.TypeCondition)
-		ti.typeStack = append(ti.typeStack, ttype)
+		if node.TypeCondition != nil {
+			ttype, _ = typeFromAST(*schema, node.TypeCondition)
+			ti.typeStack = append(ti.typeStack, ttype)
+		} else {
+			ti.typeStack = append(ti.typeStack, ti.Type())
+		}
 	case *ast.FragmentDefinition:
-		ttype, _ = typeFromAST(*schema, node.TypeCondition)
-		ti.typeStack = append(ti.typeStack, ttype)
+		if node.TypeCondition != nil {
+			ttype, _ = typeFromAST(*schema, node.TypeCondition)
+			ti.typeStack = append(ti.typeStack, ttype)
+		} else {
+			ti.typeStack = append(ti.typeStack, ti.Type())
+		}
 	case *ast.VariableDefinition:
 		ttype, _ = typeFromAST(*schema, node.Type)
 		ti.inputTypeStack = append(ti.inputTypeStack, ttype)

@@ -385,6 +385,9 @@ func shouldIncludeNode(eCtx *ExecutionContext, directives []*ast.Directive) bool
 func doesFragmentConditionMatch(eCtx *ExecutionContext, fragment ast.Node, ttype *Object) bool {
 	switch fragment := fragment.(type) {
 	case *ast.FragmentDefinition:
+		if fragment.TypeCondition == nil {
+			return true
+		}
 		conditionalType, err := typeFromAST(eCtx.Schema, fragment.TypeCondition)
 		if err != nil {
 			return false
@@ -400,6 +403,9 @@ func doesFragmentConditionMatch(eCtx *ExecutionContext, fragment ast.Node, ttype
 			return conditionalType.IsPossibleType(ttype)
 		}
 	case *ast.InlineFragment:
+		if fragment.TypeCondition == nil {
+			return true
+		}
 		conditionalType, err := typeFromAST(eCtx.Schema, fragment.TypeCondition)
 		if err != nil {
 			return false
@@ -407,7 +413,9 @@ func doesFragmentConditionMatch(eCtx *ExecutionContext, fragment ast.Node, ttype
 		if conditionalType == ttype {
 			return true
 		}
-
+		if conditionalType.Name() == ttype.Name() {
+			return true
+		}
 		if conditionalType, ok := conditionalType.(Abstract); ok {
 			return conditionalType.IsPossibleType(ttype)
 		}
