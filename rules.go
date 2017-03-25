@@ -1484,45 +1484,28 @@ func UniqueOperationNamesRule(context *ValidationContext) *ValidationRuleInstanc
  * A GraphQL operation is only valid if all its variables are uniquely named.
  */
 func UniqueVariableNamesRule(context *ValidationContext) *ValidationRuleInstance {
-	knownVariableNames := map[string]*ast.Name{}
-
-	visitorOpts := &visitor.VisitorOptions{
-		KindFuncMap: map[string]visitor.NamedVisitFuncs{
-			kinds.OperationDefinition: visitor.NamedVisitFuncs{
-				Kind: func(p visitor.VisitFuncParams) (string, interface{}) {
-					if node, ok := p.Node.(*ast.OperationDefinition); ok && node != nil {
-						knownVariableNames = map[string]*ast.Name{}
-					}
-					return visitor.ActionNoChange, nil
-				},
-			},
-			kinds.VariableDefinition: visitor.NamedVisitFuncs{
-				Kind: func(p visitor.VisitFuncParams) (string, interface{}) {
-					if node, ok := p.Node.(*ast.VariableDefinition); ok && node != nil {
-						variableName := ""
-						var variableNameAST *ast.Name
-						if node.Variable != nil && node.Variable.Name != nil {
-							variableNameAST = node.Variable.Name
-							variableName = node.Variable.Name.Value
-						}
-						if nameAST, ok := knownVariableNames[variableName]; ok {
-							return reportError(
-								context,
-								fmt.Sprintf(`There can only be one variable named "%v".`, variableName),
-								[]ast.Node{nameAST, variableNameAST},
-							)
-						}
-						if variableNameAST != nil {
-							knownVariableNames[variableName] = variableNameAST
-						}
-					}
-					return visitor.ActionNoChange, nil
-				},
-			},
-		},
-	}
 	return &ValidationRuleInstance{
-		VisitorOpts: visitorOpts,
+		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
+			if node, ok := p.Node.(*ast.OperationDefinition); ok {
+				knownVariableNames := make(map[string]*ast.Name)
+				for _, def := range node.VariableDefinitions {
+					var variableName string
+					var variableNameAST *ast.Name
+					if def.Variable != nil && def.Variable.Name != nil {
+						variableNameAST = def.Variable.Name
+						variableName = def.Variable.Name.Value
+					}
+					if nameAST, ok := knownVariableNames[variableName]; ok {
+						context.ReportError(newValidationError(
+							fmt.Sprintf(`There can only be one variable named "%v".`, variableName),
+							[]ast.Node{nameAST, variableNameAST}))
+					} else if variableNameAST != nil {
+						knownVariableNames[variableName] = variableNameAST
+					}
+				}
+			}
+			return visitor.ActionNoChange, nil
+		},
 	}
 }
 
