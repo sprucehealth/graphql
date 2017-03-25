@@ -34,6 +34,7 @@ var SpecifiedRules = []ValidationRuleFn{
 	ScalarLeafsRule,
 	UniqueArgumentNamesRule,
 	UniqueFragmentNamesRule,
+	UniqueInputFieldNamesRule,
 	UniqueOperationNamesRule,
 	VariablesAreInputTypesRule,
 	VariablesInAllowedPositionRule,
@@ -1426,12 +1427,29 @@ func UniqueFragmentNamesRule(context *ValidationContext) *ValidationRuleInstance
 	}
 }
 
-/**
- * UniqueOperationNamesRule
- * Unique operation names
- *
- * A GraphQL document is only valid if all defined operations have unique names.
- */
+// UniqueInputFieldNamesRule checks that a GraphQL input object value is only valid if all supplied fields are uniquely named.
+func UniqueInputFieldNamesRule(context *ValidationContext) *ValidationRuleInstance {
+	return &ValidationRuleInstance{
+		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
+			switch node := p.Node.(type) {
+			case *ast.ObjectValue:
+				seen := make(map[string]*ast.ObjectField, len(node.Fields))
+				for _, f := range node.Fields {
+					if other, k := seen[f.Name.Value]; k {
+						return newValidationRuleError(
+							fmt.Sprintf(`There can be only one input field named %q.`, f.Name.Value),
+							[]ast.Node{other.Name, f.Name},
+						)
+					}
+					seen[f.Name.Value] = f
+				}
+			}
+			return visitor.ActionNoChange, nil
+		},
+	}
+}
+
+// UniqueOperationNamesRule checks that a GraphQL document is only valid if all defined operations have unique names.
 func UniqueOperationNamesRule(context *ValidationContext) *ValidationRuleInstance {
 	knownOperationNames := make(map[string]*ast.Name)
 	return &ValidationRuleInstance{
