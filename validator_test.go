@@ -1,9 +1,13 @@
 package graphql_test
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/sprucehealth/graphql"
+	"github.com/sprucehealth/graphql/gqlerrors"
+	"github.com/sprucehealth/graphql/language/ast"
+	"github.com/sprucehealth/graphql/language/location"
 	"github.com/sprucehealth/graphql/language/parser"
 	"github.com/sprucehealth/graphql/language/source"
 	"github.com/sprucehealth/graphql/testutil"
@@ -24,7 +28,7 @@ func expectValid(t *testing.T, schema *graphql.Schema, queryString string) {
 }
 
 func TestValidator_SupportsFullValidation_ValidatesQueries(t *testing.T) {
-	expectValid(t, testutil.DefaultRulesTestSchema, `
+	expectValid(t, testutil.TestSchema, `
       query {
         catOrDog {
           ... on Cat {
@@ -111,5 +115,56 @@ func BenchmarkValidateDocumentRepeatedField(b *testing.B) {
 		if !r.IsValid {
 			b.Fatal("Not valid")
 		}
+	}
+}
+
+// NOTE: experimental
+func TestValidator_SupportsFullValidation_ValidatesUsingACustomTypeInfo(t *testing.T) {
+
+	// This TypeInfo will never return a valid field.
+	typeInfo := graphql.NewTypeInfo(&graphql.TypeInfoConfig{
+		Schema: testutil.TestSchema,
+		FieldDefFn: func(schema *graphql.Schema, parentType graphql.Type, fieldAST *ast.Field) *graphql.FieldDefinition {
+			return nil
+		},
+	})
+
+	ast := testutil.TestParse(t, `
+	  query {
+        catOrDog {
+          ... on Cat {
+            furColor
+          }
+          ... on Dog {
+            isHousetrained
+          }
+        }
+      }
+	`)
+
+	errors := graphql.VisitUsingRules(testutil.TestSchema, typeInfo, ast, graphql.SpecifiedRules)
+
+	expectedErrors := []gqlerrors.FormattedError{
+		{
+			Message: "Cannot query field \"catOrDog\" on \"QueryRoot\".",
+			Locations: []location.SourceLocation{
+				{Line: 3, Column: 9},
+			},
+		},
+		{
+			Message: "Cannot query field \"furColor\" on \"Cat\".",
+			Locations: []location.SourceLocation{
+				{Line: 5, Column: 13},
+			},
+		},
+		{
+			Message: "Cannot query field \"isHousetrained\" on \"Dog\".",
+			Locations: []location.SourceLocation{
+				{Line: 8, Column: 13},
+			},
+		},
+	}
+	if !reflect.DeepEqual(expectedErrors, errors) {
+		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expectedErrors, errors))
 	}
 }

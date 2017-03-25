@@ -4,12 +4,15 @@ import (
 	"github.com/sprucehealth/graphql/language/ast"
 )
 
+type fieldDefFn func(schema *Schema, parentType Type, fieldAST *ast.Field) *FieldDefinition
+
 // TODO: can move TypeInfo to a utils package if there ever is one
 /**
  * TypeInfo is a utility class which, given a GraphQL schema, can keep track
  * of the current field and type definitions at any point in a GraphQL document
  * AST during a recursive descent by calling `enter(node)` and `leave(node)`.
  */
+
 type TypeInfo struct {
 	schema          *Schema
 	typeStack       []Output
@@ -18,11 +21,26 @@ type TypeInfo struct {
 	fieldDefStack   []*FieldDefinition
 	directive       *Directive
 	argument        *Argument
+	getFieldDef     fieldDefFn
 }
 
-func NewTypeInfo(schema *Schema) *TypeInfo {
+type TypeInfoConfig struct {
+	Schema *Schema
+
+	// NOTE: this experimental optional second parameter is only needed in order
+	// to support non-spec-compliant codebases. You should never need to use it.
+	// It may disappear in the future.
+	FieldDefFn fieldDefFn
+}
+
+func NewTypeInfo(opts *TypeInfoConfig) *TypeInfo {
+	getFieldDef := opts.FieldDefFn
+	if getFieldDef == nil {
+		getFieldDef = DefaultTypeInfoFieldDef
+	}
 	return &TypeInfo{
-		schema: schema,
+		schema:      opts.Schema,
+		getFieldDef: getFieldDef,
 	}
 }
 
@@ -76,7 +94,7 @@ func (ti *TypeInfo) Enter(node ast.Node) {
 		parentType := ti.ParentType()
 		var fieldDef *FieldDefinition
 		if parentType != nil {
-			fieldDef = TypeInfoFieldDef(*schema, parentType.(Type), node)
+			fieldDef = ti.getFieldDef(schema, parentType.(Type), node)
 		}
 		ti.fieldDefStack = append(ti.fieldDefStack, fieldDef)
 		if fieldDef != nil {
@@ -197,7 +215,7 @@ func (ti *TypeInfo) Leave(node ast.Node) {
 // Not exactly the same as the executor's definition of FieldDef, in this
 // statically evaluated environment we do not always have an Object type,
 // and need to handle Interface and Union types.
-func TypeInfoFieldDef(schema Schema, parentType Type, fieldAST *ast.Field) *FieldDefinition {
+func DefaultTypeInfoFieldDef(schema *Schema, parentType Type, fieldAST *ast.Field) *FieldDefinition {
 	name := ""
 	if fieldAST.Name != nil {
 		name = fieldAST.Name.Value

@@ -25,13 +25,18 @@ func ValidateDocument(schema *Schema, astDoc *ast.Document, rules []ValidationRu
 		vr.Errors = append(vr.Errors, gqlerrors.NewFormattedError("Must provide document"))
 		return vr
 	}
-	vr.Errors = visitUsingRules(schema, astDoc, rules)
+	typeInfo := NewTypeInfo(&TypeInfoConfig{
+		Schema: schema,
+	})
+	vr.Errors = VisitUsingRules(schema, typeInfo, astDoc, rules)
 	vr.IsValid = len(vr.Errors) == 0
 	return vr
 }
 
-func visitUsingRules(schema *Schema, astDoc *ast.Document, rules []ValidationRuleFn) (errors []gqlerrors.FormattedError) {
-	typeInfo := NewTypeInfo(schema)
+// VisitUsingRules This uses a specialized visitor which runs multiple visitors in parallel,
+// while maintaining the visitor skip and break API.
+// @internal
+func VisitUsingRules(schema *Schema, typeInfo *TypeInfo, astDoc *ast.Document, rules []ValidationRuleFn) (errors []gqlerrors.FormattedError) {
 	context := NewValidationContext(schema, astDoc, typeInfo)
 
 	var visitInstance func(astNode ast.Node, instance *ValidationRuleInstance)
