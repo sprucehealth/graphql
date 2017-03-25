@@ -60,17 +60,6 @@ func visitUsingRules(schema *Schema, astDoc *ast.Document, rules []ValidationRul
 						action, result = instance.Enter(p)
 					}
 
-					// If the visitor returned an error, log it and do not visit any
-					// deeper nodes.
-					if err, ok := result.(error); ok && err != nil {
-						errors = append(errors, gqlerrors.FormatError(err))
-						action = visitor.ActionSkip
-					}
-					if err, ok := result.([]error); ok && err != nil {
-						errors = append(errors, gqlerrors.FormatErrors(err...)...)
-						action = visitor.ActionSkip
-					}
-
 					// If any validation instances provide the flag `visitSpreadFragments`
 					// and this node is a fragment spread, visit the fragment definition
 					// from this point.
@@ -107,17 +96,6 @@ func visitUsingRules(schema *Schema, astDoc *ast.Document, rules []ValidationRul
 						action, result = instance.Leave(p)
 					}
 
-					// If the visitor returned an error, log it and do not visit any
-					// deeper nodes.
-					if err, ok := result.(error); ok && err != nil {
-						errors = append(errors, gqlerrors.FormatError(err))
-						action = visitor.ActionSkip
-					}
-					if err, ok := result.([]error); ok && err != nil {
-						errors = append(errors, gqlerrors.FormatErrors(err...)...)
-						action = visitor.ActionSkip
-					}
-
 					// Update typeInfo.
 					typeInfo.Leave(node)
 				}
@@ -129,7 +107,7 @@ func visitUsingRules(schema *Schema, astDoc *ast.Document, rules []ValidationRul
 	for _, rule := range rules {
 		visitInstance(astDoc, rule(context))
 	}
-	return errors
+	return context.Errors()
 }
 
 type ValidationContext struct {
@@ -137,6 +115,7 @@ type ValidationContext struct {
 	astDoc    *ast.Document
 	typeInfo  *TypeInfo
 	fragments map[string]*ast.FragmentDefinition
+	errors    []gqlerrors.FormattedError
 }
 
 func NewValidationContext(schema *Schema, astDoc *ast.Document, typeInfo *TypeInfo) *ValidationContext {
@@ -145,6 +124,15 @@ func NewValidationContext(schema *Schema, astDoc *ast.Document, typeInfo *TypeIn
 		astDoc:   astDoc,
 		typeInfo: typeInfo,
 	}
+}
+
+func (ctx *ValidationContext) ReportError(err error) {
+	formattedErr := gqlerrors.FormatError(err)
+	ctx.errors = append(ctx.errors, formattedErr)
+}
+
+func (ctx *ValidationContext) Errors() []gqlerrors.FormattedError {
+	return ctx.errors
 }
 
 func (ctx *ValidationContext) Schema() *Schema {

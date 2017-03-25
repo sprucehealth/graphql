@@ -12,7 +12,7 @@ import (
 	"github.com/sprucehealth/graphql/language/source"
 )
 
-var defaultRulesTestSchema *graphql.Schema
+var DefaultRulesTestSchema *graphql.Schema
 
 func init() {
 
@@ -449,7 +449,7 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	defaultRulesTestSchema = &schema
+	DefaultRulesTestSchema = &schema
 
 }
 func expectValidRule(t *testing.T, schema *graphql.Schema, rules []graphql.ValidationRuleFn, queryString string) {
@@ -495,10 +495,10 @@ func expectInvalidRule(t *testing.T, schema *graphql.Schema, rules []graphql.Val
 
 }
 func ExpectPassesRule(t *testing.T, rule graphql.ValidationRuleFn, queryString string) {
-	expectValidRule(t, defaultRulesTestSchema, []graphql.ValidationRuleFn{rule}, queryString)
+	expectValidRule(t, DefaultRulesTestSchema, []graphql.ValidationRuleFn{rule}, queryString)
 }
 func ExpectFailsRule(t *testing.T, rule graphql.ValidationRuleFn, queryString string, expectedErrors []gqlerrors.FormattedError) {
-	expectInvalidRule(t, defaultRulesTestSchema, []graphql.ValidationRuleFn{rule}, queryString, expectedErrors)
+	expectInvalidRule(t, DefaultRulesTestSchema, []graphql.ValidationRuleFn{rule}, queryString, expectedErrors)
 }
 func ExpectFailsRuleWithSchema(t *testing.T, schema *graphql.Schema, rule graphql.ValidationRuleFn, queryString string, expectedErrors []gqlerrors.FormattedError) {
 	expectInvalidRule(t, schema, []graphql.ValidationRuleFn{rule}, queryString, expectedErrors)
