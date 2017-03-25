@@ -1280,6 +1280,11 @@ mutation operations.`,
 							"mutation operations will be rooted at.",
 					},
 					map[string]interface{}{
+						"name": "subscriptionType",
+						"description": "If this server supports subscription, the type that " +
+							"subscription operations will be rooted at.",
+					},
+					map[string]interface{}{
 						"name":        "directives",
 						"description": "A list of all directives supported by this server.",
 					},

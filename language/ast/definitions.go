@@ -5,6 +5,7 @@ type Definition interface {
 	GetOperation() string
 	GetVariableDefinitions() []*VariableDefinition
 	GetSelectionSet() *SelectionSet
+	GetLoc() Location
 }
 
 // Ensure that all definition types implements Definition interface
