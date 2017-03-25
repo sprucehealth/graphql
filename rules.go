@@ -42,10 +42,10 @@ var SpecifiedRules = []ValidationRuleFn{
 }
 
 type ValidationRuleInstance struct {
-	Enter                visitor.VisitFunc
-	Leave                visitor.VisitFunc
-	VisitSpreadFragments bool
+	Enter visitor.VisitFunc
+	Leave visitor.VisitFunc
 }
+
 type ValidationRuleFn func(context *ValidationContext) *ValidationRuleInstance
 
 func newValidationError(message string, nodes []ast.Node) *gqlerrors.Error {
@@ -555,74 +555,59 @@ func NoFragmentCyclesRule(context *ValidationContext) *ValidationRuleInstance {
 	}
 }
 
-/**
- * NoUndefinedVariables
- * No undefined variables
- *
- * A GraphQL operation is only valid if all variables encountered, both directly
- * and via fragment spreads, are defined by that operation.
- */
+func UndefinedVarMessage(varName string, opName string) string {
+	if opName != "" {
+		return fmt.Sprintf(`Variable "$%v" is not defined by operation "%v".`, varName, opName)
+	}
+	return fmt.Sprintf(`Variable "$%v" is not defined.`, varName)
+}
+
+// NoUndefinedVariablesRule validates that a GraphQL operation is only valid if all variables encountered, both directly
+// and via fragment spreads, are defined by that operation.
 func NoUndefinedVariablesRule(context *ValidationContext) *ValidationRuleInstance {
-	var operation *ast.OperationDefinition
-	var visitedFragmentNames = make(map[string]struct{})
-	var definedVariableNames = make(map[string]struct{})
+	var variableNameDefined = map[string]bool{}
 	return &ValidationRuleInstance{
 		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
 			switch node := p.Node.(type) {
 			case *ast.OperationDefinition:
-				operation = node
-				if len(visitedFragmentNames) != 0 {
-					visitedFragmentNames = make(map[string]struct{})
-				}
-				if len(definedVariableNames) != 0 {
-					definedVariableNames = make(map[string]struct{})
-				}
+				variableNameDefined = map[string]bool{}
 			case *ast.VariableDefinition:
 				variableName := ""
 				if node.Variable != nil && node.Variable.Name != nil {
 					variableName = node.Variable.Name.Value
 				}
-				definedVariableNames[variableName] = struct{}{}
-			case *ast.Variable:
-				variableName := ""
-				if node.Name != nil {
-					variableName = node.Name.Value
-				}
-				if _, ok := definedVariableNames[variableName]; !ok {
-					withinFragment := false
-					for _, node := range p.Ancestors {
-						if _, ok := node.(*ast.FragmentDefinition); ok {
-							withinFragment = true
-							break
-						}
-					}
-					if withinFragment && operation != nil && operation.Name != nil {
-						return reportErrorAndReturn(
-							context,
-							fmt.Sprintf(`Variable "$%v" is not defined by operation "%v".`, variableName, operation.Name.Value),
-							[]ast.Node{node, operation},
-						)
-					}
-					return reportErrorAndReturn(
-						context,
-						fmt.Sprintf(`Variable "$%v" is not defined.`, variableName),
-						[]ast.Node{node},
-					)
-				}
-			case *ast.FragmentSpread:
-				// Only visit fragments of a particular name once per operation
-				fragmentName := ""
-				if node.Name != nil {
-					fragmentName = node.Name.Value
-				}
-				if _, ok := visitedFragmentNames[fragmentName]; ok {
-					return visitor.ActionSkip, nil
-				}
-				visitedFragmentNames[fragmentName] = struct{}{}
+				variableNameDefined[variableName] = true
 			}
 			return visitor.ActionNoChange, nil
 		},
-		VisitSpreadFragments: true,
+		Leave: func(p visitor.VisitFuncParams) (string, interface{}) {
+			switch node := p.Node.(type) {
+			case *ast.OperationDefinition:
+				usages := context.RecursiveVariableUsages(node)
+				for _, usage := range usages {
+					if usage == nil {
+						continue
+					}
+					if usage.Node == nil {
+						continue
+					}
+					varName := ""
+					if usage.Node.Name != nil {
+						varName = usage.Node.Name.Value
+					}
+					opName := ""
+					if node.Name != nil {
+						opName = node.Name.Value
+					}
+					if res, ok := variableNameDefined[varName]; !ok || !res {
+						context.ReportError(newValidationError(
+							UndefinedVarMessage(varName, opName),
+							[]ast.Node{usage.Node, node}))
+					}
+				}
+			}
+			return visitor.ActionNoChange, nil
+		},
 	}
 }
 
@@ -703,67 +688,58 @@ func NoUnusedFragmentsRule(context *ValidationContext) *ValidationRuleInstance {
 	}
 }
 
-/**
- * NoUnusedVariablesRule
- * No unused variables
- *
- * A GraphQL operation is only valid if all variables defined by an operation
- * are used, either directly or within a spread fragment.
- */
-func NoUnusedVariablesRule(context *ValidationContext) *ValidationRuleInstance {
-	var visitedFragmentNames = make(map[string]struct{})
-	var variableDefs []*ast.VariableDefinition
-	var variableNameUsed = make(map[string]struct{})
+func UnusedVariableMessage(varName string, opName string) string {
+	if opName != "" {
+		return fmt.Sprintf(`Variable "$%v" is never used in operation "%v".`, varName, opName)
+	}
+	return fmt.Sprintf(`Variable "$%v" is never used.`, varName)
+}
 
+// NoUnusedVariablesRule validates that a GraphQL operation is only valid if all variables defined by an operation
+// are used, either directly or within a spread fragment.
+func NoUnusedVariablesRule(context *ValidationContext) *ValidationRuleInstance {
+	var variableDefs = []*ast.VariableDefinition{}
 	return &ValidationRuleInstance{
 		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
-			switch node := p.Node.(type) {
+			switch def := p.Node.(type) {
 			case *ast.OperationDefinition:
-				if len(visitedFragmentNames) != 0 {
-					visitedFragmentNames = make(map[string]struct{})
-				}
 				variableDefs = variableDefs[:0]
-				if len(variableNameUsed) != 0 {
-					variableNameUsed = make(map[string]struct{})
-				}
-			case *ast.Variable:
-				if node.Name != nil {
-					variableNameUsed[node.Name.Value] = struct{}{}
-				}
-			case *ast.FragmentSpread:
-				// Only visit fragments of a particular name once per operation
-				spreadName := ""
-				if node.Name != nil {
-					spreadName = node.Name.Value
-				}
-				if _, hasVisitedFragmentNames := visitedFragmentNames[spreadName]; hasVisitedFragmentNames {
-					return visitor.ActionSkip, nil
-				}
-				visitedFragmentNames[spreadName] = struct{}{}
 			case *ast.VariableDefinition:
-				variableDefs = append(variableDefs, node)
-				// Do not visit deeper, or else the defined variable name will be visited.
-				return visitor.ActionSkip, nil
+				variableDefs = append(variableDefs, def)
 			}
 			return visitor.ActionNoChange, nil
 		},
 		Leave: func(p visitor.VisitFuncParams) (string, interface{}) {
-			if _, ok := p.Node.(*ast.OperationDefinition); ok {
-				for _, def := range variableDefs {
-					variableName := ""
-					if def.Variable != nil && def.Variable.Name != nil {
-						variableName = def.Variable.Name.Value
+			if operation, ok := p.Node.(*ast.OperationDefinition); ok {
+				usages := context.RecursiveVariableUsages(operation)
+				variableNameUsed := make(map[string]bool, len(usages))
+				for _, usage := range usages {
+					var varName string
+					if usage != nil && usage.Node != nil && usage.Node.Name != nil {
+						varName = usage.Node.Name.Value
 					}
-					if _, isVariableNameUsed := variableNameUsed[variableName]; !isVariableNameUsed {
+					if varName != "" {
+						variableNameUsed[varName] = true
+					}
+				}
+				for _, variableDef := range variableDefs {
+					var variableName string
+					if variableDef != nil && variableDef.Variable != nil && variableDef.Variable.Name != nil {
+						variableName = variableDef.Variable.Name.Value
+					}
+					var opName string
+					if operation.Name != nil {
+						opName = operation.Name.Value
+					}
+					if res, ok := variableNameUsed[variableName]; !ok || !res {
 						context.ReportError(newValidationError(
-							fmt.Sprintf(`Variable "$%v" is never used.`, variableName),
-							[]ast.Node{def}))
+							UnusedVariableMessage(variableName, opName),
+							[]ast.Node{variableDef}))
 					}
 				}
 			}
 			return visitor.ActionNoChange, nil
 		},
-		VisitSpreadFragments: true,
 	}
 }
 
@@ -1552,68 +1528,61 @@ func effectiveType(varType Type, varDef *ast.VariableDefinition) Type {
 	return NewNonNull(varType)
 }
 
-/**
- * VariablesInAllowedPositionRule
- * Variables passed to field arguments conform to type
- */
+// VariablesInAllowedPositionRule validates that variables passed to field arguments conform to type
 func VariablesInAllowedPositionRule(context *ValidationContext) *ValidationRuleInstance {
 	varDefMap := make(map[string]*ast.VariableDefinition)
-	visitedFragmentNames := make(map[string]struct{})
-
 	return &ValidationRuleInstance{
 		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
 			switch node := p.Node.(type) {
-			case ast.OperationDefinition:
+			case *ast.OperationDefinition:
 				if len(varDefMap) != 0 {
 					varDefMap = make(map[string]*ast.VariableDefinition)
 				}
-				if len(visitedFragmentNames) != 0 {
-					visitedFragmentNames = make(map[string]struct{})
-				}
 			case *ast.VariableDefinition:
-				defName := ""
 				if node.Variable != nil && node.Variable.Name != nil {
-					defName = node.Variable.Name.Value
-				}
-				varDefMap[defName] = node
-				// Only visit fragments of a particular name once per operation
-			case *ast.FragmentSpread:
-				spreadName := ""
-				if node.Name != nil {
-					spreadName = node.Name.Value
-				}
-				if _, hasVisited := visitedFragmentNames[spreadName]; hasVisited {
-					return visitor.ActionSkip, nil
-				}
-				visitedFragmentNames[spreadName] = struct{}{}
-			case *ast.Variable:
-				varName := ""
-				if node.Name != nil {
-					varName = node.Name.Value
-				}
-				varDef, _ := varDefMap[varName]
-				var varType Type
-				if varDef != nil {
-					// A var type is allowed if it is the same or more strict (e.g. is
-					// a subtype of) than the expected type. It can be more strict if
-					// the variable type is non-null when the expected type is nullable.
-					// If both are list types, the variable item type can be more strict
-					// than the expected item type (contravariant).
-					varType, _ = typeFromAST(*context.Schema(), varDef.Type)
-				}
-				inputType := context.InputType()
-				if varType != nil && inputType != nil && !isTypeSubTypeOf(effectiveType(varType, varDef), inputType) {
-					return reportErrorAndReturn(
-						context,
-						fmt.Sprintf(`Variable "$%v" of type "%v" used in position `+
-							`expecting type "%v".`, varName, varType, inputType),
-						[]ast.Node{node},
-					)
+					defName := node.Variable.Name.Value
+					if defName != "" {
+						varDefMap[defName] = node
+					}
 				}
 			}
 			return visitor.ActionNoChange, nil
 		},
-		VisitSpreadFragments: true,
+		Leave: func(p visitor.VisitFuncParams) (string, interface{}) {
+			switch operation := p.Node.(type) {
+			case *ast.OperationDefinition:
+				usages := context.RecursiveVariableUsages(operation)
+				for _, usage := range usages {
+					var varName string
+					if usage != nil && usage.Node != nil && usage.Node.Name != nil {
+						varName = usage.Node.Name.Value
+					}
+					var varType Type
+					varDef, ok := varDefMap[varName]
+					if ok {
+						// A var type is allowed if it is the same or more strict (e.g. is
+						// a subtype of) than the expected type. It can be more strict if
+						// the variable type is non-null when the expected type is nullable.
+						// If both are list types, the variable item type can be more strict
+						// than the expected item type (contravariant).
+						var err error
+						varType, err = typeFromAST(*context.Schema(), varDef.Type)
+						if err != nil {
+							varType = nil
+						}
+					}
+					if varType != nil &&
+						usage.Type != nil &&
+						!isTypeSubTypeOf(effectiveType(varType, varDef), usage.Type) {
+						context.ReportError(newValidationError(
+							fmt.Sprintf(`Variable "$%v" of type "%v" used in position `+
+								`expecting type "%v".`, varName, varType, usage.Type),
+							[]ast.Node{usage.Node}))
+					}
+				}
+			}
+			return visitor.ActionNoChange, nil
+		},
 	}
 }
 

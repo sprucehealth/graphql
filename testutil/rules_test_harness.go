@@ -1,9 +1,8 @@
 package testutil
 
 import (
-	"testing"
-
 	"reflect"
+	"testing"
 
 	"github.com/sprucehealth/graphql"
 	"github.com/sprucehealth/graphql/gqlerrors"
@@ -483,6 +482,8 @@ func expectInvalidRule(t *testing.T, schema *graphql.Schema, rules []graphql.Val
 	}
 	result := graphql.ValidateDocument(schema, AST, rules)
 	if len(result.Errors) != len(expectedErrors) {
+		t.Logf("Expected: %+v", expectedErrors)
+		t.Logf("Result: %+v", result.Errors)
 		t.Fatalf("Should have %v errors, got %v", len(expectedErrors), len(result.Errors))
 	}
 	if result.IsValid {
