@@ -1607,7 +1607,6 @@ func UniqueInputFieldNamesRule(context *ValidationContext) *ValidationRuleInstan
 					context.ReportError(newValidationError(
 						fmt.Sprintf(`There can be only one input field named "%v".`, fieldName),
 						[]ast.Node{knownNameAST, node.Name}))
-					return visitor.ActionNoChange, nil
 				} else {
 					knownNames[fieldName] = node.Name
 				}
@@ -1641,7 +1640,6 @@ func UniqueOperationNamesRule(context *ValidationContext) *ValidationRuleInstanc
 					context.ReportError(newValidationError(
 						fmt.Sprintf(`There can only be one operation named "%v".`, operationName),
 						[]ast.Node{nameAST, node.Name}))
-					return visitor.ActionNoChange, nil
 				} else {
 					knownOperationNames[operationName] = node.Name
 				}
