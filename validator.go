@@ -57,42 +57,42 @@ func VisitUsingRules(schema *Schema, typeInfo *TypeInfo, astDoc *ast.Document, r
 	visitInstance = func(astNode ast.Node, instance *ValidationRuleInstance) {
 		visitor.Visit(astNode, &visitor.VisitorOptions{
 			Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
-				var action = visitor.ActionNoChange
+				node, ok := p.Node.(ast.Node)
+				if !ok {
+					return visitor.ActionNoChange, nil
+				}
+
+				// Collect type information about the current position in the AST.
+				typeInfo.Enter(node)
+
+				action := visitor.ActionNoChange
 				var result interface{}
-				switch node := p.Node.(type) {
-				case ast.Node:
-					// Collect type information about the current position in the AST.
-					typeInfo.Enter(node)
+				if instance.Enter != nil {
+					action, result = instance.Enter(p)
+				}
 
-					// Get the visitor function from the validation instance, and if it
-					// exists, call it with the visitor arguments.
-					if instance.Enter != nil {
-						action, result = instance.Enter(p)
-					}
-
-					// If the result is "false" (ie action === Action.Skip), we're not visiting any descendent nodes,
-					// but need to update typeInfo.
-					if action == visitor.ActionSkip {
-						typeInfo.Leave(node)
-					}
+				// If the result is "false" (ie action === Action.Skip), we're not visiting any descendent nodes,
+				// but need to update typeInfo.
+				if action == visitor.ActionSkip {
+					typeInfo.Leave(node)
 				}
 
 				return action, result
 			},
 			Leave: func(p visitor.VisitFuncParams) (string, interface{}) {
+				node, ok := p.Node.(ast.Node)
+				if !ok {
+					return visitor.ActionNoChange, nil
+				}
+
 				var action = visitor.ActionNoChange
 				var result interface{}
-				switch node := p.Node.(type) {
-				case ast.Node:
-					// Get the visitor function from the validation instance, and if it
-					// exists, call it with the visitor arguments.
-					if instance.Leave != nil {
-						action, result = instance.Leave(p)
-					}
-
-					// Update typeInfo.
-					typeInfo.Leave(node)
+				if instance.Leave != nil {
+					action, result = instance.Leave(p)
 				}
+
+				typeInfo.Leave(node)
+
 				return action, result
 			},
 		})
