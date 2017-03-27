@@ -571,7 +571,6 @@ func completeValueCatchingError(eCtx *ExecutionContext, returnType Type, fieldAS
 }
 
 func completeValue(eCtx *ExecutionContext, returnType Type, fieldASTs []*ast.Field, info ResolveInfo, result interface{}) interface{} {
-
 	resultVal := reflect.ValueOf(result)
 	if resultVal.IsValid() && resultVal.Type().Kind() == reflect.Func {
 		if propertyFn, ok := result.(func() interface{}); ok {
@@ -618,9 +617,7 @@ func completeValue(eCtx *ExecutionContext, returnType Type, fieldASTs []*ast.Fie
 		return completeAbstractValue(eCtx, returnType, fieldASTs, info, result)
 	}
 
-	// Not reachable
-	return nil
-
+	panic(gqlerrors.NewFormattedError(fmt.Sprintf(`Cannot complete value of unexpected type "%v."`, returnType)))
 }
 
 // completeObjectValue completes value of an Abstract type (Union / Interface) by determining the runtime type
