@@ -835,7 +835,7 @@ func TestThrowsIfNoOperationIsProvided(t *testing.T) {
 	}
 
 	expectedErrors := []gqlerrors.FormattedError{
-		gqlerrors.FormattedError{
+		{
 			Message:   "Must provide an operation.",
 			Locations: []location.SourceLocation{},
 			Type:      "INTERNAL",
@@ -933,7 +933,7 @@ func TestThrowsIfUnknownOperationNameIsProvided(t *testing.T) {
 	}
 
 	expectedErrors := []gqlerrors.FormattedError{
-		gqlerrors.FormattedError{
+		{
 			Message:   `Unknown operation named "UnknownExample".`,
 			Locations: []location.SourceLocation{},
 			Type:      "INTERNAL",

@@ -204,7 +204,7 @@ func TestParsesMultiByteCharacters_Unicode(t *testing.T) {
 								Value: "field",
 							},
 							Arguments: []*ast.Argument{
-								&ast.Argument{
+								{
 									Loc: ast.Location{Start: 75, End: 116},
 									Name: &ast.Name{
 
@@ -274,7 +274,7 @@ func TestParsesMultiByteCharacters_UnicodeText(t *testing.T) {
 								Value: "field",
 							},
 							Arguments: []*ast.Argument{
-								&ast.Argument{
+								{
 									Loc: ast.Location{
 										Start: 75,
 										End:   116,

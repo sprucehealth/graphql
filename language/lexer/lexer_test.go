@@ -66,7 +66,7 @@ func TestLexer_GetTokenDesc(t *testing.T) {
 
 func TestLexer_DisallowsUncommonControlCharacters(t *testing.T) {
 	tests := []Test{
-		Test{
+		{
 			Body: "\u0007",
 			Expected: `Syntax Error GraphQL (1:1) Invalid character "\\u0007"
 
@@ -88,7 +88,7 @@ func TestLexer_DisallowsUncommonControlCharacters(t *testing.T) {
 
 func TestLexer_AcceptsBOMHeader(t *testing.T) {
 	tests := []Test{
-		Test{
+		{
 			Body: "\uFEFF foo",
 			Expected: Token{
 				Kind:  NAME,

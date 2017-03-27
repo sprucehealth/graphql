@@ -528,12 +528,12 @@ func TestVariables_ObjectsAndNullability_UsingVariables_ErrorsOnDeepNestedErrors
 	expected := &graphql.Result{
 		Data: nil,
 		Errors: []gqlerrors.FormattedError{
-			gqlerrors.FormattedError{
+			{
 				Message: `Variable "$input" got invalid value {"na":{"a":"foo"}}.` +
 					"\nIn field \"na\": In field \"c\": Expected \"String!\", found null." +
 					"\nIn field \"nb\": Expected \"String!\", found null.",
 				Locations: []location.SourceLocation{
-					location.SourceLocation{
+					{
 						Line: 2, Column: 19,
 					},
 				},
