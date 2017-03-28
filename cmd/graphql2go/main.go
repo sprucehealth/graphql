@@ -213,6 +213,27 @@ func main() {
 	for _, def := range root.Definitions {
 		g.genNode(def)
 	}
+	// Generate a list of all the types
+	g.printf("\nvar TypeDefs = []graphql.Type{\n")
+	for _, def := range root.Definitions {
+		var name string
+		switch def := def.(type) {
+		case *ast.ObjectDefinition:
+			name = goObjectDefName(def.Name.Value)
+		case *ast.InterfaceDefinition:
+			name = goInterfaceDefName(def.Name.Value)
+		case *ast.UnionDefinition:
+			name = goUnionDefName(def.Name.Value)
+		case *ast.InputObjectDefinition:
+			name = goInputObjectDefName(def.Name.Value)
+		case *ast.EnumDefinition:
+			name = goEnumDefName(def.Name.Value)
+		default:
+			log.Fatalf("Unhandled node type %T", def)
+		}
+		g.printf("\t%s,\n", name)
+	}
+	g.printf("}\n")
 }
 
 func cycleKey(path []string) string {
@@ -396,8 +417,8 @@ func (g *generator) genInterfaceDefinition(def *ast.InterfaceDefinition) {
 	if len(objDefs) != 0 {
 		g.printf("\nfunc init() {\n")
 		g.printf("\t// Resolve the type of an interface value. This done here rather than at declaration time to avoid an unresolvable compile time decleration loop.\n")
-		g.printf("\t%s.ResolveType = func(value interface{}, info graphql.ResolveInfo) *graphql.Object {\n", goName)
-		g.printf("\t\tswitch value.(type) {\n")
+		g.printf("\t%s.ResolveType = func(p graphql.ResolveTypeParams) *graphql.Object {\n", goName)
+		g.printf("\t\tswitch p.Value.(type) {\n")
 		for _, def := range objDefs {
 			name := exportedName(def.Name.Value)
 			g.printf("\t\tcase *%s:\n", name)
@@ -427,7 +448,7 @@ func (g *generator) genUnionDefinition(def *ast.UnionDefinition) {
 		c, _ := renderLineComments(def.Doc, "")
 		g.printf("%s\n", c)
 	}
-	g.printf("var %sT = graphql.NewUnion(graphql.UnionConfig{\n", goUnionDefName(def.Name.Value))
+	g.printf("var %s = graphql.NewUnion(graphql.UnionConfig{\n", goUnionDefName(def.Name.Value))
 	g.printf("\tName: %q,\n", def.Name.Value)
 	if def.Doc != nil {
 		g.printf("\tDescription: %s,\n", renderQuotedComments(def.Doc))
@@ -539,8 +560,8 @@ func (g *generator) genObjectDefinition(def *ast.ObjectDefinition) {
 		}
 	}
 	g.printf("\t},\n")
-	g.printf("\tIsTypeOf: func(value interface{}, info graphql.ResolveInfo) bool {\n")
-	g.printf("\t\t_, ok := value.(*%s)\n", exportedName(def.Name.Value))
+	g.printf("\tIsTypeOf: func(p graphql.IsTypeOfParams) bool {\n")
+	g.printf("\t\t_, ok := p.Value.(*%s)\n", exportedName(def.Name.Value))
 	g.printf("\t\treturn ok\n")
 	g.printf("\t},\n")
 	g.printf("})\n")
