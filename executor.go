@@ -31,7 +31,7 @@ func Execute(p ExecuteParams) (result *Result) {
 		ctx = context.Background()
 	}
 
-	resultChannel := make(chan *Result)
+	resultChannel := make(chan *Result, 1)
 
 	go func(out chan<- *Result, done <-chan struct{}) {
 
@@ -62,10 +62,10 @@ func Execute(p ExecuteParams) (result *Result) {
 				err := gqlerrors.FormatPanic(r)
 				exeContext.Errors = append(exeContext.Errors, gqlerrors.FormatError(err))
 				result.Errors = exeContext.Errors
-				select {
-				case out <- result:
-				case <-done:
-				}
+			}
+			select {
+			case out <- result:
+			case <-done:
 			}
 		}()
 
@@ -74,11 +74,6 @@ func Execute(p ExecuteParams) (result *Result) {
 			Root:             p.Root,
 			Operation:        exeContext.Operation,
 		})
-		select {
-		case out <- result:
-		case <-done:
-		}
-
 	}(resultChannel, ctx.Done())
 
 	select {
