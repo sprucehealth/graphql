@@ -3,6 +3,7 @@ package graphql
 import (
 	"fmt"
 
+	"github.com/golang/sync/syncmap"
 	"github.com/sprucehealth/graphql/gqlerrors"
 )
 
@@ -44,11 +45,13 @@ type Schema struct {
 	mutationType     *Object
 	subscriptionType *Object
 	implementations  map[string][]*Object
-	possibleTypeMap  map[string]map[string]bool
+	possibleTypeMap  *syncmap.Map // abstract type name -> map[string]struct{}
 }
 
 func NewSchema(config SchemaConfig) (Schema, error) {
-	schema := Schema{}
+	schema := Schema{
+		possibleTypeMap: &syncmap.Map{},
+	}
 
 	if config.Query == nil {
 		return schema, gqlerrors.NewFormattedError("Schema query must be Object Type but got: nil.")
@@ -173,10 +176,10 @@ func (gq *Schema) Type(name string) Type {
 }
 
 func (gq *Schema) PossibleTypes(abstractType Abstract) []*Object {
-	if abstractType, ok := abstractType.(*Union); ok {
+	switch abstractType := abstractType.(type) {
+	case *Union:
 		return abstractType.Types()
-	}
-	if abstractType, ok := abstractType.(*Interface); ok {
+	case *Interface:
 		if impls, ok := gq.implementations[abstractType.Name()]; ok {
 			return impls
 		}
@@ -184,25 +187,21 @@ func (gq *Schema) PossibleTypes(abstractType Abstract) []*Object {
 	return []*Object{}
 }
 func (gq *Schema) IsPossibleType(abstractType Abstract, possibleType *Object) bool {
-	possibleTypeMap := gq.possibleTypeMap
-	if possibleTypeMap == nil {
-		possibleTypeMap = map[string]map[string]bool{}
-	}
+	name := abstractType.Name()
+	typeMapVal, _ := gq.possibleTypeMap.Load(name)
+	typeMap, ok := typeMapVal.(map[string]struct{})
 
-	if typeMap, ok := possibleTypeMap[abstractType.Name()]; !ok {
-		typeMap = map[string]bool{}
-		for _, possibleType := range gq.PossibleTypes(abstractType) {
-			typeMap[possibleType.Name()] = true
+	if !ok {
+		possibleTypes := gq.PossibleTypes(abstractType)
+		typeMap = make(map[string]struct{}, len(possibleTypes))
+		for _, possibleType := range possibleTypes {
+			typeMap[possibleType.Name()] = struct{}{}
 		}
-		possibleTypeMap[abstractType.Name()] = typeMap
+		gq.possibleTypeMap.Store(name, typeMap)
 	}
 
-	gq.possibleTypeMap = possibleTypeMap
-	if typeMap, ok := possibleTypeMap[abstractType.Name()]; ok {
-		isPossible, _ := typeMap[possibleType.Name()]
-		return isPossible
-	}
-	return false
+	_, isPossible := typeMap[possibleType.Name()]
+	return isPossible
 }
 func typeMapReducer(schema *Schema, typeMap TypeMap, objectType Type) (TypeMap, error) {
 	var err error
