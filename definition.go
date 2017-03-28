@@ -914,12 +914,13 @@ type Enum struct {
 	PrivateName        string `json:"name"`
 	PrivateDescription string `json:"description"`
 
-	enumConfig   EnumConfig
-	values       []*EnumValueDefinition
+	enumConfig EnumConfig
+	values     []*EnumValueDefinition
+
+	mu           sync.RWMutex
 	valuesLookup map[interface{}]*EnumValueDefinition
 	nameLookup   map[string]*EnumValueDefinition
-
-	err error
+	err          error
 }
 type EnumValueConfigMap map[string]*EnumValueConfig
 type EnumValueConfig struct {
@@ -1023,30 +1024,50 @@ func (gt *Enum) String() string {
 	return gt.PrivateName
 }
 func (gt *Enum) Error() error {
+	gt.mu.RLock()
+	defer gt.mu.RUnlock()
 	return gt.err
 }
 func (gt *Enum) getValueLookup() map[interface{}]*EnumValueDefinition {
-	if len(gt.valuesLookup) > 0 {
+	gt.mu.RLock()
+	valuesLookup := gt.valuesLookup
+	gt.mu.RUnlock()
+	if len(valuesLookup) != 0 {
+		return valuesLookup
+	}
+
+	gt.mu.Lock()
+	defer gt.mu.Unlock()
+	if len(gt.valuesLookup) != 0 {
 		return gt.valuesLookup
 	}
-	valuesLookup := map[interface{}]*EnumValueDefinition{}
+	valuesLookup = map[interface{}]*EnumValueDefinition{}
 	for _, value := range gt.Values() {
 		valuesLookup[value.Value] = value
 	}
 	gt.valuesLookup = valuesLookup
-	return gt.valuesLookup
+	return valuesLookup
 }
 
 func (gt *Enum) getNameLookup() map[string]*EnumValueDefinition {
+	gt.mu.RLock()
+	nameLookup := gt.nameLookup
+	gt.mu.RUnlock()
+	if len(nameLookup) != 0 {
+		return nameLookup
+	}
+
+	gt.mu.Lock()
+	defer gt.mu.Unlock()
 	if len(gt.nameLookup) > 0 {
 		return gt.nameLookup
 	}
-	nameLookup := map[string]*EnumValueDefinition{}
+	nameLookup = map[string]*EnumValueDefinition{}
 	for _, value := range gt.Values() {
 		nameLookup[value.Name] = value
 	}
 	gt.nameLookup = nameLookup
-	return gt.nameLookup
+	return nameLookup
 }
 
 // InputObject Type Definition
