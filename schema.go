@@ -119,12 +119,7 @@ func NewSchema(config SchemaConfig) (Schema, error) {
 	for _, ttype := range schema.typeMap {
 		if ttype, ok := ttype.(*Object); ok {
 			for _, iface := range ttype.Interfaces() {
-				impls, ok := schema.implementations[iface.Name()]
-				if impls == nil || !ok {
-					impls = []*Object{}
-				}
-				impls = append(impls, ttype)
-				schema.implementations[iface.Name()] = impls
+				schema.implementations[iface.Name()] = append(schema.implementations[iface.Name()], ttype)
 			}
 		}
 	}
