@@ -45,7 +45,8 @@ var initialisms = map[string]struct{}{
 }
 
 type config struct {
-	Resolvers map[string][]string // type -> fields
+	Resolvers        map[string][]string // type -> fields
+	CustomFieldTypes map[string]string   // Type.Field -> go type
 }
 
 func main() {
@@ -201,10 +202,10 @@ func main() {
 			}
 			if len(field.Arguments) == 0 {
 				g.printf("\t%s(ctx context.Context, parent *%s, p graphql.ResolveParams) (%s, error)\n",
-					exportedName(field.Name.Value), exportedName(objDef.Name.Value), g.goType(field.Type))
+					exportedName(field.Name.Value), exportedName(objDef.Name.Value), g.goType(field.Type, objDef.Name.Value+"."+field.Name.Value))
 			} else {
 				g.printf("\t%s(ctx context.Context, parent *%s, args *%s%sArgs, p graphql.ResolveParams) (%s, error)\n",
-					exportedName(field.Name.Value), exportedName(objDef.Name.Value), exportedName(objDef.Name.Value), exportedName(field.Name.Value), g.goType(field.Type))
+					exportedName(field.Name.Value), exportedName(objDef.Name.Value), exportedName(objDef.Name.Value), exportedName(field.Name.Value), g.goType(field.Type, objDef.Name.Value+"."+field.Name.Value))
 			}
 		}
 		g.printf("}\n\n")
@@ -591,7 +592,7 @@ func (g *generator) genObjectModel(def *ast.ObjectDefinition) {
 			if _, ok := f.Type.(*ast.NonNull); !ok {
 				opts = append(opts, "omitempty")
 			}
-			g.printf("\t%s %s `json:%q`\n", exportedName(f.Name.Value), g.goType(f.Type), strings.Join(opts, ","))
+			g.printf("\t%s %s `json:%q`\n", exportedName(f.Name.Value), g.goType(f.Type, def.Name.Value+"."+f.Name.Value), strings.Join(opts, ","))
 		}
 	}
 	g.printf("}\n")
@@ -612,7 +613,7 @@ func (g *generator) genObjectModel(def *ast.ObjectDefinition) {
 				if _, ok := a.Type.(*ast.NonNull); ok {
 					opts = append(opts, "nonempty")
 				}
-				g.printf("\t%s %s `gql:%q`\n", exportedName(a.Name.Value), g.goType(a.Type), strings.Join(opts, ","))
+				g.printf("\t%s %s `gql:%q`\n", exportedName(a.Name.Value), g.goType(a.Type, def.Name.Value+"."+f.Name.Value), strings.Join(opts, ","))
 			}
 			g.printf("}\n")
 		}
@@ -722,7 +723,7 @@ func (g *generator) genInputModel(def *ast.InputObjectDefinition) {
 	}
 	g.printf("type %s struct {\n", exportedName(def.Name.Value))
 	for _, f := range def.Fields {
-		g.printf("\t%s %s `gql:%q`\n", exportedName(f.Name.Value), g.goType(f.Type), f.Name.Value)
+		g.printf("\t%s %s `gql:%q`\n", exportedName(f.Name.Value), g.goType(f.Type, def.Name.Value+"."+f.Name.Value), f.Name.Value)
 	}
 	g.printf("}\n")
 }
@@ -803,12 +804,15 @@ func (g *generator) renderType(t ast.Type) string {
 	return ""
 }
 
-func (g *generator) goType(t ast.Type) string {
+func (g *generator) goType(t ast.Type, fieldName string) string {
+	if t := g.cfg.CustomFieldTypes[fieldName]; t != "" {
+		return t
+	}
 	switch t := t.(type) {
 	case *ast.NonNull:
-		return g.goType(t.Type)
+		return g.goType(t.Type, fieldName)
 	case *ast.List:
-		return "[]" + g.goType(t.Type)
+		return "[]" + g.goType(t.Type, fieldName)
 	case *ast.Named:
 		switch t.Name.Value {
 		case "ID":
