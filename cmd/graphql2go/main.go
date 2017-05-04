@@ -25,6 +25,7 @@ var (
 	flagConfigFile = flag.String("config", "", "Path to config file")
 	flagOutFile    = flag.String("out", "", "Path to output file (stdout if not set)")
 	flagSchemaFile = flag.String("schema", "", "Path to schema file (stdin if not set)")
+	flagArtifact   = flag.String("artifact", "server", "The artifact to generate from the schema (server or client)")
 	flagVerbose    = flag.Bool("v", false, "Verbose output")
 )
 
@@ -90,6 +91,165 @@ func main() {
 		outWriter = fo
 	}
 
+	switch *flagArtifact {
+	case "server":
+		generateServer(outWriter, root)
+	case "client":
+		generateClient(outWriter, root)
+	default:
+		log.Fatalf("Unknown output artifact type %s", *flagArtifact)
+	}
+}
+
+func generateServer(outWriter io.Writer, root *ast.Document) {
+	g := &generator{
+		w:            outWriter,
+		doc:          root,
+		types:        make(map[string]ast.Node),
+		cycles:       make(map[string][]string),
+		typeUseCount: make(map[string]int),
+		cycleBreaks:  make(map[string]map[string]struct{}),
+	}
+	if *flagConfigFile != "" {
+		b, err := ioutil.ReadFile(*flagConfigFile)
+		if err != nil {
+			log.Fatalf("Failed to read config file: %s", err)
+		}
+		if err := json.Unmarshal(b, &g.cfg); err != nil {
+			log.Fatalf("Failed to decode config file: %s", err)
+		}
+	}
+
+	// Generate index of type name to definition and make sure all names are unique
+	for _, def := range root.Definitions {
+		var name string
+		switch def := def.(type) {
+		case *ast.ObjectDefinition:
+			name = def.Name.Value
+		case *ast.InputObjectDefinition:
+			name = def.Name.Value
+		case *ast.EnumDefinition:
+			name = def.Name.Value
+		case *ast.InterfaceDefinition:
+			name = def.Name.Value
+		case *ast.UnionDefinition:
+			name = def.Name.Value
+		default:
+			log.Fatalf("Unhandled node type %T", def)
+		}
+		if _, ok := g.types[name]; ok {
+			log.Fatalf("Duplicate type name %q", name)
+		}
+		g.types[name] = def
+	}
+
+	// Detect cycles in types
+	for _, def := range root.Definitions {
+		g.findCycles(def, nil)
+	}
+
+	// Pick the least used object type in each cycle to use as the broken link
+	for _, path := range g.cycles {
+		var name string
+		var minCount int
+		pathMap := make(map[string]struct{}, len(path))
+		for _, n := range path {
+			pathMap[n] = struct{}{}
+			node := g.types[n]
+			if _, ok := node.(*ast.ObjectDefinition); !ok {
+				continue
+			}
+			if c := g.typeUseCount[n]; minCount == 0 || c < minCount {
+				minCount = c
+				name = n
+			}
+		}
+		g.cycleBreaks[name] = pathMap
+		log.Printf("Cycle: %s [breaking with %s]\n", strings.Join(path, " → "), name)
+	}
+	// return
+
+	imports := []string{"github.com/sprucehealth/graphql"}
+	if len(g.cfg.Resolvers) != 0 {
+		imports = []string{
+			"context",
+			"fmt",
+			"",
+			"github.com/sprucehealth/backend/libs/gqldecode",
+			"github.com/sprucehealth/graphql",
+			"github.com/sprucehealth/graphql/gqlerrors",
+		}
+	}
+
+	g.printf("package schema\n\n")
+	g.printf("import (\n")
+	for _, im := range imports {
+		if im == "" {
+			g.printf("\n")
+		} else {
+			g.printf("\t%q\n", im)
+		}
+	}
+	g.printf(")\n\n")
+
+	// Validate custom resolvers and generate interfaces
+	for typeName, fields := range g.cfg.Resolvers {
+		sort.Strings(fields)
+		g.printf("const %sResolversKey = %q\n\n", exportedName(typeName), exportedName(typeName)+"Resolvers")
+		g.printf("type %sResolvers interface {\n", exportedName(typeName))
+		for _, fieldName := range fields {
+			objDef, ok := g.types[typeName].(*ast.ObjectDefinition)
+			if !ok || objDef == nil {
+				log.Fatalf("Unknown object definition %q when generating resolvers", typeName)
+			}
+			var field *ast.FieldDefinition
+			for _, f := range objDef.Fields {
+				if f.Name.Value == fieldName {
+					field = f
+					break
+				}
+			}
+			if field == nil {
+				log.Fatalf("Unknown field %q on object %q when generating resolvers", fieldName, typeName)
+			}
+			if len(field.Arguments) == 0 {
+				g.printf("\t%s(ctx context.Context, parent *%s, p graphql.ResolveParams) (%s, error)\n",
+					exportedName(field.Name.Value), exportedName(objDef.Name.Value), g.goType(field.Type, objDef.Name.Value+"."+field.Name.Value))
+			} else {
+				g.printf("\t%s(ctx context.Context, parent *%s, args *%s%sArgs, p graphql.ResolveParams) (%s, error)\n",
+					exportedName(field.Name.Value), exportedName(objDef.Name.Value), exportedName(objDef.Name.Value), exportedName(field.Name.Value), g.goType(field.Type, objDef.Name.Value+"."+field.Name.Value))
+			}
+		}
+		g.printf("}\n\n")
+	}
+	// Generate types
+	for _, def := range root.Definitions {
+		g.genNode(def)
+	}
+	// Generate a list of all the types
+	g.printf("\nvar TypeDefs = []graphql.Type{\n")
+	for _, def := range root.Definitions {
+		var name string
+		switch def := def.(type) {
+		case *ast.ObjectDefinition:
+			name = goObjectDefName(def.Name.Value)
+		case *ast.InterfaceDefinition:
+			name = goInterfaceDefName(def.Name.Value)
+		case *ast.UnionDefinition:
+			name = goUnionDefName(def.Name.Value)
+		case *ast.InputObjectDefinition:
+			name = goInputObjectDefName(def.Name.Value)
+		case *ast.EnumDefinition:
+			name = goEnumDefName(def.Name.Value)
+		default:
+			log.Fatalf("Unhandled node type %T", def)
+		}
+		g.printf("\t%s,\n", name)
+	}
+	g.printf("}\n")
+}
+
+func generateClient(outWriter io.Writer, root *ast.Document) {
 	g := &generator{
 		w:            outWriter,
 		doc:          root,
