@@ -272,8 +272,6 @@ func newGenerator(outWriter io.Writer, root *ast.Document) *generator {
 				}
 				g.cfg.Resolvers[exportedName(def.Name.Value)] = fieldNames
 			}
-		default:
-			log.Fatalf("Unhandled node type %T", def)
 		}
 	}
 	return g
