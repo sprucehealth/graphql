@@ -22,12 +22,13 @@ import (
 )
 
 var (
-	flagArtifact    = flag.String("artifact", "server", "The artifact to generate from the schema (server or client)")
-	flagClientTypes = flag.String("client_types", "Query,Mutation", "The types that should be used to create client methods")
-	flagConfigFile  = flag.String("config", "", "Path to config file")
-	flagOutFile     = flag.String("out", "", "Path to output file (stdout if not set)")
-	flagSchemaFile  = flag.String("schema", "", "Path to schema file (stdin if not set)")
-	flagVerbose     = flag.Bool("v", false, "Verbose output")
+	flagArtifact       = flag.String("artifact", "server", "The artifact to generate from the schema (server or client)")
+	flagClientTypes    = flag.String("client_types", "Query,Mutation", "The types that should be used to create client methods")
+	flagConfigFile     = flag.String("config", "", "Path to config file")
+	flagOutFile        = flag.String("out", "", "Path to output file (stdout if not set)")
+	flagSchemaFile     = flag.String("schema", "", "Path to schema file (stdin if not set)")
+	flagNullableInputs = flag.Bool("nullable_inputs", false, "Flag to determine if nullable inputs should be serialized into pointers")
+	flagVerbose        = flag.Bool("v", false, "Verbose output")
 )
 
 var initialisms = map[string]struct{}{
@@ -782,7 +783,11 @@ func (g *generator) genInputModel(def *ast.InputObjectDefinition) {
 	}
 	g.printf("type %s struct {\n", exportedName(def.Name.Value))
 	for _, f := range def.Fields {
-		g.printf("\t%s %s `gql:%q`\n", exportedName(f.Name.Value), g.goInputType(f.Type, def.Name.Value+"."+f.Name.Value, true), f.Name.Value)
+		iType := g.goType(f.Type, def.Name.Value+"."+f.Name.Value)
+		if *flagNullableInputs {
+			iType = g.goInputType(f.Type, def.Name.Value+"."+f.Name.Value, true)
+		}
+		g.printf("\t%s %s `gql:%q`\n", exportedName(f.Name.Value), iType, f.Name.Value)
 	}
 	g.printf("}\n")
 }
