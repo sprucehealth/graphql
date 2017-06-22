@@ -782,7 +782,7 @@ func (g *generator) genInputModel(def *ast.InputObjectDefinition) {
 	}
 	g.printf("type %s struct {\n", exportedName(def.Name.Value))
 	for _, f := range def.Fields {
-		g.printf("\t%s %s `gql:%q`\n", exportedName(f.Name.Value), g.goType(f.Type, def.Name.Value+"."+f.Name.Value), f.Name.Value)
+		g.printf("\t%s %s `gql:%q`\n", exportedName(f.Name.Value), g.goInputType(f.Type, def.Name.Value+"."+f.Name.Value, true), f.Name.Value)
 	}
 	g.printf("}\n")
 }
@@ -878,6 +878,48 @@ func renderDefaultReturnValue(t ast.Type) string {
 		}
 	}
 	return "nil"
+}
+
+func (g *generator) goInputType(t ast.Type, fieldName string, nullable bool) string {
+	var p string
+	if nullable {
+		p = "*"
+	}
+	if t := g.cfg.CustomFieldTypes[fieldName]; t != "" {
+		return t
+	}
+	switch t := t.(type) {
+	case *ast.NonNull:
+		return g.goInputType(t.Type, fieldName, false)
+	case *ast.List:
+		return "[]" + g.goInputType(t.Type, fieldName, true)
+	case *ast.Named:
+		switch t.Name.Value {
+		case "ID":
+			return p + "string"
+		case "String":
+			return p + "string"
+		case "Boolean":
+			return p + "bool"
+		case "Float":
+			return p + "float64"
+		case "Int":
+			return p + "int"
+		}
+		node, ok := g.types[t.Name.Value]
+		if !ok {
+			g.failf("Undefined type %q", t.Name.Value)
+		}
+		if _, ok := node.(*ast.EnumDefinition); ok {
+			return p + exportedName(t.Name.Value)
+		}
+		if _, ok := node.(*ast.InterfaceDefinition); ok {
+			return exportedName(t.Name.Value)
+		}
+		return "*" + exportedName(t.Name.Value)
+	}
+	log.Fatalf("Unhandled type %T", t)
+	return ""
 }
 
 func (g *generator) goType(t ast.Type, fieldName string) string {
