@@ -3,6 +3,7 @@ package graphql
 import (
 	"fmt"
 	"reflect"
+	"sort"
 	"strconv"
 
 	"github.com/sprucehealth/graphql/language/ast"
@@ -417,6 +418,9 @@ func init() {
 						for _, ttype := range schema.TypeMap() {
 							results = append(results, ttype)
 						}
+						sort.Slice(results, func(i, j int) bool {
+							return results[i].Name() < results[j].Name()
+						})
 						return results, nil
 					}
 					return []Type{}, nil
@@ -524,6 +528,9 @@ func init() {
 					}
 					fields = append(fields, field)
 				}
+				sort.Slice(fields, func(i, j int) bool {
+					return fields[i].Name < fields[j].Name
+				})
 				return fields, nil
 			case *Interface:
 				if ttype == nil {
@@ -536,6 +543,9 @@ func init() {
 					}
 					fields = append(fields, field)
 				}
+				sort.Slice(fields, func(i, j int) bool {
+					return fields[i].Name < fields[j].Name
+				})
 				return fields, nil
 			}
 			return nil, nil
@@ -585,6 +595,9 @@ func init() {
 					}
 					values = append(values, value)
 				}
+				sort.Slice(values, func(i, j int) bool {
+					return values[i].Name < values[j].Name
+				})
 				return values, nil
 			}
 			return nil, nil
@@ -599,6 +612,9 @@ func init() {
 				for _, field := range ttype.Fields() {
 					fields = append(fields, field)
 				}
+				sort.Slice(fields, func(i, j int) bool {
+					return fields[i].Name() < fields[j].Name()
+				})
 				return fields, nil
 			}
 			return nil, nil
