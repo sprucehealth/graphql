@@ -50,8 +50,9 @@ var initialisms = map[string]string{
 }
 
 type config struct {
-	Resolvers        map[string][]string // type -> fields
-	CustomFieldTypes map[string]string   // Type.Field -> go type
+	Resolvers        map[string][]string          // type -> fields
+	CustomFieldTypes map[string]string            // Type.Field -> go type
+	ExtraFields      map[string]map[string]string // type -> field -> go type
 }
 
 func main() {
@@ -643,6 +644,9 @@ func (g *generator) genObjectModel(def *ast.ObjectDefinition) {
 			}
 			g.printf("\t%s %s `json:%q`\n", exportedName(f.Name.Value), g.goType(f.Type, def.Name.Value+"."+f.Name.Value), strings.Join(opts, ","))
 		}
+	}
+	for name, goType := range g.cfg.ExtraFields[def.Name.Value] {
+		g.printf("\t%s %s `json:\"-\"`\n", name, goType)
 	}
 	g.printf("}\n")
 
