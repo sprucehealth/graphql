@@ -952,6 +952,9 @@ func (g *generator) goType(t ast.Type, fieldName string) string {
 		case "Float":
 			return "float64"
 		case "Int":
+			if strings.HasSuffix(strings.ToLower(fieldName), "timestamp") {
+				return "int64"
+			}
 			return "int"
 		}
 		node, ok := g.types[t.Name.Value]
