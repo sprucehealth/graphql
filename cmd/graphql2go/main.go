@@ -31,21 +31,22 @@ var (
 	flagVerbose        = flag.Bool("v", false, "Verbose output")
 )
 
-var initialisms = map[string]struct{}{
-	"DOB":   {},
-	"HTTP":  {},
-	"HTTPS": {},
-	"EMR":   {},
-	"HMAC":  {},
-	"ID":    {},
-	"IOS":   {},
-	"LAN":   {},
-	"OTC":   {},
-	"SMS":   {},
-	"UID":   {},
-	"URL":   {},
-	"UUID":  {},
-	"VOIP":  {},
+var initialisms = map[string]string{
+	"DOB":   "DOB",
+	"HTTP":  "HTTP",
+	"HTTPS": "HTTPS",
+	"EMR":   "EMR",
+	"HMAC":  "HMAC",
+	"ID":    "ID",
+	"IDS":   "IDs",
+	"IOS":   "IOS",
+	"LAN":   "LAN",
+	"OTC":   "OTC",
+	"SMS":   "SMS",
+	"UID":   "UID",
+	"URL":   "URL",
+	"UUID":  "UUID",
+	"VOIP":  "VOIP",
 }
 
 type config struct {
@@ -1082,8 +1083,8 @@ func camelCaseInitialisms(s string) string {
 // upperInitialisms takes a word and convert any initialisms to uppercase (e.g. Url -> URL)
 func upperInitialisms(s string) string {
 	x := strings.ToUpper(s)
-	if _, ok := initialisms[x]; ok {
-		return x
+	if y, ok := initialisms[x]; ok {
+		return y
 	}
 	return s
 }

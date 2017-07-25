@@ -13,6 +13,7 @@ func TestUnexportedName(t *testing.T) {
 		{s: "SomeID", e: "someID"},
 		{s: "URLWhat", e: "urlWhat"},
 		{s: "AThing", e: "aThing"},
+		{s: "PageIDs", e: "pageIDs"},
 	}
 	for _, c := range cases {
 		t.Run(c.s, func(t *testing.T) {
@@ -35,6 +36,9 @@ func TestExportedName(t *testing.T) {
 		{s: "id", e: "ID"},
 		{s: "someId", e: "SomeID"},
 		{s: "urlWhat", e: "URLWhat"},
+		{s: "ids", e: "IDs"},
+		{s: "pageIds", e: "PageIDs"},
+		{s: "pageIDs", e: "PageIDs"},
 	}
 	for _, c := range cases {
 		t.Run(c.s, func(t *testing.T) {
