@@ -967,6 +967,9 @@ func (g *generator) goType(t ast.Type, fieldName string) string {
 		if _, ok := node.(*ast.InterfaceDefinition); ok {
 			return exportedName(t.Name.Value)
 		}
+		if _, ok := node.(*ast.UnionDefinition); ok {
+			return exportedName(t.Name.Value)
+		}
 		return "*" + exportedName(t.Name.Value)
 	}
 	log.Fatalf("Unhandled type %T", t)
