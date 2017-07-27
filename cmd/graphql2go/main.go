@@ -42,6 +42,7 @@ var initialisms = map[string]string{
 	"IOS":   "IOS",
 	"LAN":   "LAN",
 	"OTC":   "OTC",
+	"SAML":  "SAML",
 	"SMS":   "SMS",
 	"UID":   "UID",
 	"URL":   "URL",
