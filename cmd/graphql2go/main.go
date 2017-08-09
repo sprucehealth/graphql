@@ -32,6 +32,7 @@ var (
 )
 
 var initialisms = map[string]string{
+	"CTA":   "CTA",
 	"DOB":   "DOB",
 	"HTTP":  "HTTP",
 	"HTTPS": "HTTPS",
