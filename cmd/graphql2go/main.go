@@ -110,6 +110,11 @@ func main() {
 	}
 }
 
+type resolver struct {
+	typeName string
+	fields   []string
+}
+
 func generateServer(g *generator) {
 	imports := []string{"github.com/sprucehealth/graphql"}
 	if len(g.cfg.Resolvers) != 0 {
@@ -134,8 +139,17 @@ func generateServer(g *generator) {
 	}
 	g.printf(")\n\n")
 
-	// Validate custom resolvers and generate interfaces
+	// Turn the resolver map into a slice to be able to sort and have consistent order
+	resolvers := make([]*resolver, 0, len(g.cfg.Resolvers))
 	for typeName, fields := range g.cfg.Resolvers {
+		resolvers = append(resolvers, &resolver{typeName: typeName, fields: fields})
+	}
+	sort.Slice(resolvers, func(i, j int) bool { return resolvers[i].typeName < resolvers[j].typeName })
+
+	// Validate custom resolvers and generate interfaces
+	for _, r := range resolvers {
+		typeName := r.typeName
+		fields := r.fields
 		assertionType := fmt.Sprintf("*%s", exportedName(typeName))
 		if isTopLevelObject(exportedName(typeName)) {
 			assertionType = "map[string]interface{}"
@@ -253,12 +267,19 @@ func newGenerator(outWriter io.Writer, root *ast.Document) *generator {
 			if _, ok := node.(*ast.ObjectDefinition); !ok {
 				continue
 			}
-			if c := g.typeUseCount[n]; minCount == 0 || c < minCount {
+			if c := g.typeUseCount[n]; minCount == 0 || c < minCount || (c == minCount && n < name) {
 				minCount = c
 				name = n
 			}
 		}
-		g.cycleBreaks[name] = pathMap
+		// Merge if necessary
+		if cb := g.cycleBreaks[name]; cb != nil {
+			for n := range pathMap {
+				cb[n] = struct{}{}
+			}
+		} else {
+			g.cycleBreaks[name] = pathMap
+		}
 		log.Printf("Cycle: %s [breaking with %s]\n", strings.Join(path, " → "), name)
 	}
 
@@ -647,8 +668,14 @@ func (g *generator) genObjectModel(def *ast.ObjectDefinition) {
 			g.printf("\t%s %s `json:%q`\n", exportedName(f.Name.Value), g.goType(f.Type, def.Name.Value+"."+f.Name.Value), strings.Join(opts, ","))
 		}
 	}
+	// Turn the ExtraFields map into a slice to make the ordering consistent
+	extraFields := make([][2]string, 0, len(g.cfg.ExtraFields[def.Name.Value]))
 	for name, goType := range g.cfg.ExtraFields[def.Name.Value] {
-		g.printf("\t%s %s `json:\"-\"`\n", name, goType)
+		extraFields = append(extraFields, [2]string{name, goType})
+	}
+	sort.Slice(extraFields, func(i, j int) bool { return extraFields[i][0] < extraFields[j][0] })
+	for _, nameAndGoType := range extraFields {
+		g.printf("\t%s %s `json:\"-\"`\n", nameAndGoType[0], nameAndGoType[1])
 	}
 	g.printf("}\n")
 
