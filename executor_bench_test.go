@@ -2,6 +2,8 @@ package graphql
 
 import (
 	"testing"
+
+	"github.com/sprucehealth/graphql/language/parser"
 )
 
 func TestDefaultResolveFn(t *testing.T) {
@@ -116,5 +118,98 @@ func BenchmarkDefaultResolveFnMap(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		defaultResolveFn(p)
+	}
+}
+
+func BenchmarkQuery(b *testing.B) {
+	type enumValueType string
+
+	const enumValue enumValueType = "foo"
+
+	enumType := NewEnum(EnumConfig{
+		Name: "Bar",
+		Values: EnumValueConfigMap{
+			"foo": &EnumValueConfig{
+				Value: enumValue,
+			},
+		},
+	})
+
+	schema, err := NewSchema(SchemaConfig{
+		Query: NewObject(ObjectConfig{
+			Name: "Query",
+			Fields: Fields{
+				"foo": &Field{
+					Type: NewNonNull(enumType),
+					Resolve: func(p ResolveParams) (interface{}, error) {
+						return enumValue, nil
+					},
+				},
+				"someID": &Field{
+					Type: NewNonNull(ID),
+					Resolve: func(p ResolveParams) (interface{}, error) {
+						return "abc", nil
+					},
+				},
+				"someString": &Field{
+					Type: NewNonNull(String),
+					Resolve: func(p ResolveParams) (interface{}, error) {
+						return "bar", nil
+					},
+				},
+				"someInt": &Field{
+					Type: NewNonNull(Int),
+					Resolve: func(p ResolveParams) (interface{}, error) {
+						return 123, nil
+					},
+				},
+				"someFloat": &Field{
+					Type: NewNonNull(Float),
+					Resolve: func(p ResolveParams) (interface{}, error) {
+						return 1.23, nil
+					},
+				},
+				"someBoolean": &Field{
+					Type: NewNonNull(Boolean),
+					Resolve: func(p ResolveParams) (interface{}, error) {
+						return true, nil
+					},
+				},
+			},
+		}),
+	})
+	if err != nil {
+		b.Fatalf("Error in schema %s", err)
+	}
+
+	astDoc, err := parser.Parse(parser.ParseParams{
+		Source: `
+			query _ {
+				foo
+				someID
+				someString
+				someInt
+				someFloat
+				someBoolean
+			}
+		`,
+		Options: parser.ParseOptions{NoSource: true},
+	})
+	if err != nil {
+		b.Fatalf("Parse failed: %s", err)
+	}
+
+	ep := ExecuteParams{
+		Schema: schema,
+		AST:    astDoc,
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		result := Execute(ep)
+		if len(result.Errors) > 0 {
+			b.Fatalf("wrong result, unexpected errors: %v", result.Errors)
+		}
 	}
 }

@@ -9,57 +9,57 @@ import (
 )
 
 func coerceInt(value interface{}) interface{} {
-	switch value := value.(type) {
+	switch v := value.(type) {
 	case bool:
-		if value {
+		if v {
 			return 1
 		}
 		return 0
 	case int:
 		return value
 	case int8:
-		return int(value)
+		return int(v)
 	case int16:
-		return int(value)
+		return int(v)
 	case int32:
-		return int(value)
+		return int(v)
 	case int64:
-		if value < int64(math.MinInt32) || value > int64(math.MaxInt32) {
+		if v < int64(math.MinInt32) || v > int64(math.MaxInt32) {
 			return nil
 		}
-		return int(value)
+		return int(v)
 	case uint:
-		return int(value)
+		return int(v)
 	case uint8:
-		return int(value)
+		return int(v)
 	case uint16:
-		return int(value)
+		return int(v)
 	case uint32:
-		if value > uint32(math.MaxInt32) {
+		if v > uint32(math.MaxInt32) {
 			return nil
 		}
-		return int(value)
+		return int(v)
 	case uint64:
-		if value > uint64(math.MaxInt32) {
+		if v > uint64(math.MaxInt32) {
 			return nil
 		}
-		return int(value)
+		return int(v)
 	case float32:
-		if value < float32(math.MinInt32) || value > float32(math.MaxInt32) {
+		if v < float32(math.MinInt32) || v > float32(math.MaxInt32) {
 			return nil
 		}
-		return int(value)
+		return int(v)
 	case float64:
-		if value < float64(math.MinInt64) || value > float64(math.MaxInt64) {
+		if v < float64(math.MinInt64) || v > float64(math.MaxInt64) {
 			return nil
 		}
-		return int(value)
+		return int(v)
 	case string:
-		val, err := strconv.ParseFloat(value, 0)
+		val, err := strconv.ParseFloat(v, 0)
 		if err != nil {
 			return nil
 		}
-		return coerceInt(val)
+		return int(val)
 	}
 
 	// If the value cannot be transformed into an int, return nil instead of '0'
@@ -86,20 +86,28 @@ var Int = NewScalar(ScalarConfig{
 })
 
 func coerceFloat64(value interface{}) interface{} {
-	switch value := value.(type) {
+	switch v := value.(type) {
 	case bool:
-		if value {
+		if v {
 			return float64(1)
 		}
 		return float64(0)
 	case int:
-		return float64(value)
+		return float64(v)
+	case int32:
+		return float64(v)
+	case uint32:
+		return float64(v)
+	case int64:
+		return float64(v)
+	case uint64:
+		return float64(v)
 	case float32:
-		return float64(value)
+		return float64(v)
 	case float64:
 		return value
 	case string:
-		val, err := strconv.ParseFloat(value, 64)
+		val, err := strconv.ParseFloat(v, 64)
 		if err != nil {
 			return nil
 		}
@@ -132,6 +140,24 @@ var Float = NewScalar(ScalarConfig{
 })
 
 func coerceString(value interface{}) interface{} {
+	switch v := value.(type) {
+	case string:
+		return value
+	case int:
+		return strconv.Itoa(v)
+	case int32:
+		return strconv.Itoa(int(v))
+	case uint32:
+		return strconv.FormatUint(uint64(v), 10)
+	case int64:
+		return strconv.FormatInt(v, 10)
+	case uint64:
+		return strconv.FormatUint(v, 10)
+	case float32:
+		return strconv.FormatFloat(float64(v), 'f', -1, 32)
+	case float64:
+		return strconv.FormatFloat(v, 'f', -1, 64)
+	}
 	return fmt.Sprintf("%v", value)
 }
 
@@ -153,30 +179,29 @@ var String = NewScalar(ScalarConfig{
 })
 
 func coerceBool(value interface{}) interface{} {
-	switch value := value.(type) {
+	switch v := value.(type) {
 	case bool:
 		return value
 	case string:
-		switch value {
+		switch v {
 		case "", "false":
 			return false
 		}
 		return true
 	case float64:
-		if value != 0 {
-			return true
-		}
-		return false
+		return v != 0.0
 	case float32:
-		if value != 0 {
-			return true
-		}
-		return false
+		return v != 0.0
 	case int:
-		if value != 0 {
-			return true
-		}
-		return false
+		return v != 0
+	case int32:
+		return v != 0
+	case uint32:
+		return v != 0
+	case int64:
+		return v != 0
+	case uint64:
+		return v != 0
 	}
 	return false
 }
