@@ -57,6 +57,7 @@ type config struct {
 	Resolvers        map[string][]string          // type -> fields
 	CustomFieldTypes map[string]string            // Type.Field -> go type
 	ExtraFields      map[string]map[string]string // type -> field -> go type
+	Initialisms      map[string]string
 }
 
 func main() {
@@ -227,6 +228,9 @@ func newGenerator(outWriter io.Writer, root *ast.Document) *generator {
 		}
 		if err := json.Unmarshal(b, &g.cfg); err != nil {
 			log.Fatalf("Failed to decode config file: %s", err)
+		}
+		for k, v := range g.cfg.Initialisms {
+			initialisms[k] = v
 		}
 	}
 
