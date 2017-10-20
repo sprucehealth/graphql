@@ -424,6 +424,12 @@ func (g *generator) printf(m string, a ...interface{}) {
 	}
 }
 
+func (g *generator) print(m string) {
+	if _, err := fmt.Fprint(g.w, m); err != nil {
+		g.fail(err)
+	}
+}
+
 func (g *generator) failf(m string, a ...interface{}) {
 	panic(fmt.Errorf(m, a...))
 }
