@@ -180,8 +180,12 @@ func renderDefaultClientReturnValue(t ast.Type) string {
 
 func genMakeURL(g *generator) {
 	g.printf("func (c *client) makeURL() string {\n")
+	g.printf("\tscheme := \"https\"\n")
+	g.printf("\tif environment.IsLocal() {\n")
+	g.printf("\t\t scheme=\"http\"\n")
+	g.printf("}\n")
 	g.printf("\turl := &url.URL{\n")
-	g.printf("\tScheme: \"http\",\n")
+	g.printf("\tScheme: scheme,\n")
 	g.printf("\t\tHost:   c.endpoint,\n")
 	g.printf("\t\tPath:   c.path,\n")
 	g.printf("\t}\n")
