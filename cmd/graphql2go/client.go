@@ -110,7 +110,7 @@ func generateClient(g *generator) {
 }
 
 func renderSignatureForField(g *generator, d *ast.ObjectDefinition, f *ast.FieldDefinition) string {
-	return fmt.Sprintf("%s%s(query string) (%s, error)", exportedName(d.Name.Value), exportedName(f.Name.Value), g.goType(f.Type, ""))
+	return fmt.Sprintf("%s%s(ctx context.Context, query string) (%s, error)", exportedName(d.Name.Value), exportedName(f.Name.Value), g.goType(f.Type, ""))
 }
 
 func genDecoderHook(g *generator) {
@@ -152,9 +152,9 @@ func outputTypeReturn(g *generator, f *ast.FieldDefinition) string {
 
 func genClientMethodForField(g *generator, d *ast.ObjectDefinition, f *ast.FieldDefinition) {
 	g.printf("func (c *client) %s {\n", renderSignatureForField(g, d, f))
-	g.printf("\tgolog.Debugf(\"%s%s\")\n", exportedName(d.Name.Value), exportedName(f.Name.Value))
+	g.printf("\tgolog.ContextLogger(ctx).Debugf(\"%s%s\")\n", exportedName(d.Name.Value), exportedName(f.Name.Value))
 	genOutputTypeVar(g, f)
-	g.printf("\tif _, err := c.do(\"%s\", query, &out); err != nil {\n", unexportedName(f.Name.Value))
+	g.printf("\tif _, err := c.do(ctx, \"%s\", query, &out); err != nil {\n", unexportedName(f.Name.Value))
 	g.printf("\t\treturn %s, errors.Trace(err)\n", renderDefaultReturnValue(f.Type))
 	g.printf("\t}\n")
 	g.printf("\treturn %s, nil", outputTypeReturn(g, f))
@@ -236,7 +236,7 @@ func genRewriteQuery(g *generator) {
 }
 
 func genClientDo(g *generator) {
-	g.printf("func (c *client) do(dataField, query string, out interface{}) (int, error){\n")
+	g.printf("func (c *client) do(ctx context.Context, dataField, query string, out interface{}) (int, error){\n")
 	g.printf("\tquery, err := rewriteQuery(query)\n")
 	g.printf("\tif err != nil {\n")
 	g.printf("\t\treturn 0, errors.Trace(err)\n")
@@ -247,7 +247,7 @@ func genClientDo(g *generator) {
 	g.printf("\t\treturn 0, errors.Trace(err)\n")
 	g.printf("\t}\n")
 	g.printf("\tu := c.makeURL()\n")
-	g.print("\tgolog.Debugf(\"Request: %s - %s\", u, string(bBody))\n")
+	g.print("\tgolog.ContextLogger(ctx).Debugf(\"Request: %s - %s\", u, string(bBody))\n")
 	g.printf("\treq, err := http.NewRequest(http.MethodPost, u, bytes.NewReader(bBody))\n")
 	g.printf("\tif err != nil {\n")
 	g.printf("\t\treturn 0, errors.Trace(err)\n")
@@ -270,7 +270,7 @@ func genClientDo(g *generator) {
 	g.printf("\tif err != nil {\n")
 	g.print("\t\treturn resp.StatusCode, errors.Wrapf(err, \"Error reading body - in response from %v\", req.URL.String())\n")
 	g.printf("\t}\n")
-	g.print("\tgolog.Debugf(\"Response: %s - %s\", resp.Status, string(ball))\n")
+	g.print("\tgolog.ContextLogger(ctx).Debugf(\"Response: %s - %s\", resp.Status, string(ball))\n")
 	g.printf("\tgqlResp := &gqlResponse{}\n")
 	g.printf("\tif resp.StatusCode == http.StatusOK {\n")
 	g.printf("\t\tif err := json.NewDecoder(bytes.NewReader(ball)).Decode(gqlResp); err != nil {\n")
