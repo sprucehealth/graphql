@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/sprucehealth/graphql/gqlerrors"
+	"github.com/sprucehealth/graphql/language/ast"
 	"github.com/sprucehealth/graphql/language/parser"
 	"github.com/sprucehealth/graphql/language/source"
 )
@@ -57,4 +58,29 @@ func Do(p Params) *Result {
 		Args:          p.VariableValues,
 		Context:       p.Context,
 	})
+}
+
+// RequestTypeNames rewrites an ast document to include __typename
+// in all selection sets.
+func RequestTypeNames(doc *ast.Document) {
+	for _, node := range doc.Definitions {
+		switch od := node.(type) {
+		case *ast.OperationDefinition:
+			requestTypeNamesInSelectionSet(od.SelectionSet)
+		}
+	}
+}
+
+func requestTypeNamesInSelectionSet(ss *ast.SelectionSet) {
+	if ss == nil {
+		return
+	}
+	ss.Selections = append(ss.Selections, &ast.Field{
+		Name: &ast.Name{
+			Value: "__typename",
+		},
+	})
+	for _, selections := range ss.Selections {
+		requestTypeNamesInSelectionSet(selections.GetSelectionSet())
+	}
 }

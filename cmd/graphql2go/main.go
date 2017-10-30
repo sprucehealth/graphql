@@ -125,8 +125,8 @@ func generateServer(g *generator) {
 			"context",
 			"fmt",
 			"",
-			"github.com/sprucehealth/backend/libs/gqldecode",
 			"github.com/sprucehealth/graphql",
+			"github.com/sprucehealth/graphql/gqldecode",
 			"github.com/sprucehealth/graphql/gqlerrors",
 		}
 	}
