@@ -204,6 +204,8 @@ func generateServer(g *generator) {
 			name = goInputObjectDefName(def.Name.Value)
 		case *ast.EnumDefinition:
 			name = goEnumDefName(def.Name.Value)
+		case *ast.ScalarDefinition:
+			name = goScalarDefName(def.Name.Value)
 		default:
 			log.Fatalf("Unhandled node type %T", def)
 		}
@@ -247,6 +249,8 @@ func newGenerator(outWriter io.Writer, root *ast.Document) *generator {
 		case *ast.InterfaceDefinition:
 			name = def.Name.Value
 		case *ast.UnionDefinition:
+			name = def.Name.Value
+		case *ast.ScalarDefinition:
 			name = def.Name.Value
 		default:
 			log.Fatalf("Unhandled node type %T", def)
@@ -361,6 +365,8 @@ func (g *generator) findCycles(def ast.Node, ancestors []string) {
 	case *ast.InputObjectDefinition, *ast.EnumDefinition:
 		// Input objects and enums can't form cycles
 		return
+	case *ast.ScalarDefinition:
+		// Don't think cycles are possible
 	default:
 		log.Fatalf("Unhandled node type %T", def)
 	}
@@ -461,6 +467,9 @@ func (g *generator) genNode(node ast.Node) {
 		g.genUnionDefinition(def)
 		g.printf("\n")
 		g.genUnionModel(def)
+	case *ast.ScalarDefinition:
+		g.genScalarDefinition(def)
+		g.printf("\n")
 	default:
 		log.Fatalf("Unhandled node type %T", node)
 	}
@@ -550,6 +559,25 @@ func (g *generator) genUnionModel(def *ast.UnionDefinition) {
 	// TODO: do we want anything here to make guarantees of match?
 	g.printf("type %s interface {\n", exportedName(def.Name.Value))
 	g.printf("}\n")
+}
+
+func (g *generator) genScalarDefinition(def *ast.ScalarDefinition) {
+	// TODO
+	// if def.Doc != nil {
+	// 	c, _ := renderLineComments(def.Doc, "")
+	// 	g.printf("%s\n", c)
+	// }
+
+	g.printf("var %s = graphql.NewScalar(graphql.ScalarConfig{\n", goScalarDefName(def.Name.Value))
+	g.printf("\tName: %q,\n", def.Name.Value)
+	// TODO
+	// if def.Doc != nil {
+	// 	g.printf("\tDescription: %s,\n", renderQuotedComments(def.Doc))
+	// }
+	g.printf("\tSerialize: serializeScalar%s,\n", exportedName(def.Name.Value))
+	g.printf("\tParseValue: parseScalar%s,\n", exportedName(def.Name.Value))
+	g.printf("\tParseLiteral: parseLiteralScalar%s,\n", exportedName(def.Name.Value))
+	g.printf("})\n")
 }
 
 func (g *generator) genEnumDefinition(def *ast.EnumDefinition) {
@@ -907,6 +935,8 @@ func (g *generator) renderType(t ast.Type) string {
 			return goEnumDefName(t.Name.Value)
 		case *ast.InputObjectDefinition:
 			return goInputObjectDefName(t.Name.Value)
+		case *ast.ScalarDefinition:
+			return goScalarDefName(t.Name.Value)
 		}
 		g.failf("Unknown node type %T", node)
 	}
@@ -1077,6 +1107,10 @@ func goUnionDefName(name string) string {
 }
 
 func goInputObjectDefName(name string) string {
+	return exportedName(name) + "Def"
+}
+
+func goScalarDefName(name string) string {
 	return exportedName(name) + "Def"
 }
 
