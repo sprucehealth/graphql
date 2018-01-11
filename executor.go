@@ -98,7 +98,7 @@ type BuildExecutionCtxParams struct {
 }
 type ExecutionContext struct {
 	Schema         Schema
-	Fragments      map[string]ast.Definition
+	Fragments      map[string]*ast.FragmentDefinition
 	Root           interface{}
 	Operation      ast.Definition
 	VariableValues map[string]interface{}
@@ -112,7 +112,7 @@ func safeNodeType(n ast.Node) string {
 
 func buildExecutionContext(p BuildExecutionCtxParams) (*ExecutionContext, error) {
 	var operation *ast.OperationDefinition
-	fragments := make(map[string]ast.Definition)
+	fragments := make(map[string]*ast.FragmentDefinition)
 	for _, definition := range p.AST.Definitions {
 		switch definition := definition.(type) {
 		case *ast.OperationDefinition:
@@ -350,19 +350,17 @@ func collectFields(p CollectFieldsParams) map[string][]*ast.Field {
 				continue
 			}
 
-			if fragment, ok := fragment.(*ast.FragmentDefinition); ok {
-				if !doesFragmentConditionMatch(p.ExeContext, fragment, p.RuntimeType) {
-					continue
-				}
-				innerParams := CollectFieldsParams{
-					ExeContext:           p.ExeContext,
-					RuntimeType:          p.RuntimeType,
-					SelectionSet:         fragment.GetSelectionSet(),
-					Fields:               fields,
-					VisitedFragmentNames: p.VisitedFragmentNames,
-				}
-				collectFields(innerParams)
+			if !doesFragmentConditionMatch(p.ExeContext, fragment, p.RuntimeType) {
+				continue
 			}
+			innerParams := CollectFieldsParams{
+				ExeContext:           p.ExeContext,
+				RuntimeType:          p.RuntimeType,
+				SelectionSet:         fragment.GetSelectionSet(),
+				Fields:               fields,
+				VisitedFragmentNames: p.VisitedFragmentNames,
+			}
+			collectFields(innerParams)
 		}
 	}
 	return fields

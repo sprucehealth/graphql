@@ -607,7 +607,7 @@ type ResolveInfo struct {
 	ReturnType     Output
 	ParentType     Composite
 	Schema         Schema
-	Fragments      map[string]ast.Definition
+	Fragments      map[string]*ast.FragmentDefinition
 	RootValue      interface{}
 	Operation      ast.Definition
 	VariableValues map[string]interface{}
