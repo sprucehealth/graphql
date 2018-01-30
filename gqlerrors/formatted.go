@@ -59,8 +59,8 @@ func FormatError(err error) FormattedError {
 }
 
 func FormatPanic(r interface{}) FormattedError {
-	if e, ok := r.(error); ok {
-		return FormatError(e)
+	if e, ok := r.(FormattedError); ok {
+		return e
 	}
 	return FormattedError{
 		Message:    fmt.Sprintf("panic %v", r),
