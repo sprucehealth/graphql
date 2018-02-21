@@ -1,6 +1,7 @@
 package graphql_test
 
 import (
+	"errors"
 	"reflect"
 	"testing"
 
@@ -57,9 +58,10 @@ func TestDirectives_DirectivesMustBeNamed(t *testing.T) {
 		Directives: []*graphql.Directive{invalidDirective},
 	})
 	expectedErr := gqlerrors.FormattedError{
-		Message:   "Directive must be named.",
-		Locations: []location.SourceLocation{},
-		Type:      "INTERNAL",
+		Message:       "Directive must be named.",
+		Locations:     []location.SourceLocation{},
+		Type:          "INTERNAL",
+		OriginalError: errors.New("Directive must be named."),
 	}
 	if !reflect.DeepEqual(expectedErr, err) {
 		t.Fatalf("Expected error to be equal, got: %v", testutil.Diff(expectedErr, err))
@@ -85,9 +87,10 @@ func TestDirectives_DirectiveNameMustBeValid(t *testing.T) {
 		Directives: []*graphql.Directive{invalidDirective},
 	})
 	expectedErr := gqlerrors.FormattedError{
-		Message:   `Names must match /^[_a-zA-Z][_a-zA-Z0-9]*$/ but "123invalid name" does not.`,
-		Locations: []location.SourceLocation{},
-		Type:      "INTERNAL",
+		Message:       `Names must match /^[_a-zA-Z][_a-zA-Z0-9]*$/ but "123invalid name" does not.`,
+		Locations:     []location.SourceLocation{},
+		Type:          "INTERNAL",
+		OriginalError: errors.New("Names must match /^[_a-zA-Z][_a-zA-Z0-9]*$/ but \"123invalid name\" does not."),
 	}
 	if !reflect.DeepEqual(expectedErr, err) {
 		t.Fatalf("Expected error to be equal, got: %v", testutil.Diff(expectedErr, err))
@@ -110,9 +113,10 @@ func TestDirectives_DirectiveNameMustProvideLocations(t *testing.T) {
 		Directives: []*graphql.Directive{invalidDirective},
 	})
 	expectedErr := gqlerrors.FormattedError{
-		Message:   `Must provide locations for directive.`,
-		Locations: []location.SourceLocation{},
-		Type:      "INTERNAL",
+		Message:       `Must provide locations for directive.`,
+		Locations:     []location.SourceLocation{},
+		Type:          "INTERNAL",
+		OriginalError: errors.New("Must provide locations for directive."),
 	}
 	if !reflect.DeepEqual(expectedErr, err) {
 		t.Fatalf("Expected error to be equal, got: %v", testutil.Diff(expectedErr, err))
@@ -148,9 +152,10 @@ func TestDirectives_DirectiveArgNamesMustBeValid(t *testing.T) {
 		Directives: []*graphql.Directive{invalidDirective},
 	})
 	expectedErr := gqlerrors.FormattedError{
-		Message:   `Names must match /^[_a-zA-Z][_a-zA-Z0-9]*$/ but "123if" does not.`,
-		Locations: []location.SourceLocation{},
-		Type:      "INTERNAL",
+		Message:       `Names must match /^[_a-zA-Z][_a-zA-Z0-9]*$/ but "123if" does not.`,
+		Locations:     []location.SourceLocation{},
+		Type:          "INTERNAL",
+		OriginalError: errors.New("Names must match /^[_a-zA-Z][_a-zA-Z0-9]*$/ but \"123if\" does not."),
 	}
 	if !reflect.DeepEqual(expectedErr, err) {
 		t.Fatalf("Expected error to be equal, got: %v", testutil.Diff(expectedErr, err))

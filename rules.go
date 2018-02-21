@@ -49,6 +49,7 @@ type ValidationRuleFn func(context *ValidationContext) *ValidationRuleInstance
 
 func newValidationError(message string, nodes []ast.Node) *gqlerrors.Error {
 	return gqlerrors.NewError(
+		gqlerrors.ErrorTypeBadQuery,
 		message,
 		nodes,
 		"",

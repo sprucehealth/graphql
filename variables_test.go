@@ -418,6 +418,7 @@ func TestVariables_ObjectsAndNullability_UsingVariables_ErrorsOnNullForNestedNon
 		Data: nil,
 		Errors: []gqlerrors.FormattedError{
 			{
+				Type: gqlerrors.ErrorTypeInvalidInput,
 				Message: `Variable "$input" got invalid value {"a":"foo","b":"bar","c":null}.` +
 					"\nIn field \"c\": Expected \"String!\", found null.",
 				Locations: []location.SourceLocation{
@@ -453,6 +454,7 @@ func TestVariables_ObjectsAndNullability_UsingVariables_ErrorsOnIncorrectType(t 
 		Data: nil,
 		Errors: []gqlerrors.FormattedError{
 			{
+				Type:    gqlerrors.ErrorTypeInvalidInput,
 				Message: "Variable \"$input\" got invalid value \"foo bar\".\nExpected \"TestInputObject\", found not an object.",
 				Locations: []location.SourceLocation{
 					{
@@ -490,6 +492,7 @@ func TestVariables_ObjectsAndNullability_UsingVariables_ErrorsOnOmissionOfNested
 		Data: nil,
 		Errors: []gqlerrors.FormattedError{
 			{
+				Type: gqlerrors.ErrorTypeInvalidInput,
 				Message: `Variable "$input" got invalid value {"a":"foo","b":"bar"}.` +
 					"\nIn field \"c\": Expected \"String!\", found null.",
 				Locations: []location.SourceLocation{
@@ -529,6 +532,7 @@ func TestVariables_ObjectsAndNullability_UsingVariables_ErrorsOnDeepNestedErrors
 		Data: nil,
 		Errors: []gqlerrors.FormattedError{
 			{
+				Type: gqlerrors.ErrorTypeInvalidInput,
 				Message: `Variable "$input" got invalid value {"na":{"a":"foo"}}.` +
 					"\nIn field \"na\": In field \"c\": Expected \"String!\", found null." +
 					"\nIn field \"nb\": Expected \"String!\", found null.",
@@ -575,6 +579,7 @@ func TestVariables_ObjectsAndNullability_UsingVariables_ErrorsOnAdditionOfUnknow
 		Data: nil,
 		Errors: []gqlerrors.FormattedError{
 			{
+				Type: gqlerrors.ErrorTypeInvalidInput,
 				Message: `Variable "$input" got invalid value {"a":"foo","b":"bar","c":"baz","extra":"dog"}.` +
 					"\nIn field \"extra\": Unknown field.",
 				Locations: []location.SourceLocation{
@@ -786,6 +791,7 @@ func TestVariables_NonNullableScalars_DoesNotAllowNonNullableInputsToBeOmittedIn
 		Data: nil,
 		Errors: []gqlerrors.FormattedError{
 			{
+				Type:    gqlerrors.ErrorTypeInvalidInput,
 				Message: `Variable "$value" of required type "String!" was not provided.`,
 				Locations: []location.SourceLocation{
 					{
@@ -825,6 +831,7 @@ func TestVariables_NonNullableScalars_DoesNotAllowNonNullableInputsToBeSetToNull
 		Data: nil,
 		Errors: []gqlerrors.FormattedError{
 			{
+				Type:    gqlerrors.ErrorTypeInvalidInput,
 				Message: `Variable "$value" of required type "String!" was not provided.`,
 				Locations: []location.SourceLocation{
 					{
@@ -1053,6 +1060,7 @@ func TestVariables_ListsAndNullability_DoesNotAllowNonNullListsToBeNull(t *testi
 		Data: nil,
 		Errors: []gqlerrors.FormattedError{
 			{
+				Type:    gqlerrors.ErrorTypeInvalidInput,
 				Message: `Variable "$input" of required type "[String]!" was not provided.`,
 				Locations: []location.SourceLocation{
 					{
@@ -1210,6 +1218,7 @@ func TestVariables_ListsAndNullability_DoesNotAllowListOfNonNullsToContainNull(t
 		Data: nil,
 		Errors: []gqlerrors.FormattedError{
 			{
+				Type: gqlerrors.ErrorTypeInvalidInput,
 				Message: `Variable "$input" got invalid value ` +
 					`["A",null,"B"].` +
 					"\nIn element #1: Expected \"String!\", found null.",
@@ -1250,6 +1259,7 @@ func TestVariables_ListsAndNullability_DoesNotAllowNonNullListOfNonNullsToBeNull
 		Data: nil,
 		Errors: []gqlerrors.FormattedError{
 			{
+				Type:    gqlerrors.ErrorTypeInvalidInput,
 				Message: `Variable "$input" of required type "[String!]!" was not provided.`,
 				Locations: []location.SourceLocation{
 					{
@@ -1318,6 +1328,7 @@ func TestVariables_ListsAndNullability_DoesNotAllowNonNullListOfNonNullsToContai
 		Data: nil,
 		Errors: []gqlerrors.FormattedError{
 			{
+				Type: gqlerrors.ErrorTypeInvalidInput,
 				Message: `Variable "$input" got invalid value ` +
 					`["A",null,"B"].` +
 					"\nIn element #1: Expected \"String!\", found null.",
@@ -1360,6 +1371,7 @@ func TestVariables_ListsAndNullability_DoesNotAllowInvalidTypesToBeUsedAsValues(
 		Data: nil,
 		Errors: []gqlerrors.FormattedError{
 			{
+				Type:    gqlerrors.ErrorTypeInvalidInput,
 				Message: `Variable "$input" expected value of type "TestType!" which cannot be used as an input type.`,
 				Locations: []location.SourceLocation{
 					{
@@ -1398,6 +1410,7 @@ func TestVariables_ListsAndNullability_DoesNotAllowUnknownTypesToBeUsedAsValues(
 		Data: nil,
 		Errors: []gqlerrors.FormattedError{
 			{
+				Type:    gqlerrors.ErrorTypeInvalidInput,
 				Message: `Variable "$input" expected value of type "UnknownType!" which cannot be used as an input type.`,
 				Locations: []location.SourceLocation{
 					{

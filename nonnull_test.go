@@ -122,6 +122,7 @@ func TestNonNull_NullsANullableFieldThatThrowsSynchronously(t *testing.T) {
 		},
 		Errors: []gqlerrors.FormattedError{
 			{
+				Type:    gqlerrors.ErrorTypeInternal,
 				Message: syncError,
 				Locations: []location.SourceLocation{
 					{
@@ -144,6 +145,7 @@ func TestNonNull_NullsANullableFieldThatThrowsSynchronously(t *testing.T) {
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
+	result.Errors[0].OriginalError = nil
 	if !reflect.DeepEqual(expected, result) {
 		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expected, result))
 	}
@@ -160,6 +162,7 @@ func TestNonNull_NullsANullableFieldThatThrowsInAPromise(t *testing.T) {
 		},
 		Errors: []gqlerrors.FormattedError{
 			{
+				Type:    gqlerrors.ErrorTypeInternal,
 				Message: promiseError,
 				Locations: []location.SourceLocation{
 					{
@@ -182,6 +185,7 @@ func TestNonNull_NullsANullableFieldThatThrowsInAPromise(t *testing.T) {
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
+	result.Errors[0].OriginalError = nil
 	if !reflect.DeepEqual(expected, result) {
 		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expected, result))
 	}
@@ -200,6 +204,7 @@ func TestNonNull_NullsASynchronouslyReturnedObjectThatContainsANullableFieldThat
 		},
 		Errors: []gqlerrors.FormattedError{
 			{
+				Type:    gqlerrors.ErrorTypeInternal,
 				Message: nonNullSyncError,
 				Locations: []location.SourceLocation{
 					{
@@ -222,6 +227,7 @@ func TestNonNull_NullsASynchronouslyReturnedObjectThatContainsANullableFieldThat
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
+	result.Errors[0].OriginalError = nil
 	if !reflect.DeepEqual(expected, result) {
 		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expected, result))
 	}
@@ -240,6 +246,7 @@ func TestNonNull_NullsASynchronouslyReturnedObjectThatContainsANonNullableFieldT
 		},
 		Errors: []gqlerrors.FormattedError{
 			{
+				Type:    gqlerrors.ErrorTypeInternal,
 				Message: nonNullPromiseError,
 				Locations: []location.SourceLocation{
 					{
@@ -262,6 +269,7 @@ func TestNonNull_NullsASynchronouslyReturnedObjectThatContainsANonNullableFieldT
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
+	result.Errors[0].OriginalError = nil
 	if !reflect.DeepEqual(expected, result) {
 		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expected, result))
 	}
@@ -280,6 +288,7 @@ func TestNonNull_NullsAnObjectReturnedInAPromiseThatContainsANonNullableFieldTha
 		},
 		Errors: []gqlerrors.FormattedError{
 			{
+				Type:    gqlerrors.ErrorTypeInternal,
 				Message: nonNullSyncError,
 				Locations: []location.SourceLocation{
 					{
@@ -302,6 +311,7 @@ func TestNonNull_NullsAnObjectReturnedInAPromiseThatContainsANonNullableFieldTha
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
+	result.Errors[0].OriginalError = nil
 	if !reflect.DeepEqual(expected, result) {
 		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expected, result))
 	}
@@ -320,6 +330,7 @@ func TestNonNull_NullsAnObjectReturnedInAPromiseThatContainsANonNullableFieldTha
 		},
 		Errors: []gqlerrors.FormattedError{
 			{
+				Type:    gqlerrors.ErrorTypeInternal,
 				Message: nonNullPromiseError,
 				Locations: []location.SourceLocation{
 					{
@@ -342,6 +353,7 @@ func TestNonNull_NullsAnObjectReturnedInAPromiseThatContainsANonNullableFieldTha
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
+	result.Errors[0].OriginalError = nil
 	if !reflect.DeepEqual(expected, result) {
 		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expected, result))
 	}
@@ -405,72 +417,84 @@ func TestNonNull_NullsAComplexTreeOfNullableFieldsThatThrow(t *testing.T) {
 		},
 		Errors: []gqlerrors.FormattedError{
 			{
+				Type:    gqlerrors.ErrorTypeInternal,
 				Message: syncError,
 				Locations: []location.SourceLocation{
 					{Line: 4, Column: 11},
 				},
 			},
 			{
+				Type:    gqlerrors.ErrorTypeInternal,
 				Message: syncError,
 				Locations: []location.SourceLocation{
 					{Line: 7, Column: 13},
 				},
 			},
 			{
+				Type:    gqlerrors.ErrorTypeInternal,
 				Message: syncError,
 				Locations: []location.SourceLocation{
 					{Line: 11, Column: 13},
 				},
 			},
 			{
+				Type:    gqlerrors.ErrorTypeInternal,
 				Message: syncError,
 				Locations: []location.SourceLocation{
 					{Line: 16, Column: 11},
 				},
 			},
 			{
+				Type:    gqlerrors.ErrorTypeInternal,
 				Message: syncError,
 				Locations: []location.SourceLocation{
 					{Line: 19, Column: 13},
 				},
 			},
 			{
+				Type:    gqlerrors.ErrorTypeInternal,
 				Message: syncError,
 				Locations: []location.SourceLocation{
 					{Line: 23, Column: 13},
 				},
 			},
 			{
+				Type:    gqlerrors.ErrorTypeInternal,
 				Message: promiseError,
 				Locations: []location.SourceLocation{
 					{Line: 5, Column: 11},
 				},
 			},
 			{
+				Type:    gqlerrors.ErrorTypeInternal,
 				Message: promiseError,
 				Locations: []location.SourceLocation{
 					{Line: 8, Column: 13},
 				},
 			},
 			{
+				Type:    gqlerrors.ErrorTypeInternal,
 				Message: promiseError,
 				Locations: []location.SourceLocation{
 					{Line: 12, Column: 13},
 				},
 			},
 			{
+				Type:    gqlerrors.ErrorTypeInternal,
 				Message: promiseError,
 				Locations: []location.SourceLocation{
 					{Line: 17, Column: 11},
 				},
 			},
 			{
+				Type:    gqlerrors.ErrorTypeInternal,
 				Message: promiseError,
 				Locations: []location.SourceLocation{
 					{Line: 20, Column: 13},
 				},
 			},
 			{
+				Type:    gqlerrors.ErrorTypeInternal,
 				Message: promiseError,
 				Locations: []location.SourceLocation{
 					{Line: 24, Column: 13},
@@ -493,6 +517,9 @@ func TestNonNull_NullsAComplexTreeOfNullableFieldsThatThrow(t *testing.T) {
 	}
 	if !reflect.DeepEqual(expected.Data, result.Data) {
 		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expected.Data, result.Data))
+	}
+	for i := range result.Errors {
+		result.Errors[i].OriginalError = nil
 	}
 	sort.Sort(gqlerrors.FormattedErrors(expected.Errors))
 	sort.Sort(gqlerrors.FormattedErrors(result.Errors))
@@ -558,24 +585,28 @@ func TestNonNull_NullsTheFirstNullableObjectAfterAFieldThrowsInALongChainOfField
 		},
 		Errors: []gqlerrors.FormattedError{
 			{
+				Type:    gqlerrors.ErrorTypeInternal,
 				Message: nonNullSyncError,
 				Locations: []location.SourceLocation{
 					{Line: 8, Column: 19},
 				},
 			},
 			{
+				Type:    gqlerrors.ErrorTypeInternal,
 				Message: nonNullSyncError,
 				Locations: []location.SourceLocation{
 					{Line: 19, Column: 19},
 				},
 			},
 			{
+				Type:    gqlerrors.ErrorTypeInternal,
 				Message: nonNullPromiseError,
 				Locations: []location.SourceLocation{
 					{Line: 30, Column: 19},
 				},
 			},
 			{
+				Type:    gqlerrors.ErrorTypeInternal,
 				Message: nonNullPromiseError,
 				Locations: []location.SourceLocation{
 					{Line: 41, Column: 19},
@@ -598,6 +629,9 @@ func TestNonNull_NullsTheFirstNullableObjectAfterAFieldThrowsInALongChainOfField
 	}
 	if !reflect.DeepEqual(expected.Data, result.Data) {
 		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expected.Data, result.Data))
+	}
+	for i := range result.Errors {
+		result.Errors[i].OriginalError = nil
 	}
 	sort.Sort(gqlerrors.FormattedErrors(expected.Errors))
 	sort.Sort(gqlerrors.FormattedErrors(result.Errors))
@@ -682,6 +716,7 @@ func TestNonNull_NullsASynchronouslyReturnedObjectThatContainsANonNullableFieldT
 		},
 		Errors: []gqlerrors.FormattedError{
 			{
+				Type:    gqlerrors.ErrorTypeInternal,
 				Message: `Cannot return null for non-nullable field DataType.nonNullSync.`,
 				Locations: []location.SourceLocation{
 					{Line: 4, Column: 11},
@@ -702,6 +737,7 @@ func TestNonNull_NullsASynchronouslyReturnedObjectThatContainsANonNullableFieldT
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
+	result.Errors[0].OriginalError = nil
 	if !reflect.DeepEqual(expected, result) {
 		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expected, result))
 	}
@@ -720,6 +756,7 @@ func TestNonNull_NullsASynchronouslyReturnedObjectThatContainsANonNullableFieldT
 		},
 		Errors: []gqlerrors.FormattedError{
 			{
+				Type:    gqlerrors.ErrorTypeInternal,
 				Message: `Cannot return null for non-nullable field DataType.nonNullPromise.`,
 				Locations: []location.SourceLocation{
 					{Line: 4, Column: 11},
@@ -740,6 +777,7 @@ func TestNonNull_NullsASynchronouslyReturnedObjectThatContainsANonNullableFieldT
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
+	result.Errors[0].OriginalError = nil
 	if !reflect.DeepEqual(expected, result) {
 		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expected, result))
 	}
@@ -759,6 +797,7 @@ func TestNonNull_NullsAnObjectReturnedInAPromiseThatContainsANonNullableFieldTha
 		},
 		Errors: []gqlerrors.FormattedError{
 			{
+				Type:    gqlerrors.ErrorTypeInternal,
 				Message: `Cannot return null for non-nullable field DataType.nonNullSync.`,
 				Locations: []location.SourceLocation{
 					{Line: 4, Column: 11},
@@ -779,6 +818,7 @@ func TestNonNull_NullsAnObjectReturnedInAPromiseThatContainsANonNullableFieldTha
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
+	result.Errors[0].OriginalError = nil
 	if !reflect.DeepEqual(expected, result) {
 		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expected, result))
 	}
@@ -797,6 +837,7 @@ func TestNonNull_NullsAnObjectReturnedInAPromiseThatContainsANonNullableFieldTha
 		},
 		Errors: []gqlerrors.FormattedError{
 			{
+				Type:    gqlerrors.ErrorTypeInternal,
 				Message: `Cannot return null for non-nullable field DataType.nonNullPromise.`,
 				Locations: []location.SourceLocation{
 					{Line: 4, Column: 11},
@@ -817,6 +858,7 @@ func TestNonNull_NullsAnObjectReturnedInAPromiseThatContainsANonNullableFieldTha
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
+	result.Errors[0].OriginalError = nil
 	if !reflect.DeepEqual(expected, result) {
 		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expected, result))
 	}
@@ -956,24 +998,28 @@ func TestNonNull_NullsTheFirstNullableObjectAfterAFieldReturnsNullInALongChainOf
 		},
 		Errors: []gqlerrors.FormattedError{
 			{
+				Type:    gqlerrors.ErrorTypeInternal,
 				Message: `Cannot return null for non-nullable field DataType.nonNullSync.`,
 				Locations: []location.SourceLocation{
 					{Line: 8, Column: 19},
 				},
 			},
 			{
+				Type:    gqlerrors.ErrorTypeInternal,
 				Message: `Cannot return null for non-nullable field DataType.nonNullSync.`,
 				Locations: []location.SourceLocation{
 					{Line: 19, Column: 19},
 				},
 			},
 			{
+				Type:    gqlerrors.ErrorTypeInternal,
 				Message: `Cannot return null for non-nullable field DataType.nonNullPromise.`,
 				Locations: []location.SourceLocation{
 					{Line: 30, Column: 19},
 				},
 			},
 			{
+				Type:    gqlerrors.ErrorTypeInternal,
 				Message: `Cannot return null for non-nullable field DataType.nonNullPromise.`,
 				Locations: []location.SourceLocation{
 					{Line: 41, Column: 19},
@@ -997,6 +1043,9 @@ func TestNonNull_NullsTheFirstNullableObjectAfterAFieldReturnsNullInALongChainOf
 	if !reflect.DeepEqual(expected.Data, result.Data) {
 		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expected.Data, result.Data))
 	}
+	for i := range result.Errors {
+		result.Errors[i].OriginalError = nil
+	}
 	sort.Sort(gqlerrors.FormattedErrors(expected.Errors))
 	sort.Sort(gqlerrors.FormattedErrors(result.Errors))
 	if !reflect.DeepEqual(expected.Errors, result.Errors) {
@@ -1012,6 +1061,7 @@ func TestNonNull_NullsTheTopLevelIfSyncNonNullableFieldThrows(t *testing.T) {
 		Data: nil,
 		Errors: []gqlerrors.FormattedError{
 			{
+				Type:    gqlerrors.ErrorTypeInternal,
 				Message: nonNullSyncError,
 				Locations: []location.SourceLocation{
 					{Line: 2, Column: 17},
@@ -1032,6 +1082,7 @@ func TestNonNull_NullsTheTopLevelIfSyncNonNullableFieldThrows(t *testing.T) {
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
+	result.Errors[0].OriginalError = nil
 	if !reflect.DeepEqual(expected, result) {
 		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expected, result))
 	}
@@ -1044,6 +1095,7 @@ func TestNonNull_NullsTheTopLevelIfSyncNonNullableFieldErrors(t *testing.T) {
 		Data: nil,
 		Errors: []gqlerrors.FormattedError{
 			{
+				Type:    gqlerrors.ErrorTypeInternal,
 				Message: nonNullPromiseError,
 				Locations: []location.SourceLocation{
 					{Line: 2, Column: 17},
@@ -1064,6 +1116,7 @@ func TestNonNull_NullsTheTopLevelIfSyncNonNullableFieldErrors(t *testing.T) {
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
+	result.Errors[0].OriginalError = nil
 	if !reflect.DeepEqual(expected, result) {
 		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expected, result))
 	}
@@ -1076,6 +1129,7 @@ func TestNonNull_NullsTheTopLevelIfSyncNonNullableFieldReturnsNull(t *testing.T)
 		Data: nil,
 		Errors: []gqlerrors.FormattedError{
 			{
+				Type:    gqlerrors.ErrorTypeInternal,
 				Message: `Cannot return null for non-nullable field DataType.nonNullSync.`,
 				Locations: []location.SourceLocation{
 					{Line: 2, Column: 17},
@@ -1096,6 +1150,7 @@ func TestNonNull_NullsTheTopLevelIfSyncNonNullableFieldReturnsNull(t *testing.T)
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
+	result.Errors[0].OriginalError = nil
 	if !reflect.DeepEqual(expected, result) {
 		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expected, result))
 	}
@@ -1108,6 +1163,7 @@ func TestNonNull_NullsTheTopLevelIfSyncNonNullableFieldResolvesNull(t *testing.T
 		Data: nil,
 		Errors: []gqlerrors.FormattedError{
 			{
+				Type:    gqlerrors.ErrorTypeInternal,
 				Message: `Cannot return null for non-nullable field DataType.nonNullPromise.`,
 				Locations: []location.SourceLocation{
 					{Line: 2, Column: 17},
@@ -1128,6 +1184,7 @@ func TestNonNull_NullsTheTopLevelIfSyncNonNullableFieldResolvesNull(t *testing.T
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
+	result.Errors[0].OriginalError = nil
 	if !reflect.DeepEqual(expected, result) {
 		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expected, result))
 	}

@@ -708,6 +708,7 @@ input Hello {
 	})
 
 	expectedError := &gqlerrors.Error{
+		Type: gqlerrors.ErrorTypeSyntax,
 		Message: `Syntax Error GraphQL (3:8) Expected :, found (
 
 2: input Hello {

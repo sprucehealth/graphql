@@ -8,7 +8,20 @@ import (
 	"github.com/sprucehealth/graphql/language/source"
 )
 
+// ErrorType is a category type for an error.
+type ErrorType string
+
+// Well defined error types
+const (
+	ErrorTypeBadQuery     ErrorType = "BAD_QUERY"
+	ErrorTypeInternal     ErrorType = "INTERNAL"
+	ErrorTypeInvalidInput ErrorType = "INVALID_INPUT"
+	ErrorTypeSyntax       ErrorType = "SYNTAX"
+)
+
+// Error is a structured error.
 type Error struct {
+	Type          ErrorType
 	Message       string
 	Stack         string
 	Nodes         []ast.Node
@@ -18,12 +31,13 @@ type Error struct {
 	OriginalError error
 }
 
-// implements Golang's built-in `error` interface
+// Error implements Golang's built-in `error` interface
 func (g Error) Error() string {
 	return fmt.Sprintf("%v", g.Message)
 }
 
-func NewError(message string, nodes []ast.Node, stack string, source *source.Source, positions []int, origError error) *Error {
+// NewError returns a new structured error.
+func NewError(typ ErrorType, message string, nodes []ast.Node, stack string, source *source.Source, positions []int, origError error) *Error {
 	if stack == "" && message != "" {
 		stack = message
 	}
@@ -47,6 +61,7 @@ func NewError(message string, nodes []ast.Node, stack string, source *source.Sou
 		locations = append(locations, loc)
 	}
 	return &Error{
+		Type:          typ,
 		Message:       message,
 		Stack:         stack,
 		Nodes:         nodes,

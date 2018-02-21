@@ -8,16 +8,13 @@ import (
 	"github.com/sprucehealth/graphql/language/location"
 )
 
-const (
-	InternalError = "INTERNAL"
-)
-
 type FormattedError struct {
-	Message     string                    `json:"message"`
-	Type        string                    `json:"type,omitempty"`
-	UserMessage string                    `json:"userMessage,omitempty"`
-	Locations   []location.SourceLocation `json:"locations"`
-	StackTrace  string                    `json:"-"`
+	Message       string                    `json:"message"`
+	Type          ErrorType                 `json:"type,omitempty"`
+	UserMessage   string                    `json:"userMessage,omitempty"`
+	Locations     []location.SourceLocation `json:"locations"`
+	StackTrace    string                    `json:"-"`
+	OriginalError error                     `json:"-"`
 }
 
 func (g FormattedError) Error() string {
@@ -33,27 +30,35 @@ func FormatError(err error) FormattedError {
 	switch err := err.(type) {
 	case runtime.Error:
 		return FormattedError{
-			Message:    err.Error(),
-			Type:       InternalError,
-			StackTrace: stackTrace(),
+			Message:       err.Error(),
+			Type:          ErrorTypeInternal,
+			StackTrace:    stackTrace(),
+			OriginalError: err,
 		}
 	case FormattedError:
 		return err
+	case *FormattedError:
+		return *err
 	case *Error:
 		return FormattedError{
-			Message:   err.Error(),
-			Locations: err.Locations,
+			Type:          err.Type,
+			Message:       err.Error(),
+			Locations:     err.Locations,
+			OriginalError: err.OriginalError,
 		}
 	case Error:
 		return FormattedError{
-			Message:   err.Error(),
-			Locations: err.Locations,
+			Type:          err.Type,
+			Message:       err.Error(),
+			Locations:     err.Locations,
+			OriginalError: err.OriginalError,
 		}
 	default:
 		return FormattedError{
-			Type:      InternalError,
-			Message:   err.Error(),
-			Locations: []location.SourceLocation{},
+			Type:          ErrorTypeInternal,
+			Message:       err.Error(),
+			Locations:     []location.SourceLocation{},
+			OriginalError: err,
 		}
 	}
 }
@@ -64,7 +69,7 @@ func FormatPanic(r interface{}) FormattedError {
 	}
 	return FormattedError{
 		Message:    fmt.Sprintf("panic %v", r),
-		Type:       InternalError,
+		Type:       ErrorTypeInternal,
 		StackTrace: stackTrace(),
 	}
 }

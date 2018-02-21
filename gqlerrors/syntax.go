@@ -31,6 +31,7 @@ func printLine(str string) string {
 func NewSyntaxError(s *source.Source, position int, description string) *Error {
 	l := location.GetLocation(s, position)
 	return NewError(
+		ErrorTypeSyntax,
 		fmt.Sprintf("Syntax Error %s (%d:%d) %s\n\n%s", s.Name(), l.Line, l.Column, description, highlightSourceAtLocation(s, l)),
 		[]ast.Node{},
 		"",

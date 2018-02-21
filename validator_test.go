@@ -146,18 +146,21 @@ func TestValidator_SupportsFullValidation_ValidatesUsingACustomTypeInfo(t *testi
 
 	expectedErrors := []gqlerrors.FormattedError{
 		{
+			Type:    gqlerrors.ErrorTypeBadQuery,
 			Message: `Cannot query field "catOrDog" on type "QueryRoot". Did you mean "catOrDog"?`,
 			Locations: []location.SourceLocation{
 				{Line: 3, Column: 9},
 			},
 		},
 		{
+			Type:    gqlerrors.ErrorTypeBadQuery,
 			Message: `Cannot query field "furColor" on type "Cat". Did you mean "furColor"?`,
 			Locations: []location.SourceLocation{
 				{Line: 5, Column: 13},
 			},
 		},
 		{
+			Type:    gqlerrors.ErrorTypeBadQuery,
 			Message: `Cannot query field "isHousetrained" on type "Dog". Did you mean "isHousetrained"?`,
 			Locations: []location.SourceLocation{
 				{Line: 8, Column: 13},

@@ -1305,6 +1305,7 @@ func TestIntrospection_FailsAsExpectedOnThe__TypeRootFieldWithoutAnArg(t *testin
 	expected := &graphql.Result{
 		Errors: []gqlerrors.FormattedError{
 			{
+				Type: gqlerrors.ErrorTypeBadQuery,
 				Message: `Field "__type" argument "name" of type "String!" ` +
 					`is required but not provided.`,
 				Locations: []location.SourceLocation{
@@ -1323,7 +1324,6 @@ func TestIntrospection_FailsAsExpectedOnThe__TypeRootFieldWithoutAnArg(t *testin
 }
 
 func TestIntrospection_ExposesDescriptionsOnTypesAndFields(t *testing.T) {
-
 	queryRoot := graphql.NewObject(graphql.ObjectConfig{
 		Name: "QueryRoot",
 		Fields: graphql.Fields{

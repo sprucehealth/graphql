@@ -20,6 +20,7 @@ func NewLocatedError(err interface{}, nodes []ast.Node) *gqlerrors.Error {
 	}
 	stack := message
 	return gqlerrors.NewError(
+		gqlerrors.ErrorTypeInternal, // TODO
 		message,
 		nodes,
 		stack,

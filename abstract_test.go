@@ -25,7 +25,6 @@ type testHuman struct {
 }
 
 func TestIsTypeOfUsedToResolveRuntimeTypeForInterface(t *testing.T) {
-
 	petType := graphql.NewInterface(graphql.InterfaceConfig{
 		Name: "Pet",
 		Fields: graphql.Fields{
@@ -370,7 +369,7 @@ func TestResolveTypeOnInterfaceYieldsUsefulError(t *testing.T) {
 		},
 		Errors: []gqlerrors.FormattedError{
 			{
-				Type:      gqlerrors.InternalError,
+				Type:      gqlerrors.ErrorTypeInternal,
 				Message:   `Runtime Object type "Human" is not a possible type for "Pet".`,
 				Locations: []location.SourceLocation{},
 			},
@@ -384,13 +383,13 @@ func TestResolveTypeOnInterfaceYieldsUsefulError(t *testing.T) {
 	if len(result.Errors) == 0 {
 		t.Fatalf("wrong result, expected errors: %v, got: %v", len(expected.Errors), len(result.Errors))
 	}
+	result.Errors[0].OriginalError = nil
 	if !reflect.DeepEqual(expected, result) {
 		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expected, result))
 	}
 }
 
 func TestResolveTypeOnUnionYieldsUsefulError(t *testing.T) {
-
 	humanType := graphql.NewObject(graphql.ObjectConfig{
 		Name: "Human",
 		Fields: graphql.Fields{
@@ -489,7 +488,7 @@ func TestResolveTypeOnUnionYieldsUsefulError(t *testing.T) {
 		},
 		Errors: []gqlerrors.FormattedError{
 			{
-				Type:      gqlerrors.InternalError,
+				Type:      gqlerrors.ErrorTypeInternal,
 				Message:   `Runtime Object type "Human" is not a possible type for "Pet".`,
 				Locations: []location.SourceLocation{},
 			},
@@ -503,6 +502,7 @@ func TestResolveTypeOnUnionYieldsUsefulError(t *testing.T) {
 	if len(result.Errors) == 0 {
 		t.Fatalf("wrong result, expected errors: %v, got: %v", len(expected.Errors), len(result.Errors))
 	}
+	result.Errors[0].OriginalError = nil
 	if !reflect.DeepEqual(expected, result) {
 		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expected, result))
 	}

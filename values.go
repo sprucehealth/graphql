@@ -70,6 +70,7 @@ func getVariableValue(schema Schema, definitionAST *ast.VariableDefinition, inpu
 
 	if ttype == nil || !IsInputType(ttype) {
 		return "", gqlerrors.NewError(
+			gqlerrors.ErrorTypeInvalidInput,
 			fmt.Sprintf(`Variable "$%v" expected value of type `+
 				`"%v" which cannot be used as an input type.`, variable.Name.Value, printer.Print(definitionAST.Type)),
 			[]ast.Node{definitionAST},
@@ -94,6 +95,7 @@ func getVariableValue(schema Schema, definitionAST *ast.VariableDefinition, inpu
 	}
 	if isNullish(input) {
 		return "", gqlerrors.NewError(
+			gqlerrors.ErrorTypeInvalidInput,
 			fmt.Sprintf(`Variable "$%v" of required type `+
 				`"%v" was not provided.`, variable.Name.Value, printer.Print(definitionAST.Type)),
 			[]ast.Node{definitionAST},
@@ -114,6 +116,7 @@ func getVariableValue(schema Schema, definitionAST *ast.VariableDefinition, inpu
 		messagesStr = "\n" + strings.Join(messages, "\n")
 	}
 	return "", gqlerrors.NewError(
+		gqlerrors.ErrorTypeInvalidInput,
 		fmt.Sprintf(`Variable "$%v" got invalid value `+
 			`%v.%v`, variable.Name.Value, inputStr, messagesStr),
 		[]ast.Node{definitionAST},

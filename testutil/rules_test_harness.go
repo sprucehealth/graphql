@@ -559,6 +559,10 @@ func expectValidRule(t *testing.T, schema *graphql.Schema, rules []graphql.Valid
 
 }
 func expectInvalidRule(t *testing.T, schema *graphql.Schema, rules []graphql.ValidationRuleFn, queryString string, expectedErrors []gqlerrors.FormattedError) {
+	t.Helper()
+	for i := range expectedErrors {
+		expectedErrors[i].Type = gqlerrors.ErrorTypeBadQuery
+	}
 	source := source.New("", queryString)
 	AST, err := parser.Parse(parser.ParseParams{Source: source})
 	if err != nil {
