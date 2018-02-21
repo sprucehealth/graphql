@@ -2,8 +2,8 @@ package graphql
 
 import (
 	"fmt"
+	"sync"
 
-	"github.com/golang/sync/syncmap"
 	"github.com/sprucehealth/graphql/gqlerrors"
 )
 
@@ -45,12 +45,12 @@ type Schema struct {
 	mutationType     *Object
 	subscriptionType *Object
 	implementations  map[string][]*Object
-	possibleTypeMap  *syncmap.Map // abstract type name -> map[string]struct{}
+	possibleTypeMap  *sync.Map // abstract type name -> map[string]struct{}
 }
 
 func NewSchema(config SchemaConfig) (Schema, error) {
 	schema := Schema{
-		possibleTypeMap: &syncmap.Map{},
+		possibleTypeMap: &sync.Map{},
 	}
 
 	if config.Query == nil {
