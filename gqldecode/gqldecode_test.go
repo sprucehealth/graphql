@@ -195,6 +195,29 @@ func TestCustomDecoder(t *testing.T) {
 	}
 }
 
+func TestTimestamp(t *testing.T) {
+	in := map[string]interface{}{
+		"timestampFloat": 1000000010.5,
+		"timestampInt":   1000000000,
+	}
+	type outStruct struct {
+		TimestampFloat time.Time  `gql:"timestampFloat"`
+		TimestampInt   *time.Time `gql:"timestampInt"`
+	}
+	var out outStruct
+	if err := Decode(in, &out); err != nil {
+		t.Fatal(err)
+	}
+	tm := time.Unix(1000000000, 0).UTC()
+	exp := outStruct{
+		TimestampFloat: time.Unix(1000000010, int64(500*time.Millisecond)).UTC(),
+		TimestampInt:   &tm,
+	}
+	if !reflect.DeepEqual(exp, out) {
+		t.Fatalf("Expected %+v got %+v", exp, out)
+	}
+}
+
 func BenchmarkDecode(b *testing.B) {
 	input := map[string]interface{}{
 		"string":     "vvvvv",

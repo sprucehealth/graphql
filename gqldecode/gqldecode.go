@@ -7,9 +7,11 @@ package gqldecode
 
 import (
 	"fmt"
+	"math"
 	"reflect"
 	"strings"
 	"sync"
+	"time"
 	"unicode/utf8"
 )
 
@@ -35,7 +37,7 @@ type Decoder interface {
 func Decode(in map[string]interface{}, out interface{}) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			if e, ok := r.(error); ok {
+			if e, ok := r.(ErrValidationFailed); ok {
 				err = e
 			} else {
 				panic(r)
@@ -110,6 +112,33 @@ func decodeValue(v interface{}, out reflect.Value, fi *structFieldInfo) {
 		}
 		out.Set(outS)
 	case reflect.Struct:
+		_, isTime := out.Interface().(time.Time)
+		_, isTimePtr := out.Interface().(*time.Time)
+		if isTime || isTimePtr {
+			var t time.Time
+			switch v := v.(type) {
+			case float64:
+				t = time.Unix(int64(v), int64(1e9*(v-math.Floor(v)))).UTC()
+			case int:
+				t = time.Unix(int64(v), 0).UTC()
+			case int64:
+				t = time.Unix(v, 0).UTC()
+			case string:
+				var err error
+				t, err = time.Parse(time.RFC3339Nano, v)
+				if err != nil {
+					errf("gqldecode: invalid datetime format for %q", v)
+				}
+			default:
+				errf("gqldecode: invalid input type for time.Time %T", v)
+			}
+			if isTimePtr {
+				out.Set(reflect.ValueOf(&t))
+			} else {
+				out.Set(reflect.ValueOf(t))
+			}
+			return
+		}
 		decodeStruct(v.(map[string]interface{}), out)
 	case reflect.Ptr:
 		if out.IsNil() {
