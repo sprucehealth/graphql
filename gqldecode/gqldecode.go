@@ -117,6 +117,10 @@ func decodeValue(v interface{}, out reflect.Value, fi *structFieldInfo) {
 		if isTime || isTimePtr {
 			var t time.Time
 			switch v := v.(type) {
+			case time.Time:
+				t = v
+			case *time.Time:
+				t = *v
 			case float64:
 				t = time.Unix(int64(v), int64(1e9*(v-math.Floor(v)))).UTC()
 			case int:
