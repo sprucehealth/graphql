@@ -54,10 +54,11 @@ var initialisms = map[string]string{
 }
 
 type config struct {
-	Resolvers        map[string][]string          // type -> fields
-	CustomFieldTypes map[string]string            // Type.Field -> go type
-	ExtraFields      map[string]map[string]string // type -> field -> go type
-	Initialisms      map[string]string
+	Resolvers         map[string][]string          // type -> fields
+	CustomFieldTypes  map[string]string            // Type.Field -> go type
+	ExtraFields       map[string]map[string]string // type -> field -> go type
+	Initialisms       map[string]string
+	CustomScalarTypes map[string]string // Type.Field -> go type
 }
 
 func main() {
@@ -975,6 +976,9 @@ func (g *generator) goInputType(t ast.Type, fieldName string, nullable bool) str
 	case *ast.List:
 		return "[]" + g.goInputType(t.Type, fieldName, true)
 	case *ast.Named:
+		if ct := g.cfg.CustomScalarTypes[t.Name.Value]; ct != "" {
+			return p + ct
+		}
 		switch t.Name.Value {
 		case "ID":
 			return p + "string"
@@ -1013,6 +1017,9 @@ func (g *generator) goType(t ast.Type, fieldName string) string {
 	case *ast.List:
 		return "[]" + g.goType(t.Type, fieldName)
 	case *ast.Named:
+		if ct := g.cfg.CustomScalarTypes[t.Name.Value]; ct != "" {
+			return ct
+		}
 		switch t.Name.Value {
 		case "ID":
 			return "string"
