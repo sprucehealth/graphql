@@ -843,7 +843,7 @@ func (g *generator) genInputObjectDefinition(def *ast.InputObjectDefinition) {
 	}
 	g.printf("\tFields: graphql.InputObjectConfigFieldMap{\n")
 	for _, f := range def.Fields {
-		g.printf("%s,\n", g.renderInputValueDefinition(f, "\t\t"))
+		g.printf("%s,\n", g.renderInputValueDefinition(def, f, "\t\t"))
 	}
 	g.printf("\t},\n")
 	g.printf("})\n")
@@ -867,10 +867,9 @@ func (g *generator) genInputModel(def *ast.InputObjectDefinition) {
 	g.printf("}\n")
 }
 
-func (g *generator) renderInputValueDefinition(def *ast.InputValueDefinition, indent string) string {
-	// TODO: default value
+func (g *generator) renderInputValueDefinition(objDef *ast.InputObjectDefinition, def *ast.InputValueDefinition, indent string) string {
 	comment, _ := renderLineComments(def.Comment, indent)
-	if def.Doc == nil {
+	if def.Doc == nil && def.DefaultValue == nil {
 		if comment != "" {
 			comment += "\n"
 		}
@@ -882,16 +881,20 @@ func (g *generator) renderInputValueDefinition(def *ast.InputValueDefinition, in
 	}
 	lines = append(lines,
 		fmt.Sprintf("%s%q: &graphql.InputObjectFieldConfig{", indent, def.Name.Value),
-		fmt.Sprintf("%s\tType: %s,", indent, g.renderType(def.Type)),
-		fmt.Sprintf("%s\tDescription: %s,", indent, renderQuotedComments(def.Doc)),
-		indent+"}")
+		fmt.Sprintf("%s\tType: %s,", indent, g.renderType(def.Type)))
+	if def.Doc != nil {
+		lines = append(lines, fmt.Sprintf("%s\tDescription: %s,", indent, renderQuotedComments(def.Doc)))
+	}
+	if def.DefaultValue != nil {
+		lines = append(lines, fmt.Sprintf("%s\tDefaultValue: %s,", indent, g.renderValue(objDef.Name.Value+"."+def.Name.Value, def.Type, def.DefaultValue)))
+	}
+	lines = append(lines, indent+"}")
 	return strings.Join(lines, "\n")
 }
 
 func (g *generator) renderArgumentConfig(def *ast.InputValueDefinition, indent string) string {
-	// TODO: default value
 	comment, _ := renderLineComments(def.Comment, indent)
-	if def.Doc == nil {
+	if def.Doc == nil && def.DefaultValue == nil {
 		if comment != "" {
 			comment += "\n"
 		}
@@ -903,9 +906,14 @@ func (g *generator) renderArgumentConfig(def *ast.InputValueDefinition, indent s
 	}
 	lines = append(lines,
 		fmt.Sprintf("%s%q: &graphql.ArgumentConfig{", indent, def.Name.Value),
-		fmt.Sprintf("%s\tType: %s,", indent, g.renderType(def.Type)),
-		fmt.Sprintf("%s\tDescription: %s,", indent, renderQuotedComments(def.Doc)),
-		indent+"}")
+		fmt.Sprintf("%s\tType: %s,", indent, g.renderType(def.Type)))
+	if def.Doc != nil {
+		lines = append(lines, fmt.Sprintf("%s\tDescription: %s,", indent, renderQuotedComments(def.Doc)))
+	}
+	if def.DefaultValue != nil {
+		lines = append(lines, fmt.Sprintf("%s\tDefaultValue: %s,", indent, g.renderValue("", def.Type, def.DefaultValue)))
+	}
+	lines = append(lines, indent+"}")
 	return strings.Join(lines, "\n")
 }
 
@@ -1091,6 +1099,34 @@ func renderDeprecationReason(cg *ast.CommentGroup) string {
 		text = strings.TrimSpace(text[11:])
 	}
 	return strconv.Quote(text)
+}
+
+func (g *generator) renderValue(fieldPath string, valueType ast.Type, value ast.Value) string {
+	if value == nil {
+		return "nil"
+	}
+
+	// TODO: This renders enums as the string values rather than using the constants. It's equivalent but not as clean.
+	// TODO: support more non-base types
+	switch v := value.GetValue().(type) {
+	case []ast.Value:
+		if len(v) == 0 {
+			return "nil"
+		}
+		var itemType ast.Type
+		switch t := valueType.(type) {
+		case *ast.List:
+			itemType = t.Type
+		}
+		values := make([]string, len(v))
+		for i, vv := range v {
+			values[i] = g.renderValue("", itemType, vv)
+		}
+		return fmt.Sprintf("[]interface{}{%s}", strings.Join(values, ", "))
+	case bool, int, int64, uint64, float64, string:
+		return fmt.Sprintf("%#v", v)
+	}
+	panic(fmt.Sprintf("unhandled value type %T", value.GetValue()))
 }
 
 func interfaceMarker(typeName string) string {
