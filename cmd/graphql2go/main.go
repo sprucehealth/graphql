@@ -862,7 +862,7 @@ func (g *generator) genInputModel(def *ast.InputObjectDefinition) {
 		if *flagNullableInputs {
 			iType = g.goInputType(f.Type, def.Name.Value+"."+f.Name.Value, true)
 		}
-		g.printf("\t%s %s `gql:%q`\n", exportedName(f.Name.Value), iType, f.Name.Value)
+		g.printf("\t%s %s `gql:%q json:%q`\n", exportedName(f.Name.Value), iType, f.Name.Value, f.Name.Value)
 	}
 	g.printf("}\n")
 }
