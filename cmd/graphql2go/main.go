@@ -770,9 +770,9 @@ func (g *generator) renderFieldDefinition(objName string, def *ast.FieldDefiniti
 			comment += "\n"
 		}
 		if noName {
-			return fmt.Sprintf("&graphql.Field{Type: %s}", g.renderType(def.Type))
+			return fmt.Sprintf("&graphql.Field{Type: %s}", g.renderType(def.Type, false))
 		}
-		return fmt.Sprintf("%s%s%q: &graphql.Field{Type: %s}", comment, indent, def.Name.Value, g.renderType(def.Type))
+		return fmt.Sprintf("%s%s%q: &graphql.Field{Type: %s}", comment, indent, def.Name.Value, g.renderType(def.Type, false))
 	}
 	var lines []string
 	if !noName && comment != "" && !deprecated {
@@ -783,7 +783,7 @@ func (g *generator) renderFieldDefinition(objName string, def *ast.FieldDefiniti
 	} else {
 		lines = append(lines, fmt.Sprintf("%s%q: &graphql.Field{", indent, def.Name.Value))
 	}
-	lines = append(lines, fmt.Sprintf("%s\tType: %s,", indent, g.renderType(def.Type)))
+	lines = append(lines, fmt.Sprintf("%s\tType: %s,", indent, g.renderType(def.Type, false)))
 
 	if len(def.Arguments) != 0 {
 		lines = append(lines, indent+"\tArgs: graphql.FieldConfigArgument{")
@@ -878,7 +878,7 @@ func (g *generator) renderInputValueDefinition(objDef *ast.InputObjectDefinition
 		if comment != "" {
 			comment += "\n"
 		}
-		return fmt.Sprintf("%s%s%q: &graphql.InputObjectFieldConfig{Type: %s}", comment, indent, def.Name.Value, g.renderType(def.Type))
+		return fmt.Sprintf("%s%s%q: &graphql.InputObjectFieldConfig{Type: %s}", comment, indent, def.Name.Value, g.renderType(def.Type, true))
 	}
 	var lines []string
 	if comment != "" {
@@ -886,7 +886,7 @@ func (g *generator) renderInputValueDefinition(objDef *ast.InputObjectDefinition
 	}
 	lines = append(lines,
 		fmt.Sprintf("%s%q: &graphql.InputObjectFieldConfig{", indent, def.Name.Value),
-		fmt.Sprintf("%s\tType: %s,", indent, g.renderType(def.Type)))
+		fmt.Sprintf("%s\tType: %s,", indent, g.renderType(def.Type, true)))
 	if def.Doc != nil {
 		lines = append(lines, fmt.Sprintf("%s\tDescription: %s,", indent, renderQuotedComments(def.Doc)))
 	}
@@ -903,7 +903,7 @@ func (g *generator) renderArgumentConfig(def *ast.InputValueDefinition, indent s
 		if comment != "" {
 			comment += "\n"
 		}
-		return fmt.Sprintf("%s%s%q: &graphql.ArgumentConfig{Type: %s}", comment, indent, def.Name.Value, g.renderType(def.Type))
+		return fmt.Sprintf("%s%s%q: &graphql.ArgumentConfig{Type: %s}", comment, indent, def.Name.Value, g.renderType(def.Type, true))
 	}
 	var lines []string
 	if comment != "" {
@@ -911,7 +911,7 @@ func (g *generator) renderArgumentConfig(def *ast.InputValueDefinition, indent s
 	}
 	lines = append(lines,
 		fmt.Sprintf("%s%q: &graphql.ArgumentConfig{", indent, def.Name.Value),
-		fmt.Sprintf("%s\tType: %s,", indent, g.renderType(def.Type)))
+		fmt.Sprintf("%s\tType: %s,", indent, g.renderType(def.Type, true)))
 	if def.Doc != nil {
 		lines = append(lines, fmt.Sprintf("%s\tDescription: %s,", indent, renderQuotedComments(def.Doc)))
 	}
@@ -922,12 +922,12 @@ func (g *generator) renderArgumentConfig(def *ast.InputValueDefinition, indent s
 	return strings.Join(lines, "\n")
 }
 
-func (g *generator) renderType(t ast.Type) string {
+func (g *generator) renderType(t ast.Type, input bool) string {
 	switch t := t.(type) {
 	case *ast.NonNull:
-		return "graphql.NewNonNull(" + g.renderType(t.Type) + ")"
+		return "graphql.NewNonNull(" + g.renderType(t.Type, input) + ")"
 	case *ast.List:
-		return "graphql.NewList(" + g.renderType(t.Type) + ")"
+		return "graphql.NewList(" + g.renderType(t.Type, input) + ")"
 	case *ast.Named:
 		switch t.Name.Value {
 		case "ID", "String", "Boolean", "Float", "Int":
@@ -940,14 +940,26 @@ func (g *generator) renderType(t ast.Type) string {
 		}
 		switch node.(type) {
 		case *ast.ObjectDefinition:
+			if input {
+				g.failf("Attempt to use non-input type %s in input", t.Name.Value)
+			}
 			return goObjectDefName(t.Name.Value)
 		case *ast.InterfaceDefinition:
+			if input {
+				g.failf("Attempt to use non-input type %s in input", t.Name.Value)
+			}
 			return goInterfaceDefName(t.Name.Value)
 		case *ast.UnionDefinition:
+			if input {
+				g.failf("Attempt to use non-input type %s in input", t.Name.Value)
+			}
 			return goUnionDefName(t.Name.Value)
 		case *ast.EnumDefinition:
 			return goEnumDefName(t.Name.Value)
 		case *ast.InputObjectDefinition:
+			if !input {
+				g.failf("Attempt to use input type %s in non-input", t.Name.Value)
+			}
 			return goInputObjectDefName(t.Name.Value)
 		case *ast.ScalarDefinition:
 			return goScalarDefName(t.Name.Value)
