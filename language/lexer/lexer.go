@@ -30,6 +30,7 @@ const (
 	FLOAT
 	STRING
 	COMMENT
+	AMPERSAND
 )
 
 var tokenDescription map[int]string
@@ -55,6 +56,7 @@ func init() {
 	tokenDescription[FLOAT] = "Float"
 	tokenDescription[STRING] = "String"
 	tokenDescription[COMMENT] = "Comment"
+	tokenDescription[AMPERSAND] = "&"
 }
 
 // Token is a representation of a lexed Token. Value only appears for non-punctuation
@@ -375,6 +377,8 @@ func (l *Lexer) readToken() (Token, error) {
 				l.nextRune()
 			}
 			return makeToken(COMMENT, startOffset, l.offset, strings.TrimSpace(l.sliceBody(startOffset, l.offset))), nil
+		case '&':
+			return makeToken(AMPERSAND, startOffset, l.offset, ""), nil
 		}
 	}
 	description := fmt.Sprintf("Unexpected character %v.", printCharCode(ch))

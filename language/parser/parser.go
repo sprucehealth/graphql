@@ -879,7 +879,10 @@ func (p *Parser) parseImplementsInterfaces() ([]*ast.Named, error) {
 			return types, err
 		}
 		types = append(types, ttype)
-		if !p.peek(lexer.NAME) {
+		// & is the official separator, but support older schemas that use comma
+		if p.peek(lexer.AMPERSAND) {
+			p.advance()
+		} else if !p.peek(lexer.NAME) { //
 			break
 		}
 	}

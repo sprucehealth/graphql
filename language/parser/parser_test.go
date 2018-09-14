@@ -656,6 +656,67 @@ func TestComments(t *testing.T) {
 	}
 }
 
+func TestImplementsInterface(t *testing.T) {
+	source := `
+		interface A {}
+		interface B {}
+		type Foo implements A, B {}
+		type Bar implements A & B {}
+	`
+	document, err := Parse(ParseParams{Source: source, Options: ParseOptions{NoSource: true, KeepComments: true}})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	expectedDocument := &ast.Document{
+		Loc: ast.Location{Start: 3, End: 97},
+		Definitions: []ast.Node{
+			&ast.InterfaceDefinition{
+				Loc:    ast.Location{Start: 3, End: 17},
+				Name:   &ast.Name{Loc: ast.Location{Start: 13, End: 14}, Value: "A"},
+				Fields: []*ast.FieldDefinition{},
+			},
+			&ast.InterfaceDefinition{
+				Loc:    ast.Location{Start: 20, End: 34},
+				Name:   &ast.Name{Loc: ast.Location{Start: 30, End: 31}, Value: "B"},
+				Fields: []*ast.FieldDefinition{},
+			},
+			&ast.ObjectDefinition{
+				Loc:    ast.Location{Start: 37, End: 64},
+				Name:   &ast.Name{Loc: ast.Location{Start: 42, End: 45}, Value: "Foo"},
+				Fields: []*ast.FieldDefinition{},
+				Interfaces: []*ast.Named{
+					{
+						Loc:  ast.Location{Start: 57, End: 58},
+						Name: &ast.Name{Loc: ast.Location{Start: 57, End: 58}, Value: "A"},
+					},
+					{
+						Loc:  ast.Location{Start: 60, End: 61},
+						Name: &ast.Name{Loc: ast.Location{Start: 60, End: 61}, Value: "B"},
+					},
+				},
+			},
+			&ast.ObjectDefinition{
+				Loc:    ast.Location{Start: 67, End: 95},
+				Name:   &ast.Name{Loc: ast.Location{Start: 72, End: 75}, Value: "Bar"},
+				Fields: []*ast.FieldDefinition{},
+				Interfaces: []*ast.Named{
+					{
+						Loc:  ast.Location{Start: 87, End: 88},
+						Name: &ast.Name{Loc: ast.Location{Start: 87, End: 88}, Value: "A"},
+					},
+					{
+						Loc:  ast.Location{Start: 91, End: 92},
+						Name: &ast.Name{Loc: ast.Location{Start: 91, End: 92}, Value: "B"},
+					},
+				},
+			},
+		},
+	}
+	if !reflect.DeepEqual(document, expectedDocument) {
+		t.Fatalf("document doesn't match:\n%s\n\ndifferences:\n\n%s", pretty.Sprint(document), pretty.Diff(expectedDocument, document))
+	}
+}
+
 func TestParseCreatesAst(t *testing.T) {
 	body := `{
   node(id: 4) {
