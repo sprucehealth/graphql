@@ -97,7 +97,7 @@ func decodeValue(v interface{}, out reflect.Value, fi *structFieldInfo) {
 		if !utf8.ValidString(s) {
 			panic(ErrValidationFailed{Field: fi.name, Reason: "value must be utf8 encoded"})
 		}
-		out.SetString(s)
+		out.SetString(strings.TrimSpace(s))
 	case reflect.Int, reflect.Int64:
 		out.SetInt(int64(v.(int)))
 	case reflect.Bool:
