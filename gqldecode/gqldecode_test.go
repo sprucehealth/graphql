@@ -38,7 +38,7 @@ func TestSimple(t *testing.T) {
 		"name":         "Gob",
 		"age":          45,
 		"person":       true,
-		"keywords":     []interface{}{"blacklisted", "magician"},
+		"keywords":     []interface{}{"blacklisted", "magician", " starfish "},
 		"optStringSet": "foo",
 	}
 	type simpleStruct struct {
@@ -58,7 +58,7 @@ func TestSimple(t *testing.T) {
 		Name:            "Gob",
 		Age:             45,
 		Person:          true,
-		Keywords:        []string{"blacklisted", "magician"},
+		Keywords:        []string{"blacklisted", "magician", "starfish"},
 		OptStringSet:    &foo,
 		OptStringNotSet: nil,
 	}
