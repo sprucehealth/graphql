@@ -275,7 +275,9 @@ func newGenerator(outWriter io.Writer, root *ast.Document) *generator {
 		for _, n := range path {
 			pathMap[n] = struct{}{}
 			node := g.types[n]
-			if _, ok := node.(*ast.ObjectDefinition); !ok {
+			switch node.(type) {
+			case *ast.ObjectDefinition, *ast.InputObjectDefinition:
+			default:
 				continue
 			}
 			if c := g.typeUseCount[n]; minCount == 0 || c < minCount || (c == minCount && n < name) {
@@ -343,7 +345,6 @@ func stringsIndex(sl []string, s string) int {
 func (g *generator) findCycles(def ast.Node, ancestors []string) {
 	var name string
 	var types []ast.Type
-
 	switch def := def.(type) {
 	case *ast.ObjectDefinition:
 		name = def.Name.Value
@@ -363,8 +364,14 @@ func (g *generator) findCycles(def ast.Node, ancestors []string) {
 		for i, t := range def.Types {
 			types[i] = t
 		}
-	case *ast.InputObjectDefinition, *ast.EnumDefinition:
-		// Input objects and enums can't form cycles
+	case *ast.InputObjectDefinition:
+		name = def.Name.Value
+		types = make([]ast.Type, len(def.Fields))
+		for i, t := range def.Fields {
+			types[i] = t
+		}
+	case *ast.EnumDefinition:
+		// Enums can't form cycles
 		return
 	case *ast.ScalarDefinition:
 		// Don't think cycles are possible
@@ -373,7 +380,6 @@ func (g *generator) findCycles(def ast.Node, ancestors []string) {
 	}
 
 	g.typeUseCount[name]++
-
 	if i := stringsIndex(ancestors, name); i >= 0 {
 		// Clone the path into a new slice
 		path := append([]string(nil), ancestors[i:]...)
@@ -400,6 +406,8 @@ func (g *generator) defForType(t ast.Type) ast.Node {
 	case *ast.NonNull:
 		return g.defForType(t.Type)
 	case *ast.List:
+		return g.defForType(t.Type)
+	case *ast.InputValueDefinition:
 		return g.defForType(t.Type)
 	case *ast.Named:
 		switch t.Name.Value {
@@ -683,7 +691,7 @@ func (g *generator) genObjectDefinition(def *ast.ObjectDefinition) {
 
 	if len(stubFields) != 0 {
 		g.printf("func init() {\n")
-		g.printf("\t// Create actual types for fields that can't be created during declartion because they're recursive\n")
+		g.printf("\t// Create actual types for fields that can't be created during declaration because they're recursive\n")
 		for _, f := range stubFields {
 			g.printf("\t%s.AddFieldConfig(%q, %s)\n", goName, f.Name.Value, g.renderFieldDefinition(def.Name.Value, f, "\t\t", true))
 		}
@@ -841,17 +849,40 @@ func (g *generator) genInputObjectDefinition(def *ast.InputObjectDefinition) {
 	} else if strings.HasSuffix(def.Name.Value, "Input") {
 		g.printf("// %s is the input type for the %s mutation.\n", goDefName, unexportedName(def.Name.Value[:len(def.Name.Value)-5]))
 	}
+	cycleTypes := g.cycleBreaks[def.Name.Value]
 	g.printf("var %s = graphql.NewInputObject(graphql.InputObjectConfig{\n", goDefName)
 	g.printf("\tName: %s,\n", strconv.Quote(def.Name.Value))
 	if def.Doc != nil {
 		g.printf("\tDescription: %s,\n", renderQuotedComments(def.Doc))
 	}
 	g.printf("\tFields: graphql.InputObjectConfigFieldMap{\n")
+	var stubFields []*ast.InputValueDefinition
 	for _, f := range def.Fields {
-		g.printf("%s,\n", g.renderInputValueDefinition(def, f, "\t\t"))
+		if _, ok := cycleTypes[g.baseTypeName(f.Type)]; ok {
+			// Use a placeholder and set the actual type in an init function to break the cycle
+			g.printf("\t\t// Placeholder to break cycle. Actual type defined during init.\n")
+			g.printf("%s,\n", g.renderInputValueDefinition(
+				def,
+				&ast.InputValueDefinition{
+					Name: f.Name,
+					Type: &ast.Named{Name: &ast.Name{Value: "String"}},
+				}, "\t\t"))
+			stubFields = append(stubFields, f)
+		} else {
+			g.printf("%s,\n", g.renderInputValueDefinition(def, f, "\t\t"))
+		}
 	}
 	g.printf("\t},\n")
 	g.printf("})\n")
+
+	if len(stubFields) != 0 {
+		g.printf("func init() {\n")
+		g.printf("\t// Create actual types for fields that can't be created during declaration because they're recursive\n")
+		for _, f := range stubFields {
+			g.printf("\t%s.AddInputField(%q, %s)\n", goDefName, f.Name.Value, g.renderInputObjectField(def, f, "\t\t", true))
+		}
+		g.printf("}\n")
+	}
 }
 
 func (g *generator) genInputModel(def *ast.InputObjectDefinition) {
@@ -889,6 +920,38 @@ func (g *generator) renderInputValueDefinition(objDef *ast.InputObjectDefinition
 		fmt.Sprintf("%s\tType: %s,", indent, g.renderType(def.Type, true)))
 	if def.Doc != nil {
 		lines = append(lines, fmt.Sprintf("%s\tDescription: %s,", indent, renderQuotedComments(def.Doc)))
+	}
+	if def.DefaultValue != nil {
+		lines = append(lines, fmt.Sprintf("%s\tDefaultValue: %s,", indent, g.renderValue(objDef.Name.Value+"."+def.Name.Value, def.Type, def.DefaultValue)))
+	}
+	lines = append(lines, indent+"}")
+	return strings.Join(lines, "\n")
+}
+
+func (g *generator) renderInputObjectField(objDef *ast.InputObjectDefinition, def *ast.InputValueDefinition, indent string, noName bool) string {
+	comment, _ := renderLineComments(def.Comment, indent)
+	if def.Doc == nil && def.DefaultValue == nil {
+		if comment != "" {
+			comment += "\n"
+		}
+		if noName {
+			return fmt.Sprintf("&graphql.InputObjectField{Type: %s}", g.renderType(def.Type, true))
+		}
+		return fmt.Sprintf("%s%s%q: &graphql.InputObjectField{Type: %s}", comment, indent, def.Name.Value, g.renderType(def.Type, true))
+	}
+	var lines []string
+	if comment != "" {
+		lines = append(lines, comment)
+	}
+	firstLine := fmt.Sprintf("%s%q: &graphql.InputObjectField{", indent, def.Name.Value)
+	if noName {
+		firstLine = fmt.Sprintf("%s&graphql.InputObjectField{", indent)
+	}
+	lines = append(lines,
+		firstLine,
+		fmt.Sprintf("%s\tType: %s,", indent, g.renderType(def.Type, true)))
+	if def.Doc != nil {
+		lines = append(lines, fmt.Sprintf("%s\tPrivateDescription: %s,", indent, renderQuotedComments(def.Doc)))
 	}
 	if def.DefaultValue != nil {
 		lines = append(lines, fmt.Sprintf("%s\tDefaultValue: %s,", indent, g.renderValue(objDef.Name.Value+"."+def.Name.Value, def.Type, def.DefaultValue)))

@@ -147,6 +147,13 @@ func (def *InputValueDefinition) GetLoc() Location {
 	return def.Loc
 }
 
+func (def *InputValueDefinition) String() string {
+	if def.Name != nil {
+		return def.Name.Value
+	}
+	return "InputValueDefinition"
+}
+
 // InterfaceDefinition implements Node, Definition
 type InterfaceDefinition struct {
 	Loc        Location
