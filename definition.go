@@ -1091,6 +1091,7 @@ type InputObject struct {
 	PrivateName        string `json:"name"`
 	PrivateDescription string `json:"description"`
 
+	mu         sync.RWMutex
 	typeConfig InputObjectConfig
 	fields     InputObjectFieldMap
 
@@ -1101,6 +1102,9 @@ type InputObjectFieldConfig struct {
 	DefaultValue interface{} `json:"defaultValue"`
 	Description  string      `json:"description"`
 }
+
+type InputObjectFields map[string]*InputObjectField
+
 type InputObjectField struct {
 	PrivateName        string      `json:"name"`
 	Type               Input       `json:"type"`
@@ -1140,8 +1144,22 @@ func NewInputObject(config InputObjectConfig) *InputObject {
 	gt.PrivateName = config.Name
 	gt.PrivateDescription = config.Description
 	gt.typeConfig = config
+	gt.mu.Lock()
+	defer gt.mu.Unlock()
 	gt.fields = gt.defineFieldMap()
 	return gt
+}
+func (gt *InputObject) AddInputField(fieldName string, fieldConfig *InputObjectField) {
+	if fieldName == "" || fieldConfig == nil {
+		return
+	}
+	gt.mu.Lock()
+	defer gt.mu.Unlock()
+	switch gt.typeConfig.Fields.(type) {
+	case Fields:
+		gt.typeConfig.Fields.(InputObjectFields)[fieldName] = fieldConfig
+		gt.fields = nil // invalidate the fields map cache
+	}
 }
 
 func (gt *InputObject) defineFieldMap() InputObjectFieldMap {
@@ -1180,6 +1198,17 @@ func (gt *InputObject) defineFieldMap() InputObjectFieldMap {
 	return resultFieldMap
 }
 func (gt *InputObject) Fields() InputObjectFieldMap {
+	gt.mu.RLock()
+	fields := gt.fields
+	gt.mu.RUnlock()
+
+	if fields != nil {
+		return fields
+	}
+
+	gt.mu.Lock()
+	defer gt.mu.Unlock()
+	gt.fields = gt.defineFieldMap()
 	return gt.fields
 }
 func (gt *InputObject) Name() string {
