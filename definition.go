@@ -1149,15 +1149,15 @@ func NewInputObject(config InputObjectConfig) *InputObject {
 	gt.fields = gt.defineFieldMap()
 	return gt
 }
-func (gt *InputObject) AddInputField(fieldName string, fieldConfig *InputObjectField) {
+func (gt *InputObject) AddInputField(fieldName string, fieldConfig *InputObjectFieldConfig) {
 	if fieldName == "" || fieldConfig == nil {
 		return
 	}
 	gt.mu.Lock()
 	defer gt.mu.Unlock()
 	switch gt.typeConfig.Fields.(type) {
-	case Fields:
-		gt.typeConfig.Fields.(InputObjectFields)[fieldName] = fieldConfig
+	case InputObjectConfigFieldMap:
+		gt.typeConfig.Fields.(InputObjectConfigFieldMap)[fieldName] = fieldConfig
 		gt.fields = nil // invalidate the fields map cache
 	}
 }

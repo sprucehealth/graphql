@@ -866,10 +866,10 @@ func (g *generator) genInputObjectDefinition(def *ast.InputObjectDefinition) {
 				&ast.InputValueDefinition{
 					Name: f.Name,
 					Type: &ast.Named{Name: &ast.Name{Value: "String"}},
-				}, "\t\t"))
+				}, "\t\t", false))
 			stubFields = append(stubFields, f)
 		} else {
-			g.printf("%s,\n", g.renderInputValueDefinition(def, f, "\t\t"))
+			g.printf("%s,\n", g.renderInputValueDefinition(def, f, "\t\t", false))
 		}
 	}
 	g.printf("\t},\n")
@@ -879,7 +879,7 @@ func (g *generator) genInputObjectDefinition(def *ast.InputObjectDefinition) {
 		g.printf("func init() {\n")
 		g.printf("\t// Create actual types for fields that can't be created during declaration because they're recursive\n")
 		for _, f := range stubFields {
-			g.printf("\t%s.AddInputField(%q, %s)\n", goDefName, f.Name.Value, g.renderInputObjectField(def, f, "\t\t", true))
+			g.printf("\t%s.AddInputField(%q, %s)\n", goDefName, f.Name.Value, g.renderInputValueDefinition(def, f, "\t\t", true))
 		}
 		g.printf("}\n")
 	}
@@ -903,11 +903,14 @@ func (g *generator) genInputModel(def *ast.InputObjectDefinition) {
 	g.printf("}\n")
 }
 
-func (g *generator) renderInputValueDefinition(objDef *ast.InputObjectDefinition, def *ast.InputValueDefinition, indent string) string {
+func (g *generator) renderInputValueDefinition(objDef *ast.InputObjectDefinition, def *ast.InputValueDefinition, indent string, noName bool) string {
 	comment, _ := renderLineComments(def.Comment, indent)
 	if def.Doc == nil && def.DefaultValue == nil {
 		if comment != "" {
 			comment += "\n"
+		}
+		if noName {
+			return fmt.Sprintf("&graphql.InputObjectFieldConfig{Type: %s}", g.renderType(def.Type, true))
 		}
 		return fmt.Sprintf("%s%s%q: &graphql.InputObjectFieldConfig{Type: %s}", comment, indent, def.Name.Value, g.renderType(def.Type, true))
 	}
@@ -915,8 +918,12 @@ func (g *generator) renderInputValueDefinition(objDef *ast.InputObjectDefinition
 	if comment != "" {
 		lines = append(lines, comment)
 	}
+	firstLine := fmt.Sprintf("%s%q: &graphql.InputObjectFieldConfig{", indent, def.Name.Value)
+	if noName {
+		firstLine = fmt.Sprintf("%s&graphql.InputObjectFieldConfig{", indent)
+	}
 	lines = append(lines,
-		fmt.Sprintf("%s%q: &graphql.InputObjectFieldConfig{", indent, def.Name.Value),
+		firstLine,
 		fmt.Sprintf("%s\tType: %s,", indent, g.renderType(def.Type, true)))
 	if def.Doc != nil {
 		lines = append(lines, fmt.Sprintf("%s\tDescription: %s,", indent, renderQuotedComments(def.Doc)))
