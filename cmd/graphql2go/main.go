@@ -151,6 +151,7 @@ func generateServer(g *generator) {
 			"github.com/sprucehealth/graphql",
 			"github.com/sprucehealth/graphql/gqldecode",
 			"github.com/sprucehealth/graphql/gqlerrors",
+			"github.com/sprucehealth/graphql/language/location",
 		}
 	}
 
