@@ -90,6 +90,28 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// Validate schema
+	for _, def := range root.Definitions {
+		switch def := def.(type) {
+		case *ast.ObjectDefinition:
+			if len(def.Fields) == 0 {
+				name := "UNKNOWN"
+				if def.Name != nil {
+					name = def.Name.Value
+				}
+				log.Fatalf("VALIDATION FAILED: Object %s has no fields", name)
+			}
+		case *ast.EnumDefinition:
+			if len(def.Values) == 0 {
+				name := "UNKNOWN"
+				if def.Name != nil {
+					name = def.Name.Value
+				}
+				log.Fatalf("VALIDATION FAILED: Enum %s has no values", name)
+			}
+		}
+	}
+
 	var outWriter io.Writer
 	if *flagOutFile == "" {
 		outWriter = os.Stdout
