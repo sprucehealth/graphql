@@ -91,11 +91,12 @@ func decodeValue(v interface{}, out reflect.Value, fi *structFieldInfo) {
 		if fi.nonEmpty && s == "" {
 			panic(ErrValidationFailed{Field: fi.name, Reason: "value may not be empty"})
 		}
-		if fi.plane0Unicode && !IsValidPlane0Unicode(s) {
-			panic(ErrValidationFailed{Field: fi.name, Reason: "value must be plane0 unicode"})
-		}
 		if !utf8.ValidString(s) {
 			panic(ErrValidationFailed{Field: fi.name, Reason: "value must be utf8 encoded"})
+		}
+		s = sanitizeUnicode(s)
+		if fi.plane0Unicode && !IsValidPlane0Unicode(s) {
+			panic(ErrValidationFailed{Field: fi.name, Reason: "value must be plane0 unicode"})
 		}
 		out.SetString(strings.TrimSpace(s))
 	case reflect.Int, reflect.Int64:

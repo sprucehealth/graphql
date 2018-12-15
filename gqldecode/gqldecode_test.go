@@ -66,6 +66,24 @@ func TestSimple(t *testing.T) {
 		t.Fatalf("Expected %+v got %+v", exp, st)
 	}
 }
+func TestSanitization(t *testing.T) {
+	input := map[string]interface{}{
+		"name": "Go\u200Bb",
+	}
+	type simpleStruct struct {
+		Name string `gql:"name"`
+	}
+	var st simpleStruct
+	if err := Decode(input, &st); err != nil {
+		t.Fatal(err)
+	}
+	exp := simpleStruct{
+		Name: "Gob",
+	}
+	if !reflect.DeepEqual(exp, st) {
+		t.Fatalf("Expected %+v got %+v", exp, st)
+	}
+}
 
 func TestAliasedString(t *testing.T) {
 	type enum string

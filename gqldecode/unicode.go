@@ -1,6 +1,7 @@
 package gqldecode
 
 import (
+	"strings"
 	"unicode/utf8"
 )
 
@@ -15,4 +16,15 @@ func IsValidPlane0Unicode(s string) bool {
 		}
 	}
 	return true
+}
+
+var unicodeSanitizeReplacer = strings.NewReplacer(
+	string('\u200B'), "", // zero-width space
+	string('\uFEFF'), "", // zero-width no-break space
+	string('\u200D'), "", // zero-width joiner
+	string('\u200C'), "", // zero-width non-joiner
+)
+
+func sanitizeUnicode(s string) string {
+	return unicodeSanitizeReplacer.Replace(s)
 }
