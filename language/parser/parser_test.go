@@ -135,6 +135,154 @@ func TestParseProvidesUsefulErrorsWhenUsingSource(t *testing.T) {
 	testErrorMessage(t, test)
 }
 
+func TestParsesTypeSpecDirective(t *testing.T) {
+	source := `
+		type ExampleType {
+			oldField1: String @deprecated
+			oldField2: String @deprecated(reason: "Use newField")
+		}
+	`
+	// should not return error
+	astDoc, err := Parse(ParseParams{Source: source})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	expectedASTDoc := &ast.Document{
+		Loc: ast.Location{
+			Start: 3,
+			End:   117,
+		},
+		Definitions: []ast.Node{
+			&ast.ObjectDefinition{
+				Loc: ast.Location{
+					Start: 3,
+					End:   115,
+				},
+				Name: &ast.Name{
+					Loc: ast.Location{
+						Start: 8,
+						End:   19,
+					},
+					Value: "ExampleType",
+				},
+				Fields: []*ast.FieldDefinition{
+					{
+						Loc: ast.Location{
+							Start: 25,
+							End:   54,
+						},
+						Name: &ast.Name{
+							Loc: ast.Location{
+								Start: 25,
+								End:   34,
+							},
+							Value: "oldField1",
+						},
+						Arguments: nil,
+						Type: &ast.Named{
+							Loc: ast.Location{
+								Start: 36,
+								End:   42,
+							},
+							Name: &ast.Name{
+								Loc: ast.Location{
+									Start: 36,
+									End:   42,
+								},
+								Value: "String",
+							},
+						},
+						Directives: []*ast.Directive{
+							{
+								Loc: ast.Location{
+									Start: 43,
+									End:   54,
+								},
+								Name: &ast.Name{
+									Loc: ast.Location{
+										Start: 44,
+										End:   54,
+									},
+									Value: "deprecated",
+								},
+							},
+						},
+					},
+					{
+						Loc: ast.Location{
+							Start: 58,
+							End:   111,
+						},
+						Name: &ast.Name{
+							Loc: ast.Location{
+								Start: 58,
+								End:   67,
+							},
+							Value: "oldField2",
+						},
+						Type: &ast.Named{
+							Loc: ast.Location{
+								Start: 69,
+								End:   75,
+							},
+							Name: &ast.Name{
+								Loc: ast.Location{
+									Start: 69,
+									End:   75,
+								},
+								Value: "String",
+							},
+						},
+						Directives: []*ast.Directive{
+							{
+								Loc: ast.Location{
+									Start: 76,
+									End:   111,
+								},
+								Name: &ast.Name{
+									Loc: ast.Location{
+										Start: 77,
+										End:   87,
+									},
+									Value: "deprecated",
+								},
+								Arguments: []*ast.Argument{
+									{
+										Loc: ast.Location{
+											Start: 88,
+											End:   110,
+										},
+										Name: &ast.Name{
+											Loc: ast.Location{
+												Start: 88,
+												End:   94,
+											},
+											Value: "reason",
+										},
+										Value: &ast.StringValue{
+											Loc: ast.Location{
+												Start: 96,
+												End:   110,
+											},
+											Value: "Use newField",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	astDocQuery := printer.Print(astDoc)
+	expectedASTDocQuery := printer.Print(expectedASTDoc)
+
+	if !reflect.DeepEqual(astDocQuery, expectedASTDocQuery) {
+		t.Fatalf("unexpected document: %s\n%s", pretty.Sprint(astDoc), pretty.Diff(expectedASTDoc, astDoc))
+	}
+}
+
 func TestParsesVariableInlineValues(t *testing.T) {
 	source := `{ field(complex: { a: { b: [ $var ] } }) }`
 	// should not return error

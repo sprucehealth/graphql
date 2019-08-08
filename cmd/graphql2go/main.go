@@ -640,6 +640,9 @@ func (g *generator) genEnumDefinition(def *ast.EnumDefinition) {
 		if len(comments) != 0 {
 			g.printf("\t\t\tDescription: %s,\n", renderQuotedComments(&ast.CommentGroup{List: comments}))
 		}
+		if deprecationReason := g.deprecationReasonFromDirectives(v.Directives, fmt.Sprintf("%s.%s", derefName(def.Name, "Enum"), derefName(v.Name, ""))); deprecationReason != "" {
+			g.printf("\t\t\tDeprecationReason: %s,\n", renderDeprecationReason(deprecationReason))
+		}
 		g.printf("\t\t},\n")
 	}
 	g.printf("\t},\n")
@@ -791,12 +794,37 @@ func isTopLevelObject(o string) bool {
 	return false
 }
 
+func (g *generator) deprecationReasonFromDirectives(dirs []*ast.Directive, parent string) string {
+	var deprecationReason string
+	for _, d := range dirs {
+		if derefName(d.Name, "") == "deprecated" {
+			deprecationReason = "No reason given"
+			for _, a := range d.Arguments {
+				var aName string
+				if a.Name != nil {
+					aName = a.Name.Value
+				}
+				if aName == "reason" {
+					if v, ok := a.Value.(*ast.StringValue); ok && v != nil {
+						deprecationReason = v.Value
+					}
+				} else {
+					g.failf("Unsupport argument %q directive %q on %s", derefName(a.Name, ""), derefName(d.Name, ""), parent)
+				}
+			}
+		} else {
+			g.failf("Unsupport directive %q on %s", derefName(d.Name, ""), parent)
+		}
+	}
+	return deprecationReason
+}
+
 func (g *generator) renderFieldDefinition(objName string, def *ast.FieldDefinition, indent string, noName bool) string {
 	comments := def.Doc
 	comment, _ := renderLineComments(def.Comment, indent)
-	deprecated := strings.Contains(strings.ToLower(comment), "deprecated")
+	deprecationReason := g.deprecationReasonFromDirectives(def.Directives, fmt.Sprintf("%s.%s", objName, derefName(def.Name, "")))
 	customResolve := g.hasCustomResolver(objName, def.Name.Value)
-	if comments == nil && len(def.Arguments) == 0 && !deprecated && !customResolve {
+	if comments == nil && len(def.Arguments) == 0 && deprecationReason == "" && !customResolve {
 		if comment != "" {
 			comment += "\n"
 		}
@@ -806,7 +834,7 @@ func (g *generator) renderFieldDefinition(objName string, def *ast.FieldDefiniti
 		return fmt.Sprintf("%s%s%q: &graphql.Field{Type: %s}", comment, indent, def.Name.Value, g.renderType(def.Type, false))
 	}
 	var lines []string
-	if !noName && comment != "" && !deprecated {
+	if !noName && comment != "" && deprecationReason == "" {
 		lines = append(lines, comment)
 	}
 	if noName {
@@ -826,8 +854,8 @@ func (g *generator) renderFieldDefinition(objName string, def *ast.FieldDefiniti
 	if def.Doc != nil {
 		lines = append(lines, fmt.Sprintf("%s\tDescription: %s,", indent, renderQuotedComments(def.Doc)))
 	}
-	if deprecated {
-		lines = append(lines, fmt.Sprintf("%s\tDeprecationReason: %s,", indent, renderDeprecationReason(def.Comment)))
+	if deprecationReason != "" {
+		lines = append(lines, fmt.Sprintf("%s\tDeprecationReason: %s,", indent, renderDeprecationReason(deprecationReason)))
 	}
 	if customResolve {
 		goFieldName := exportedName(def.Name.Value)
@@ -1195,20 +1223,11 @@ func renderQuotedComments(cg *ast.CommentGroup) string {
 	return strconv.Quote(text)
 }
 
-func renderDeprecationReason(cg *ast.CommentGroup) string {
-	lines := make([]string, len(cg.List))
-	for i, c := range cg.List {
-		lines[i] = strings.TrimLeft(c.Text, "# ")
+func renderDeprecationReason(reason string) string {
+	if strings.ContainsRune(reason, '\n') {
+		return "`" + strings.Replace(reason, "`", "'", -1) + "`"
 	}
-	text := strings.Join(lines, "\n")
-	if strings.ContainsRune(text, '\n') {
-		return "`" + strings.Replace(text, "`", "'", -1) + "`"
-	}
-	upperText := strings.ToUpper(text)
-	if strings.HasPrefix(upperText, "DEPRECATED.") || strings.HasPrefix(upperText, "DEPRECATED:") {
-		text = strings.TrimSpace(text[11:])
-	}
-	return strconv.Quote(text)
+	return strconv.Quote(reason)
 }
 
 func (g *generator) renderValue(fieldPath string, valueType ast.Type, value ast.Value) string {
@@ -1325,4 +1344,12 @@ func upperInitialisms(s string) string {
 		return y
 	}
 	return s
+}
+
+// derefName returns the value of a Name node if it's not nil, otherwise def is returned.
+func derefName(n *ast.Name, def string) string {
+	if n == nil {
+		return def
+	}
+	return n.Value
 }
