@@ -236,6 +236,38 @@ func TestTimestamp(t *testing.T) {
 	}
 }
 
+func TestEmbeddedStruct(t *testing.T) {
+	type outSubStruct struct {
+		A string `gql:"a"`
+		B string `gql:"b"`
+	}
+	type outStruct struct {
+		SubStruct outSubStruct `gql:"subStruct"`
+	}
+
+	in := map[string]interface{}{
+		"subStruct": &outSubStruct{
+			A: "A1",
+			B: "B1",
+		},
+	}
+
+	var out outStruct
+	if err := Decode(in, &out); err != nil {
+		t.Fatal(err)
+	}
+
+	exp := outStruct{
+		SubStruct: outSubStruct{
+			A: "A1",
+			B: "B1",
+		},
+	}
+	if !reflect.DeepEqual(exp, out) {
+		t.Fatalf("Expected %+v got %+v", exp, out)
+	}
+}
+
 func BenchmarkDecode(b *testing.B) {
 	input := map[string]interface{}{
 		"string":     "vvvvv",

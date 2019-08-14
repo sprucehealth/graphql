@@ -144,7 +144,17 @@ func decodeValue(v interface{}, out reflect.Value, fi *structFieldInfo) {
 			}
 			return
 		}
-		decodeStruct(v.(map[string]interface{}), out)
+
+		// in the event that the type is the same, or a pointer of the same type, set the value of
+		// out to the value of v instead of assuming that v is a map[string]interface{} that can be
+		// decoded into a struct.
+		if out.Type() == reflect.TypeOf(v) {
+			out.Set(reflect.ValueOf(v))
+		} else if reflect.ValueOf(v).Kind() == reflect.Ptr && out.Type() == reflect.TypeOf(v).Elem() {
+			out.Set(reflect.ValueOf(v).Elem())
+		} else {
+			decodeStruct(v.(map[string]interface{}), out)
+		}
 	case reflect.Ptr:
 		if out.IsNil() {
 			out.Set(reflect.New(out.Type().Elem()))
