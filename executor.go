@@ -13,11 +13,12 @@ import (
 )
 
 type ExecuteParams struct {
-	Schema        Schema
-	Root          interface{}
-	AST           *ast.Document
-	OperationName string
-	Args          map[string]interface{}
+	Schema            Schema
+	Root              interface{}
+	AST               *ast.Document
+	OperationName     string
+	Args              map[string]interface{}
+	DeprecatedFieldFn func(parent *Object, fieldDef *FieldDefinition) error
 
 	// Context may be provided to pass application-specific per-request
 	// information to resolve functions.
@@ -38,14 +39,15 @@ func Execute(p ExecuteParams) (result *Result) {
 		result := &Result{}
 
 		exeContext, err := buildExecutionContext(BuildExecutionCtxParams{
-			Schema:        p.Schema,
-			Root:          p.Root,
-			AST:           p.AST,
-			OperationName: p.OperationName,
-			Args:          p.Args,
-			Errors:        nil,
-			Result:        result,
-			Context:       p.Context,
+			Schema:            p.Schema,
+			Root:              p.Root,
+			AST:               p.AST,
+			OperationName:     p.OperationName,
+			Args:              p.Args,
+			Errors:            nil,
+			Result:            result,
+			Context:           p.Context,
+			DeprecatedFieldFn: p.DeprecatedFieldFn,
 		})
 
 		if err != nil {
@@ -87,23 +89,25 @@ func Execute(p ExecuteParams) (result *Result) {
 }
 
 type BuildExecutionCtxParams struct {
-	Schema        Schema
-	Root          interface{}
-	AST           *ast.Document
-	OperationName string
-	Args          map[string]interface{}
-	Errors        []gqlerrors.FormattedError
-	Result        *Result
-	Context       context.Context
+	Schema            Schema
+	Root              interface{}
+	AST               *ast.Document
+	OperationName     string
+	Args              map[string]interface{}
+	Errors            []gqlerrors.FormattedError
+	Result            *Result
+	Context           context.Context
+	DeprecatedFieldFn func(*Object, *FieldDefinition) error
 }
 type ExecutionContext struct {
-	Schema         Schema
-	Fragments      map[string]*ast.FragmentDefinition
-	Root           interface{}
-	Operation      ast.Definition
-	VariableValues map[string]interface{}
-	Errors         []gqlerrors.FormattedError
-	Context        context.Context
+	Schema            Schema
+	Fragments         map[string]*ast.FragmentDefinition
+	Root              interface{}
+	Operation         ast.Definition
+	VariableValues    map[string]interface{}
+	Errors            []gqlerrors.FormattedError
+	Context           context.Context
+	DeprecatedFieldFn func(*Object, *FieldDefinition) error
 }
 
 func safeNodeType(n ast.Node) string {
@@ -146,13 +150,14 @@ func buildExecutionContext(p BuildExecutionCtxParams) (*ExecutionContext, error)
 	}
 
 	eCtx := &ExecutionContext{
-		Schema:         p.Schema,
-		Fragments:      fragments,
-		Root:           p.Root,
-		Operation:      operation,
-		VariableValues: variableValues,
-		Errors:         p.Errors,
-		Context:        p.Context,
+		Schema:            p.Schema,
+		Fragments:         fragments,
+		Root:              p.Root,
+		Operation:         operation,
+		VariableValues:    variableValues,
+		Errors:            p.Errors,
+		Context:           p.Context,
+		DeprecatedFieldFn: p.DeprecatedFieldFn,
 	}
 	return eCtx, nil
 }
@@ -527,6 +532,13 @@ func resolveField(eCtx *ExecutionContext, parentType *Object, source interface{}
 		resultState.hasNoFieldDefs = true
 		return nil, resultState
 	}
+
+	if fieldDef.DeprecationReason != "" && eCtx.DeprecatedFieldFn != nil {
+		if err := eCtx.DeprecatedFieldFn(parentType, fieldDef); err != nil {
+			panic(gqlerrors.FormatError(err))
+		}
+	}
+
 	returnType = fieldDef.Type
 	resolveFn := fieldDef.Resolve
 	if resolveFn == nil {

@@ -1877,3 +1877,96 @@ func TestContextDeadline(t *testing.T) {
 		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expectedErrors, result.Errors))
 	}
 }
+
+func TestDeprecatedField(t *testing.T) {
+	query := `
+		query _ {
+			foo
+			bar
+		}
+    `
+
+	expected := &graphql.Result{
+		Data: map[string]interface{}{
+			"foo": "bar",
+			"bar": "foo",
+		},
+	}
+
+	type LikeAString string
+
+	const fooEnumValue LikeAString = "foo"
+
+	enumType := graphql.NewEnum(graphql.EnumConfig{
+		Name: "Bar",
+		Values: graphql.EnumValueConfigMap{
+			string(fooEnumValue): &graphql.EnumValueConfig{
+				Value: fooEnumValue,
+			},
+		},
+	})
+
+	schema, err := graphql.NewSchema(graphql.SchemaConfig{
+		Query: graphql.NewObject(graphql.ObjectConfig{
+			Name: "Query",
+			Fields: graphql.Fields{
+				"foo": &graphql.Field{
+					Type: graphql.NewNonNull(graphql.String),
+					Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+						return LikeAString("bar"), nil
+					},
+				},
+				"bar": &graphql.Field{
+					Type: graphql.NewNonNull(enumType),
+					Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+						return fooEnumValue, nil
+					},
+					DeprecationReason: "Use subtitleMarkup and bodyMarkup",
+				},
+			},
+		}),
+	})
+	if err != nil {
+		t.Fatalf("Error in schema %s", err)
+	}
+
+	// parse query
+	astDoc := testutil.TestParse(t, query)
+
+	var depField string
+	ep := graphql.ExecuteParams{
+		Schema: schema,
+		AST:    astDoc,
+		DeprecatedFieldFn: func(parent *graphql.Object, fd *graphql.FieldDefinition) error {
+			if fd != nil && parent != nil {
+				depField = fmt.Sprintf("%s.%s", parent.Name(), fd.Name)
+			}
+			return nil
+		},
+	}
+	result := testutil.TestExecute(t, ep)
+	if len(result.Errors) > 0 {
+		t.Fatalf("wrong result, unexpected errors: %v", result.Errors)
+	}
+	if !reflect.DeepEqual(expected, result) {
+		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expected, result))
+	}
+	if depField != "Query.bar" {
+		t.Fatalf("Expected deprecated field \"Query.bar\" got %q", depField)
+	}
+
+	ep = graphql.ExecuteParams{
+		Schema: schema,
+		AST:    astDoc,
+		DeprecatedFieldFn: func(parent *graphql.Object, fd *graphql.FieldDefinition) error {
+			return errors.New("deprecated field")
+		},
+	}
+	result = testutil.TestExecute(t, ep)
+	if len(result.Errors) == 0 {
+		t.Fatal("Expecte an error")
+	}
+	if result.Errors[0].Message != "deprecated field" {
+		t.Fatalf("Expected \"deprecated field\" error got %+#v", result.Errors[0])
+	}
+}
