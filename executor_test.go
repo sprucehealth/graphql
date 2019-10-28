@@ -1937,7 +1937,7 @@ func TestDeprecatedField(t *testing.T) {
 	ep := graphql.ExecuteParams{
 		Schema: schema,
 		AST:    astDoc,
-		DeprecatedFieldFn: func(parent *graphql.Object, fd *graphql.FieldDefinition) error {
+		DeprecatedFieldFn: func(ctx context.Context, parent *graphql.Object, fd *graphql.FieldDefinition) error {
 			if fd != nil && parent != nil {
 				depField = fmt.Sprintf("%s.%s", parent.Name(), fd.Name)
 			}
@@ -1958,7 +1958,7 @@ func TestDeprecatedField(t *testing.T) {
 	ep = graphql.ExecuteParams{
 		Schema: schema,
 		AST:    astDoc,
-		DeprecatedFieldFn: func(parent *graphql.Object, fd *graphql.FieldDefinition) error {
+		DeprecatedFieldFn: func(ctx context.Context, parent *graphql.Object, fd *graphql.FieldDefinition) error {
 			return errors.New("deprecated field")
 		},
 	}

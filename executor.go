@@ -18,7 +18,7 @@ type ExecuteParams struct {
 	AST               *ast.Document
 	OperationName     string
 	Args              map[string]interface{}
-	DeprecatedFieldFn func(parent *Object, fieldDef *FieldDefinition) error
+	DeprecatedFieldFn func(ctx context.Context, parent *Object, fieldDef *FieldDefinition) error
 
 	// Context may be provided to pass application-specific per-request
 	// information to resolve functions.
@@ -97,7 +97,7 @@ type BuildExecutionCtxParams struct {
 	Errors            []gqlerrors.FormattedError
 	Result            *Result
 	Context           context.Context
-	DeprecatedFieldFn func(*Object, *FieldDefinition) error
+	DeprecatedFieldFn func(context.Context, *Object, *FieldDefinition) error
 }
 type ExecutionContext struct {
 	Schema            Schema
@@ -107,7 +107,7 @@ type ExecutionContext struct {
 	VariableValues    map[string]interface{}
 	Errors            []gqlerrors.FormattedError
 	Context           context.Context
-	DeprecatedFieldFn func(*Object, *FieldDefinition) error
+	DeprecatedFieldFn func(context.Context, *Object, *FieldDefinition) error
 }
 
 func safeNodeType(n ast.Node) string {
@@ -534,7 +534,7 @@ func resolveField(eCtx *ExecutionContext, parentType *Object, source interface{}
 	}
 
 	if fieldDef.DeprecationReason != "" && eCtx.DeprecatedFieldFn != nil {
-		if err := eCtx.DeprecatedFieldFn(parentType, fieldDef); err != nil {
+		if err := eCtx.DeprecatedFieldFn(eCtx.Context, parentType, fieldDef); err != nil {
 			panic(gqlerrors.FormatError(err))
 		}
 	}
