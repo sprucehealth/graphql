@@ -37,7 +37,7 @@ type Decoder interface {
 func Decode(in map[string]interface{}, out interface{}) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			if e, ok := r.(ErrValidationFailed); ok {
+			if e, ok := r.(error); ok {
 				err = e
 			} else {
 				panic(r)
