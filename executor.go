@@ -13,12 +13,13 @@ import (
 )
 
 type ExecuteParams struct {
-	Schema            Schema
-	Root              interface{}
-	AST               *ast.Document
-	OperationName     string
-	Args              map[string]interface{}
-	DeprecatedFieldFn func(ctx context.Context, parent *Object, fieldDef *FieldDefinition) error
+	Schema                Schema
+	Root                  interface{}
+	AST                   *ast.Document
+	OperationName         string
+	Args                  map[string]interface{}
+	DeprecatedFieldFn     func(ctx context.Context, parent *Object, fieldDef *FieldDefinition) error
+	DisallowIntrospection bool
 
 	// Context may be provided to pass application-specific per-request
 	// information to resolve functions.
@@ -39,15 +40,16 @@ func Execute(p ExecuteParams) (result *Result) {
 		result := &Result{}
 
 		exeContext, err := buildExecutionContext(BuildExecutionCtxParams{
-			Schema:            p.Schema,
-			Root:              p.Root,
-			AST:               p.AST,
-			OperationName:     p.OperationName,
-			Args:              p.Args,
-			Errors:            nil,
-			Result:            result,
-			Context:           p.Context,
-			DeprecatedFieldFn: p.DeprecatedFieldFn,
+			Schema:                p.Schema,
+			Root:                  p.Root,
+			AST:                   p.AST,
+			OperationName:         p.OperationName,
+			Args:                  p.Args,
+			Errors:                nil,
+			Result:                result,
+			Context:               p.Context,
+			DeprecatedFieldFn:     p.DeprecatedFieldFn,
+			DisallowIntrospection: p.DisallowIntrospection,
 		})
 
 		if err != nil {
@@ -89,25 +91,27 @@ func Execute(p ExecuteParams) (result *Result) {
 }
 
 type BuildExecutionCtxParams struct {
-	Schema            Schema
-	Root              interface{}
-	AST               *ast.Document
-	OperationName     string
-	Args              map[string]interface{}
-	Errors            []gqlerrors.FormattedError
-	Result            *Result
-	Context           context.Context
-	DeprecatedFieldFn func(context.Context, *Object, *FieldDefinition) error
+	Schema                Schema
+	Root                  interface{}
+	AST                   *ast.Document
+	OperationName         string
+	Args                  map[string]interface{}
+	Errors                []gqlerrors.FormattedError
+	Result                *Result
+	Context               context.Context
+	DeprecatedFieldFn     func(context.Context, *Object, *FieldDefinition) error
+	DisallowIntrospection bool
 }
 type ExecutionContext struct {
-	Schema            Schema
-	Fragments         map[string]*ast.FragmentDefinition
-	Root              interface{}
-	Operation         ast.Definition
-	VariableValues    map[string]interface{}
-	Errors            []gqlerrors.FormattedError
-	Context           context.Context
-	DeprecatedFieldFn func(context.Context, *Object, *FieldDefinition) error
+	Schema                Schema
+	Fragments             map[string]*ast.FragmentDefinition
+	Root                  interface{}
+	Operation             ast.Definition
+	VariableValues        map[string]interface{}
+	Errors                []gqlerrors.FormattedError
+	Context               context.Context
+	DeprecatedFieldFn     func(context.Context, *Object, *FieldDefinition) error
+	DisallowIntrospection bool
 }
 
 func safeNodeType(n ast.Node) string {
@@ -150,14 +154,15 @@ func buildExecutionContext(p BuildExecutionCtxParams) (*ExecutionContext, error)
 	}
 
 	eCtx := &ExecutionContext{
-		Schema:            p.Schema,
-		Fragments:         fragments,
-		Root:              p.Root,
-		Operation:         operation,
-		VariableValues:    variableValues,
-		Errors:            p.Errors,
-		Context:           p.Context,
-		DeprecatedFieldFn: p.DeprecatedFieldFn,
+		Schema:                p.Schema,
+		Fragments:             fragments,
+		Root:                  p.Root,
+		Operation:             operation,
+		VariableValues:        variableValues,
+		Errors:                p.Errors,
+		Context:               p.Context,
+		DeprecatedFieldFn:     p.DeprecatedFieldFn,
+		DisallowIntrospection: p.DisallowIntrospection,
 	}
 	return eCtx, nil
 }
@@ -527,7 +532,7 @@ func resolveField(eCtx *ExecutionContext, parentType *Object, source interface{}
 		fieldName = fieldAST.Name.Value
 	}
 
-	fieldDef := getFieldDef(eCtx.Schema, parentType, fieldName)
+	fieldDef := getFieldDef(eCtx.Schema, parentType, fieldName, eCtx.DisallowIntrospection)
 	if fieldDef == nil {
 		resultState.hasNoFieldDefs = true
 		return nil, resultState
@@ -898,18 +903,20 @@ func defaultResolveFn(p ResolveParams) (interface{}, error) {
 // are allowed, like on a Union. __schema could get automatically
 // added to the query type, but that would require mutating type
 // definitions, which would cause issues.
-func getFieldDef(schema Schema, parentType *Object, fieldName string) *FieldDefinition {
+func getFieldDef(schema Schema, parentType *Object, fieldName string, disallowIntrospection bool) *FieldDefinition {
 	if parentType == nil {
 		return nil
 	}
 
-	if fieldName == SchemaMetaFieldDef.Name &&
-		schema.QueryType() == parentType {
-		return SchemaMetaFieldDef
-	}
-	if fieldName == TypeMetaFieldDef.Name &&
-		schema.QueryType() == parentType {
-		return TypeMetaFieldDef
+	if !disallowIntrospection {
+		if fieldName == SchemaMetaFieldDef.Name &&
+			schema.QueryType() == parentType {
+			return SchemaMetaFieldDef
+		}
+		if fieldName == TypeMetaFieldDef.Name &&
+			schema.QueryType() == parentType {
+			return TypeMetaFieldDef
+		}
 	}
 	if fieldName == TypeNameMetaFieldDef.Name {
 		return TypeNameMetaFieldDef
