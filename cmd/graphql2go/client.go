@@ -301,7 +301,7 @@ func genClientDo(g *generator) {
 							return resp.StatusCode, fmt.Errorf("Error parsing body into output: %s", err)
 						}
 					} else {
-						return resp.StatusCode, fmt.Errorf("unhandled response data type %T %+v", gqlResp.Data[dataField])
+						return resp.StatusCode, fmt.Errorf("unhandled response data type %T %+v", gqlResp.Data[dataField], gqlResp.Data[dataField])
 					}
 				}
 				
