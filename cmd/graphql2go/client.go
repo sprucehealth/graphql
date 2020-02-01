@@ -289,9 +289,22 @@ func genClientDo(g *generator) {
 				if err != nil {
 					return 0, err
 				}
-				if err := decoder.Decode(gqlResp.Data[dataField].(map[string]interface{})); err != nil {
-					return resp.StatusCode, fmt.Errorf("Error parsing body into output: %s", err)
+				mData, ok := gqlResp.Data[dataField].(map[string]interface{})
+				if ok {
+					if err := decoder.Decode(mData); err != nil {
+						return resp.StatusCode, fmt.Errorf("Error parsing body into output: %s", err)
+					}
+				} else {
+					sData, ok := gqlResp.Data[dataField].([]interface{})
+					if ok {
+						if err := decoder.Decode(sData); err != nil {
+							return resp.StatusCode, fmt.Errorf("Error parsing body into output: %s", err)
+						}
+					} else {
+						return resp.StatusCode, fmt.Errorf("unhandled response data type %T %+v", gqlResp.Data[dataField], gqlResp.Data[dataField])
+					}
 				}
+				
 				return resp.StatusCode, nil
 			}
 			return resp.StatusCode, fmt.Errorf("Non 200 Response (%d) from %s: %s", resp.StatusCode, req.URL, string(ball))
