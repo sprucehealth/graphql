@@ -82,6 +82,7 @@ func generateClient(g *generator) {
 		type client struct {
 			endpoint string
 			authToken string
+			headers map[string][]string
 			log Logger
 		}
 
@@ -90,6 +91,12 @@ func generateClient(g *generator) {
 		func WithClientLogger(l Logger) clientOption {
 			return func(c *client) {
 				c.log = l
+			}
+		}
+
+		func WithHeaders(h map[string][]string) clientOption {
+			return func(c *client) {
+				c.headers = h
 			}
 		}
 
@@ -104,6 +111,7 @@ func generateClient(g *generator) {
 			c := &client{
 				endpoint: endpoint,
 				authToken: authToken,
+				headers: make(map[string][]string),
 				log: nullLogger{},
 			}
 			for _, o := range opts {
@@ -260,6 +268,11 @@ func genClientDo(g *generator) {
 					Name:     "at",
 					Value:    c.authToken,
 				})
+			}
+			for h, hvs := range c.headers {
+				for _, hv := range hvs {
+					req.Header.Add(h, hv)
+				}
 			}
 			resp, err := http.DefaultClient.Do(req)
 			if err != nil {
