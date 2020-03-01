@@ -155,7 +155,7 @@ func genDecoderHook(g *generator) {
 	g.printf("\t\t\treturn 0, err\n")
 	g.printf("\t\t}\n")
 	g.printf("\t\tif err := decoder.Decode(v.(map[string]interface{})); err != nil {\n")
-	g.print("\t\t\treturn nil, fmt.Errorf(\"Error decoding %+v into %+v\", v, out)\n")
+	g.print("\t\t\treturn nil, fmt.Errorf(\"Error decoding %+v into %+v: %s\", v, out, err)\n")
 	g.printf("\t\t}\n")
 	g.printf("\t\treturn out, nil\n")
 	g.printf("\t}\n")
