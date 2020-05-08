@@ -64,16 +64,6 @@ func (w *walker) walkASTSliceAndBlock(sl interface{}) string {
 	return block(strs)
 }
 
-func directiveNames(dirs []*ast.Directive) []string {
-	names := make([]string, 0, len(dirs))
-	for _, d := range dirs {
-		if d.Name != nil {
-			names = append(names, d.Name.Value)
-		}
-	}
-	return names
-}
-
 func (w *walker) walkAST(root ast.Node) string {
 	if root == nil {
 		return ""

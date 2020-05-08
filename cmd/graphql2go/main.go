@@ -28,7 +28,6 @@ var (
 	flagOutFile        = flag.String("out", "", "Path to output file (stdout if not set)")
 	flagSchemaFile     = flag.String("schema", "", "Path to schema file (stdin if not set)")
 	flagNullableInputs = flag.Bool("nullable_inputs", false, "Flag to determine if nullable inputs should be serialized into pointers")
-	flagVerbose        = flag.Bool("v", false, "Verbose output")
 )
 
 var initialisms = map[string]string{
@@ -978,38 +977,6 @@ func (g *generator) renderInputValueDefinition(objDef *ast.InputObjectDefinition
 		fmt.Sprintf("%s\tType: %s,", indent, g.renderType(def.Type, true)))
 	if def.Doc != nil {
 		lines = append(lines, fmt.Sprintf("%s\tDescription: %s,", indent, renderQuotedComments(def.Doc)))
-	}
-	if def.DefaultValue != nil {
-		lines = append(lines, fmt.Sprintf("%s\tDefaultValue: %s,", indent, g.renderValue(objDef.Name.Value+"."+def.Name.Value, def.Type, def.DefaultValue)))
-	}
-	lines = append(lines, indent+"}")
-	return strings.Join(lines, "\n")
-}
-
-func (g *generator) renderInputObjectField(objDef *ast.InputObjectDefinition, def *ast.InputValueDefinition, indent string, noName bool) string {
-	comment, _ := renderLineComments(def.Comment, indent)
-	if def.Doc == nil && def.DefaultValue == nil {
-		if comment != "" {
-			comment += "\n"
-		}
-		if noName {
-			return fmt.Sprintf("&graphql.InputObjectField{Type: %s}", g.renderType(def.Type, true))
-		}
-		return fmt.Sprintf("%s%s%q: &graphql.InputObjectField{Type: %s}", comment, indent, def.Name.Value, g.renderType(def.Type, true))
-	}
-	var lines []string
-	if comment != "" {
-		lines = append(lines, comment)
-	}
-	firstLine := fmt.Sprintf("%s%q: &graphql.InputObjectField{", indent, def.Name.Value)
-	if noName {
-		firstLine = fmt.Sprintf("%s&graphql.InputObjectField{", indent)
-	}
-	lines = append(lines,
-		firstLine,
-		fmt.Sprintf("%s\tType: %s,", indent, g.renderType(def.Type, true)))
-	if def.Doc != nil {
-		lines = append(lines, fmt.Sprintf("%s\tPrivateDescription: %s,", indent, renderQuotedComments(def.Doc)))
 	}
 	if def.DefaultValue != nil {
 		lines = append(lines, fmt.Sprintf("%s\tDefaultValue: %s,", indent, g.renderValue(objDef.Name.Value+"."+def.Name.Value, def.Type, def.DefaultValue)))

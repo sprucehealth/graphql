@@ -261,7 +261,7 @@ func TestTypeSystem_DefinitionExample_DefinesASubscriptionScheme(t *testing.T) {
 		t.Fatalf("expected blogSchema.SubscriptionType() == blogSubscription")
 	}
 
-	subMutation, _ := blogSubscription.Fields()["articleSubscribe"]
+	subMutation := blogSubscription.Fields()["articleSubscribe"]
 	if subMutation == nil {
 		t.Fatalf("subMutation is nil")
 	}

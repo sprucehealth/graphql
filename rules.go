@@ -295,7 +295,7 @@ func getSuggestedTypeNames(schema *Schema, ttype Output, fieldName string) []str
 // that may be the result of a typo.
 func getSuggestedFieldNames(schema *Schema, ttype Output, fieldName string) []string {
 
-	fields := FieldDefinitionMap{}
+	var fields FieldDefinitionMap
 	switch ttype := ttype.(type) {
 	case *Object:
 		fields = ttype.Fields()
@@ -305,7 +305,7 @@ func getSuggestedFieldNames(schema *Schema, ttype Output, fieldName string) []st
 		return []string{}
 	}
 
-	possibleFieldNames := []string{}
+	possibleFieldNames := make([]string, 0, len(fields))
 	for possibleFieldName := range fields {
 		possibleFieldNames = append(possibleFieldNames, possibleFieldName)
 	}
@@ -688,27 +688,6 @@ func LoneAnonymousOperationRule(context *ValidationContext) *ValidationRuleInsta
 	}
 }
 
-type nodeSet struct {
-	set map[ast.Node]struct{}
-}
-
-func newNodeSet() *nodeSet {
-	return &nodeSet{
-		set: make(map[ast.Node]struct{}),
-	}
-}
-func (set *nodeSet) Has(node ast.Node) bool {
-	_, ok := set.set[node]
-	return ok
-}
-func (set *nodeSet) Add(node ast.Node) bool {
-	if set.Has(node) {
-		return false
-	}
-	set.set[node] = struct{}{}
-	return true
-}
-
 func CycleErrorMessage(fragName string, spreadNames []string) string {
 	via := ""
 	if len(spreadNames) > 0 {
@@ -909,7 +888,7 @@ func NoUnusedFragmentsRule(context *ValidationContext) *ValidationRuleInstance {
 					}
 
 					isFragNameUsed, ok := fragmentNameUsed[defName]
-					if !ok || isFragNameUsed != true {
+					if !ok || !isFragNameUsed {
 						context.ReportError(newValidationError(
 							fmt.Sprintf(`Fragment "%v" is never used.`, defName),
 							[]ast.Node{def}))
@@ -1004,10 +983,10 @@ func collectFieldASTsAndDefs(context *ValidationContext, parentType Named, selec
 			}
 			var fieldDef *FieldDefinition
 			if parentType, ok := parentType.(*Object); ok {
-				fieldDef, _ = parentType.Fields()[fieldName]
+				fieldDef = parentType.Fields()[fieldName]
 			}
 			if parentType, ok := parentType.(*Interface); ok {
-				fieldDef, _ = parentType.Fields()[fieldName]
+				fieldDef = parentType.Fields()[fieldName]
 			}
 
 			responseName := fieldName
@@ -1152,25 +1131,6 @@ func sameValue(value1 ast.Value, value2 ast.Value) bool {
 	return val1 == val2
 }
 
-func sameType(typeA, typeB Type) bool {
-	if typeA == typeB {
-		return true
-	}
-
-	if typeA, ok := typeA.(*List); ok {
-		if typeB, ok := typeB.(*List); ok {
-			return sameType(typeA.OfType, typeB.OfType)
-		}
-	}
-	if typeA, ok := typeA.(*NonNull); ok {
-		if typeB, ok := typeB.(*NonNull); ok {
-			return sameType(typeA.OfType, typeB.OfType)
-		}
-	}
-
-	return false
-}
-
 // Two types conflict if both types could not apply to a value simultaneously.
 // Composite types are ignored as their individual field types will be compared
 // later recursively. However List and Non-Null types must match.
@@ -1265,7 +1225,7 @@ func findConflicts(context *ValidationContext, parentFieldsAreMutuallyExclusive 
 	orderedName.Sort()
 
 	for _, responseName := range orderedName {
-		fields, _ := fieldMap[responseName]
+		fields := fieldMap[responseName]
 		for _, fieldA := range fields {
 			for _, fieldB := range fields {
 				c := findConflict(context, parentFieldsAreMutuallyExclusive, responseName, fieldA, fieldB, comparedSet)
@@ -1488,7 +1448,7 @@ func doTypesOverlap(schema *Schema, t1 Type, t2 Type) bool {
 		}
 		if t2, ok := t2.(Abstract); ok {
 			for _, ttype := range schema.PossibleTypes(t2) {
-				if hasT1TypeName, _ := t1TypeNames[ttype.Name()]; hasT1TypeName {
+				if t1TypeNames[ttype.Name()] {
 					return true
 				}
 			}
@@ -1565,8 +1525,7 @@ func ProvidedNonNullArgumentsRule(context *ValidationContext) *ValidationRuleIns
 					argASTMap[name] = arg
 				}
 				for _, argDef := range fieldDef.Args {
-					argAST, _ := argASTMap[argDef.Name()]
-					if argAST == nil {
+					if argAST := argASTMap[argDef.Name()]; argAST == nil {
 						if argDefType, ok := argDef.Type.(*NonNull); ok {
 							fieldName := ""
 							if fieldAST.Name != nil {
@@ -1602,8 +1561,7 @@ func ProvidedNonNullArgumentsRule(context *ValidationContext) *ValidationRuleIns
 				}
 
 				for _, argDef := range directiveDef.Args {
-					argAST, _ := argASTMap[argDef.Name()]
-					if argAST == nil {
+					if argAST := argASTMap[argDef.Name()]; argAST == nil {
 						if argDefType, ok := argDef.Type.(*NonNull); ok {
 							directiveName := ""
 							if directiveAST.Name != nil {
@@ -1894,8 +1852,7 @@ func VariablesInAllowedPositionRule(context *ValidationContext) *ValidationRuleI
 					if usage != nil && usage.Node != nil && usage.Node.Name != nil {
 						varName = usage.Node.Name.Value
 					}
-					varDef, _ := varDefMap[varName]
-					if varDef != nil && usage.Type != nil {
+					if varDef := varDefMap[varName]; varDef != nil && usage.Type != nil {
 						varType, err := typeFromAST(*context.Schema(), varDef.Type)
 						if err != nil {
 							varType = nil

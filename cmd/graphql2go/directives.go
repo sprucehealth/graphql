@@ -28,13 +28,13 @@ parser:
 		if keyTok != tokString {
 			return "", nil, fmt.Errorf("bad token at %d in %q", keyPos, ds)
 		}
-		t, v, p := scn.nextToken()
+		t, _, p := scn.nextToken()
 		switch t {
 		case tokEOF:
 			dirs[key] = ""
 			break parser
 		case tokEqual:
-			t, v, p = scn.nextToken()
+			t, v, p := scn.nextToken()
 			if t != tokString {
 				return "", nil, fmt.Errorf("bad token at %d in %q", p, ds)
 			}

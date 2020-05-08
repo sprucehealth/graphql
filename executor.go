@@ -405,7 +405,7 @@ func shouldIncludeNode(eCtx *ExecutionContext, directives []*ast.Directive) bool
 			return defaultReturnValue
 		}
 		if skipIf, ok := argValues["if"].(bool); ok {
-			if skipIf == true {
+			if skipIf {
 				return false
 			}
 		}
@@ -429,7 +429,7 @@ func shouldIncludeNode(eCtx *ExecutionContext, directives []*ast.Directive) bool
 			return defaultReturnValue
 		}
 		if includeIf, ok := argValues["if"].(bool); ok {
-			if includeIf == false {
+			if !includeIf {
 				return false
 			}
 		}
@@ -845,12 +845,7 @@ func defaultResolveTypeFn(p ResolveTypeParams, abstractType Abstract) *Object {
 		if possibleType.IsTypeOf == nil {
 			continue
 		}
-		isTypeOfParams := IsTypeOfParams{
-			Value:   p.Value,
-			Info:    p.Info,
-			Context: p.Context,
-		}
-		if res := possibleType.IsTypeOf(isTypeOfParams); res {
+		if res := possibleType.IsTypeOf(IsTypeOfParams(p)); res {
 			return possibleType
 		}
 	}

@@ -724,9 +724,9 @@ func astFromValue(value interface{}, ttype Type) ast.Value {
 		return val
 	}
 
-	if valueVal.Type().Kind() == reflect.Map {
-		// TODO: implement astFromValue from Map to Value
-	}
+	//if valueVal.Type().Kind() == reflect.Map {
+	//	// TODO: implement astFromValue from Map to Value
+	//}
 
 	if value, ok := value.(bool); ok {
 		return &ast.BooleanValue{

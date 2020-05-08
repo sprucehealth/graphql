@@ -1036,9 +1036,11 @@ func toError(err error) *gqlerrors.Error {
 }
 
 func TestBadQueryHang(t *testing.T) {
-	Parse(ParseParams{
+	if _, err := Parse(ParseParams{
 		Source: source.New("GraphQL", "{g(d:[d[\xb9\x19 rp\\�{\xef\xbf\xbd2~� c"),
-	})
+	}); err == nil {
+		t.Fatal("Expected an error")
+	}
 }
 
 func BenchmarkParser(b *testing.B) {

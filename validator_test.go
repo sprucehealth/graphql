@@ -1,6 +1,7 @@
 package graphql_test
 
 import (
+	"errors"
 	"reflect"
 	"testing"
 
@@ -43,6 +44,7 @@ func TestValidator_SupportsFullValidation_ValidatesQueries(t *testing.T) {
 }
 
 func TestConcurrentValidateDocument(t *testing.T) {
+	errsCh := make(chan error, 2)
 	validate := func() {
 		query := `
 		query HeroNameAndFriendsQuery {
@@ -57,15 +59,26 @@ func TestConcurrentValidateDocument(t *testing.T) {
 	`
 		ast, err := parser.Parse(parser.ParseParams{Source: source.New("", query)})
 		if err != nil {
-			t.Fatal(err)
+			errsCh <- err
+			return
 		}
 		r := graphql.ValidateDocument(&testutil.StarWarsSchema, ast, nil)
 		if !r.IsValid {
-			t.Fatal("Not valid")
+			errsCh <- errors.New("Not valid")
+			return
 		}
+		errsCh <- nil
 	}
 	go validate()
 	validate()
+	err1 := <-errsCh
+	err2 := <-errsCh
+	if err1 != nil {
+		t.Fatal(err1)
+	}
+	if err2 != nil {
+		t.Fatal(err2)
+	}
 }
 
 func BenchmarkValidateDocument(b *testing.B) {

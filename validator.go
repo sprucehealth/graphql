@@ -53,10 +53,8 @@ func ValidateDocument(schema *Schema, astDoc *ast.Document, rules []ValidationRu
 func VisitUsingRules(schema *Schema, typeInfo *TypeInfo, astDoc *ast.Document, rules []ValidationRuleFn) []gqlerrors.FormattedError {
 	context := NewValidationContext(schema, astDoc, typeInfo)
 
-	var visitInstance func(astNode ast.Node, instance *ValidationRuleInstance)
-
-	visitInstance = func(astNode ast.Node, instance *ValidationRuleInstance) {
-		visitor.Visit(astNode, &visitor.VisitorOptions{
+	visitInstance := func(astNode ast.Node, instance *ValidationRuleInstance) {
+		err := visitor.Visit(astNode, &visitor.VisitorOptions{
 			Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
 				node, ok := p.Node.(ast.Node)
 				if !ok {
@@ -97,6 +95,8 @@ func VisitUsingRules(schema *Schema, typeInfo *TypeInfo, astDoc *ast.Document, r
 				return action, result
 			},
 		})
+		// TODO: handle error
+		_ = err
 	}
 
 	for _, rule := range rules {
@@ -263,7 +263,7 @@ func (ctx *ValidationContext) VariableUsages(node HasSelectionSet) []*VariableUs
 	})
 
 	var usages []*VariableUsage
-	visitor.Visit(node, &visitor.VisitorOptions{
+	err := visitor.Visit(node, &visitor.VisitorOptions{
 		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
 			if node, ok := p.Node.(ast.Node); ok {
 				typeInfo.Enter(node)
@@ -287,6 +287,8 @@ func (ctx *ValidationContext) VariableUsages(node HasSelectionSet) []*VariableUs
 			return visitor.ActionNoChange, nil
 		},
 	})
+	// TODO: handle error
+	_ = err
 
 	ctx.variableUsages[node] = usages
 	return usages

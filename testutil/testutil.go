@@ -237,13 +237,13 @@ func init() {
 				Description: "The friends of the droid, or an empty list if they have none.",
 				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
 					if droid, ok := p.Source.(StarWarsChar); ok {
-						friends := []map[string]interface{}{}
-						for _, friend := range droid.Friends {
-							friends = append(friends, map[string]interface{}{
-								"name": friend.Name,
-								"id":   friend.ID,
-							})
-						}
+						//friends := []map[string]interface{}{}
+						//for _, friend := range droid.Friends {
+						//	friends = append(friends, map[string]interface{}{
+						//		"name": friend.Name,
+						//		"id":   friend.ID,
+						//	})
+						//}
 						return droid.Friends, nil
 					}
 					return []interface{}{}, nil

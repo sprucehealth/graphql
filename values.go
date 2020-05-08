@@ -158,7 +158,7 @@ func coerceValue(ttype Input, value interface{}) interface{} {
 
 		obj := map[string]interface{}{}
 		for fieldName, field := range ttype.Fields() {
-			value, _ := valueMap[fieldName]
+			value := valueMap[fieldName]
 			fieldValue := coerceValue(field.Type, value)
 			if isNullish(fieldValue) {
 				fieldValue = field.DefaultValue

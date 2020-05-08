@@ -201,23 +201,6 @@ func genClientMethodForField(g *generator, d *ast.ObjectDefinition, f *ast.Field
 	g.printf("}\n")
 }
 
-func renderDefaultClientReturnValue(t ast.Type) string {
-	switch t := t.(type) {
-	case *ast.NonNull:
-		return renderDefaultClientReturnValue(t.Type)
-	case *ast.Named:
-		switch t.Name.Value {
-		case "ID", "String":
-			return `""`
-		case "Boolean":
-			return "false"
-		case "Float", "Int":
-			return "0"
-		}
-	}
-	return "nil"
-}
-
 func genQueryWrapperTypes(g *generator) {
 	g.print(`
 		type gqlRequestBody struct {

@@ -116,8 +116,7 @@ func TestBasicGraphQLExample(t *testing.T) {
 		t.Fatalf("wrong result, unexpected errors: %v", err.Error())
 	}
 	query := "{ hello }"
-	var expected interface{}
-	expected = map[string]interface{}{
+	expected := map[string]interface{}{
 		"hello": "world",
 	}
 

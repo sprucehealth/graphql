@@ -77,7 +77,6 @@ type Lexer struct {
 	body     string
 	offset   offset
 	rdOffset offset
-	runePos  int
 	ch       rune
 }
 
@@ -352,7 +351,6 @@ func (l *Lexer) readToken() (Token, error) {
 					return makeToken(SPREAD, startOffset, l.offset, ""), nil
 				}
 			}
-			break
 		case ':':
 			return makeToken(COLON, startOffset, l.offset, ""), nil
 		case '=':

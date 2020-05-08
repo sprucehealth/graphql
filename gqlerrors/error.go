@@ -42,12 +42,12 @@ func NewError(typ ErrorType, message string, nodes []ast.Node, stack string, sou
 		stack = message
 	}
 	if source == nil {
-		for _, node := range nodes {
+		if len(nodes) != 0 {
 			// get source from first node
+			node := nodes[0]
 			if node.GetLoc().Source != nil {
 				source = node.GetLoc().Source
 			}
-			break
 		}
 	}
 	if len(positions) == 0 && len(nodes) > 0 {

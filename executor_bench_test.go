@@ -93,7 +93,9 @@ func BenchmarkDefaultResolveFnStruct(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		defaultResolveFn(p)
+		if _, err := defaultResolveFn(p); err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 
@@ -117,7 +119,9 @@ func BenchmarkDefaultResolveFnMap(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		defaultResolveFn(p)
+		if _, err := defaultResolveFn(p); err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 

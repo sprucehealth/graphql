@@ -21,11 +21,11 @@ func printCharCode(code rune) string {
 }
 
 func printLine(str string) string {
-	strSlice := []string{}
+	var strSlice []string
 	for _, runeValue := range str {
 		strSlice = append(strSlice, printCharCode(runeValue))
 	}
-	return fmt.Sprintf(`%s`, strings.Join(strSlice, ""))
+	return strings.Join(strSlice, "")
 }
 
 func NewSyntaxError(s *source.Source, position int, description string) *Error {
