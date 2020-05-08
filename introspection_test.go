@@ -10,7 +10,7 @@ import (
 	"github.com/sprucehealth/graphql/testutil"
 )
 
-func g(t *testing.T, p graphql.Params) *graphql.Result {
+func g(p graphql.Params) *graphql.Result {
 	return graphql.Do(p)
 }
 
@@ -825,7 +825,7 @@ func TestIntrospection_ExecutesAnIntrospectionQuery(t *testing.T) {
 			},
 		},
 	}
-	result := g(t, graphql.Params{
+	result := g(graphql.Params{
 		Schema:        emptySchema,
 		RequestString: testutil.IntrospectionQuery,
 	})
@@ -940,7 +940,7 @@ func TestIntrospection_ExecutesAnInputObject(t *testing.T) {
 		},
 	}
 
-	result := g(t, graphql.Params{
+	result := g(graphql.Params{
 		Schema:        schema,
 		RequestString: query,
 	})
@@ -979,7 +979,7 @@ func TestIntrospection_SupportsThe__TypeRootField(t *testing.T) {
 			},
 		},
 	}
-	result := g(t, graphql.Params{
+	result := g(graphql.Params{
 		Schema:        schema,
 		RequestString: query,
 	})
@@ -1038,7 +1038,7 @@ func TestIntrospection_IdentifiesDeprecatedFields(t *testing.T) {
 			},
 		},
 	}
-	result := g(t, graphql.Params{
+	result := g(graphql.Params{
 		Schema:        schema,
 		RequestString: query,
 	})
@@ -1107,7 +1107,7 @@ func TestIntrospection_RespectsTheIncludeDeprecatedParameterForFields(t *testing
 			},
 		},
 	}
-	result := g(t, graphql.Params{
+	result := g(graphql.Params{
 		Schema:        schema,
 		RequestString: query,
 	})
@@ -1182,7 +1182,7 @@ func TestIntrospection_IdentifiesDeprecatedEnumValues(t *testing.T) {
 			},
 		},
 	}
-	result := g(t, graphql.Params{
+	result := g(graphql.Params{
 		Schema:        schema,
 		RequestString: query,
 	})
@@ -1271,7 +1271,7 @@ func TestIntrospection_RespectsTheIncludeDeprecatedParameterForEnumValues(t *tes
 			},
 		},
 	}
-	result := g(t, graphql.Params{
+	result := g(graphql.Params{
 		Schema:        schema,
 		RequestString: query,
 	})
@@ -1314,7 +1314,7 @@ func TestIntrospection_FailsAsExpectedOnThe__TypeRootFieldWithoutAnArg(t *testin
 			},
 		},
 	}
-	result := g(t, graphql.Params{
+	result := g(graphql.Params{
 		Schema:        schema,
 		RequestString: query,
 	})
@@ -1386,7 +1386,7 @@ func TestIntrospection_ExposesDescriptionsOnTypesAndFields(t *testing.T) {
 			},
 		},
 	}
-	result := g(t, graphql.Params{
+	result := g(graphql.Params{
 		Schema:        schema,
 		RequestString: query,
 	})
@@ -1464,7 +1464,7 @@ func TestIntrospection_ExposesDescriptionsOnEnums(t *testing.T) {
 			},
 		},
 	}
-	result := g(t, graphql.Params{
+	result := g(graphql.Params{
 		Schema:        schema,
 		RequestString: query,
 	})

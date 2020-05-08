@@ -209,7 +209,7 @@ func FieldsOnCorrectTypeRule(context *ValidationContext) *ValidationRuleInstance
 						// If there are no suggested types, then perhaps this was a typo?
 						var suggestedFieldNames []string
 						if len(suggestedTypeNames) == 0 {
-							suggestedFieldNames = getSuggestedFieldNames(context.Schema(), ttype, nodeName)
+							suggestedFieldNames = getSuggestedFieldNames(ttype, nodeName)
 						}
 
 						context.ReportError(newValidationError(
@@ -293,8 +293,7 @@ func getSuggestedTypeNames(schema *Schema, ttype Output, fieldName string) []str
 
 // getSuggestedFieldNames For the field name provided, determine if there are any similar field names
 // that may be the result of a typo.
-func getSuggestedFieldNames(schema *Schema, ttype Output, fieldName string) []string {
-
+func getSuggestedFieldNames(ttype Output, fieldName string) []string {
 	var fields FieldDefinitionMap
 	switch ttype := ttype.(type) {
 	case *Object:
@@ -304,7 +303,6 @@ func getSuggestedFieldNames(schema *Schema, ttype Output, fieldName string) []st
 	default:
 		return []string{}
 	}
-
 	possibleFieldNames := make([]string, 0, len(fields))
 	for possibleFieldName := range fields {
 		possibleFieldNames = append(possibleFieldNames, possibleFieldName)

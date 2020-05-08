@@ -396,14 +396,11 @@ func shouldIncludeNode(eCtx *ExecutionContext, directives []*ast.Directive) bool
 		}
 	}
 	if skipAST != nil {
-		argValues, err := getArgumentValues(
+		argValues := getArgumentValues(
 			SkipDirective.Args,
 			skipAST.Arguments,
 			eCtx.VariableValues,
 		)
-		if err != nil {
-			return defaultReturnValue
-		}
 		if skipIf, ok := argValues["if"].(bool); ok {
 			if skipIf {
 				return false
@@ -420,14 +417,11 @@ func shouldIncludeNode(eCtx *ExecutionContext, directives []*ast.Directive) bool
 		}
 	}
 	if includeAST != nil {
-		argValues, err := getArgumentValues(
+		argValues := getArgumentValues(
 			IncludeDirective.Args,
 			includeAST.Arguments,
 			eCtx.VariableValues,
 		)
-		if err != nil {
-			return defaultReturnValue
-		}
 		if includeIf, ok := argValues["if"].(bool); ok {
 			if !includeIf {
 				return false
@@ -553,7 +547,7 @@ func resolveField(eCtx *ExecutionContext, parentType *Object, source interface{}
 	// Build a map of arguments from the field.arguments AST, using the
 	// variables scope to fulfill any variable references.
 	// TODO: find a way to memoize, in case this field is within a List type.
-	args, _ := getArgumentValues(fieldDef.Args, fieldAST.Arguments, eCtx.VariableValues)
+	args := getArgumentValues(fieldDef.Args, fieldAST.Arguments, eCtx.VariableValues)
 
 	info := ResolveInfo{
 		FieldName:      fieldName,
@@ -891,7 +885,7 @@ func defaultResolveFn(p ResolveParams) (interface{}, error) {
 	return nil, nil
 }
 
-// This method looks up the field on the given type defintion.
+// This method looks up the field on the given type definition.
 // It has special casing for the two introspection fields, __schema
 // and __typename. __typename is special because it can always be
 // queried as a field, even in situations where no other fields

@@ -508,8 +508,7 @@ func (g *generator) genNode(node ast.Node) {
 
 func (g *generator) genInterfaceDefinition(def *ast.InterfaceDefinition) {
 	if def.Doc != nil {
-		c, _ := renderLineComments(def.Doc, "")
-		g.printf("%s\n", c)
+		g.printf("%s\n", renderLineComments(def.Doc, ""))
 	}
 	goName := goInterfaceDefName(def.Name.Value)
 	g.printf("var %s = graphql.NewInterface(graphql.InterfaceConfig{\n", goName)
@@ -537,7 +536,7 @@ func (g *generator) genInterfaceDefinition(def *ast.InterfaceDefinition) {
 	}
 	if len(objDefs) != 0 {
 		g.printf("\nfunc init() {\n")
-		g.printf("\t// Resolve the type of an interface value. This done here rather than at declaration time to avoid an unresolvable compile time decleration loop.\n")
+		g.printf("\t// Resolve the type of an interface value. This done here rather than at declaration time to avoid an unresolvable compile time declaration loop.\n")
 		g.printf("\t%s.ResolveType = func(p graphql.ResolveTypeParams) *graphql.Object {\n", goName)
 		g.printf("\t\tswitch p.Value.(type) {\n")
 		for _, def := range objDefs {
@@ -554,8 +553,7 @@ func (g *generator) genInterfaceDefinition(def *ast.InterfaceDefinition) {
 
 func (g *generator) genInterfaceModel(def *ast.InterfaceDefinition) {
 	if def.Doc != nil {
-		c, _ := renderLineComments(def.Doc, "")
-		g.printf("%s\n", c)
+		g.printf("%s\n", renderLineComments(def.Doc, ""))
 	}
 	// TODO: do we want anything here to make guarantees of match?
 	g.printf("type %s interface {\n", exportedName(def.Name.Value))
@@ -566,8 +564,7 @@ func (g *generator) genInterfaceModel(def *ast.InterfaceDefinition) {
 
 func (g *generator) genUnionDefinition(def *ast.UnionDefinition) {
 	if def.Doc != nil {
-		c, _ := renderLineComments(def.Doc, "")
-		g.printf("%s\n", c)
+		g.printf("%s\n", renderLineComments(def.Doc, ""))
 	}
 	g.printf("var %s = graphql.NewUnion(graphql.UnionConfig{\n", goUnionDefName(def.Name.Value))
 	g.printf("\tName: %q,\n", def.Name.Value)
@@ -584,8 +581,7 @@ func (g *generator) genUnionDefinition(def *ast.UnionDefinition) {
 
 func (g *generator) genUnionModel(def *ast.UnionDefinition) {
 	if def.Doc != nil {
-		c, _ := renderLineComments(def.Doc, "")
-		g.printf("%s\n", c)
+		g.printf("%s\n", renderLineComments(def.Doc, ""))
 	}
 	// TODO: do we want anything here to make guarantees of match?
 	g.printf("type %s interface {\n", exportedName(def.Name.Value))
@@ -595,8 +591,7 @@ func (g *generator) genUnionModel(def *ast.UnionDefinition) {
 func (g *generator) genScalarDefinition(def *ast.ScalarDefinition) {
 	// TODO
 	// if def.Doc != nil {
-	// 	c, _ := renderLineComments(def.Doc, "")
-	// 	g.printf("%s\n", c)
+	// 	g.printf("%s\n", renderLineComments(def.Doc, ""))
 	// }
 
 	g.printf("var %s = graphql.NewScalar(graphql.ScalarConfig{\n", goScalarDefName(def.Name.Value))
@@ -616,8 +611,7 @@ func (g *generator) genEnumDefinition(def *ast.EnumDefinition) {
 	goDefName := goEnumDefName(def.Name.Value)
 
 	if def.Doc != nil {
-		c, _ := renderLineComments(def.Doc, "")
-		g.printf("%s\n", c)
+		g.printf("%s\n", renderLineComments(def.Doc, ""))
 	}
 	g.printf("var %s = graphql.NewEnum(graphql.EnumConfig{\n", goDefName)
 	g.printf("\tName: %q,\n", def.Name.Value)
@@ -658,12 +652,11 @@ func (g *generator) genEnumConstants(def *ast.EnumDefinition) {
 	g.printf("const (\n")
 	for _, v := range def.Values {
 		if v.Doc != nil {
-			c, _ := renderLineComments(v.Doc, "\t")
-			g.printf("%s\n", c)
+			g.printf("%s\n", renderLineComments(v.Doc, "\t"))
 		}
 		var comm string
 		if v.Comment != nil {
-			comm, _ = renderLineComments(v.Comment, " ")
+			comm = renderLineComments(v.Comment, " ")
 		}
 		g.printf("\t%s%s %s = %q%s\n", goName, exportedCamelCase(v.Name.Value), goName, v.Name.Value, comm)
 	}
@@ -673,8 +666,7 @@ func (g *generator) genEnumConstants(def *ast.EnumDefinition) {
 func (g *generator) genObjectDefinition(def *ast.ObjectDefinition) {
 	goName := goObjectDefName(def.Name.Value)
 	if def.Doc != nil {
-		c, _ := renderLineComments(def.Doc, "")
-		g.printf("%s\n", c)
+		g.printf("%s\n", renderLineComments(def.Doc, ""))
 	} else if strings.HasSuffix(def.Name.Value, "Payload") {
 		g.printf("// %s is the return type for the %s mutation.\n", goName, unexportedName(def.Name.Value[:len(def.Name.Value)-7]))
 	}
@@ -727,8 +719,7 @@ func (g *generator) genObjectDefinition(def *ast.ObjectDefinition) {
 func (g *generator) genObjectModel(def *ast.ObjectDefinition) {
 	goName := exportedName(def.Name.Value)
 	if def.Doc != nil {
-		c, _ := renderLineComments(def.Doc, "")
-		g.printf("%s\n", c)
+		g.printf("%s\n", renderLineComments(def.Doc, ""))
 	} else if strings.HasSuffix(def.Name.Value, "Payload") {
 		g.printf("// %s is the return type for the %s mutation.\n", goName, unexportedName(def.Name.Value[:len(def.Name.Value)-7]))
 	}
@@ -818,9 +809,10 @@ func (g *generator) deprecationReasonFromDirectives(dirs []*ast.Directive, paren
 	return deprecationReason
 }
 
+//nolint:unparam
 func (g *generator) renderFieldDefinition(objName string, def *ast.FieldDefinition, indent string, noName bool) string {
 	comments := def.Doc
-	comment, _ := renderLineComments(def.Comment, indent)
+	comment := renderLineComments(def.Comment, indent)
 	deprecationReason := g.deprecationReasonFromDirectives(def.Directives, fmt.Sprintf("%s.%s", objName, derefName(def.Name, "")))
 	customResolve := g.hasCustomResolver(objName, def.Name.Value)
 	if comments == nil && len(def.Arguments) == 0 && deprecationReason == "" && !customResolve {
@@ -894,8 +886,7 @@ func (g *generator) renderFieldDefinition(objName string, def *ast.FieldDefiniti
 func (g *generator) genInputObjectDefinition(def *ast.InputObjectDefinition) {
 	goDefName := goInputObjectDefName(def.Name.Value)
 	if def.Doc != nil {
-		c, _ := renderLineComments(def.Doc, "")
-		g.printf("%s\n", c)
+		g.printf("%s\n", renderLineComments(def.Doc, ""))
 	} else if strings.HasSuffix(def.Name.Value, "Input") {
 		g.printf("// %s is the input type for the %s mutation.\n", goDefName, unexportedName(def.Name.Value[:len(def.Name.Value)-5]))
 	}
@@ -937,8 +928,7 @@ func (g *generator) genInputObjectDefinition(def *ast.InputObjectDefinition) {
 
 func (g *generator) genInputModel(def *ast.InputObjectDefinition) {
 	if def.Doc != nil {
-		c, _ := renderLineComments(def.Doc, "")
-		g.printf("%s\n", c)
+		g.printf("%s\n", renderLineComments(def.Doc, ""))
 	} else if strings.HasSuffix(def.Name.Value, "Input") {
 		g.printf("// %s is the input type for the %s mutation.\n", def.Name.Value, unexportedName(def.Name.Value[:len(def.Name.Value)-5]))
 	}
@@ -954,7 +944,7 @@ func (g *generator) genInputModel(def *ast.InputObjectDefinition) {
 }
 
 func (g *generator) renderInputValueDefinition(objDef *ast.InputObjectDefinition, def *ast.InputValueDefinition, indent string, noName bool) string {
-	comment, _ := renderLineComments(def.Comment, indent)
+	comment := renderLineComments(def.Comment, indent)
 	if def.Doc == nil && def.DefaultValue == nil {
 		if comment != "" {
 			comment += "\n"
@@ -986,7 +976,7 @@ func (g *generator) renderInputValueDefinition(objDef *ast.InputObjectDefinition
 }
 
 func (g *generator) renderArgumentConfig(def *ast.InputValueDefinition, indent string) string {
-	comment, _ := renderLineComments(def.Comment, indent)
+	comment := renderLineComments(def.Comment, indent)
 	if def.Doc == nil && def.DefaultValue == nil {
 		if comment != "" {
 			comment += "\n"
@@ -1167,15 +1157,15 @@ func (g *generator) goType(t ast.Type, fieldName string) string {
 	return ""
 }
 
-func renderLineComments(cg *ast.CommentGroup, indent string) (string, directives) {
+func renderLineComments(cg *ast.CommentGroup, indent string) string {
 	if cg == nil {
-		return "", nil
+		return ""
 	}
 	lines := make([]string, len(cg.List))
 	for i, c := range cg.List {
 		lines[i] = indent + "// " + strings.TrimLeft(c.Text, "# ")
 	}
-	return strings.Join(lines, "\n"), nil
+	return strings.Join(lines, "\n")
 }
 
 func renderQuotedComments(cg *ast.CommentGroup) string {
@@ -1197,6 +1187,7 @@ func renderDeprecationReason(reason string) string {
 	return strconv.Quote(reason)
 }
 
+//nolint:unparam
 func (g *generator) renderValue(fieldPath string, valueType ast.Type, value ast.Value) string {
 	if value == nil {
 		return "nil"

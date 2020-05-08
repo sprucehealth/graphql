@@ -22,8 +22,7 @@ func (g FormattedError) Error() string {
 }
 
 func NewFormattedError(message string) FormattedError {
-	err := errors.New(message)
-	return FormatError(err)
+	return FormatError(errors.New(message))
 }
 
 func FormatError(err error) FormattedError {

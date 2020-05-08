@@ -34,7 +34,7 @@ func getVariableValues(schema Schema, definitionASTs []*ast.VariableDefinition, 
 
 // Prepares an object map of argument values given a list of argument
 // definitions and list of argument AST nodes.
-func getArgumentValues(argDefs []*Argument, argASTs []*ast.Argument, variableVariables map[string]interface{}) (map[string]interface{}, error) {
+func getArgumentValues(argDefs []*Argument, argASTs []*ast.Argument, variableVariables map[string]interface{}) map[string]interface{} {
 	argASTMap := make(map[string]*ast.Argument, len(argASTs))
 	for _, argAST := range argASTs {
 		if argAST.Name != nil {
@@ -56,7 +56,7 @@ func getArgumentValues(argDefs []*Argument, argASTs []*ast.Argument, variableVar
 			results[name] = value
 		}
 	}
-	return results, nil
+	return results
 }
 
 // Given a variable definition, and any value of input, return a value which

@@ -1391,6 +1391,7 @@ func (p *Parser) expect(kind int) (lexer.Token, error) {
 
 // If the next token is a keyword with the given value, return that token after
 // advancing the parser. Otherwise, do not change the parser state and return false.
+//nolint:unparam
 func (p *Parser) expectKeyWord(value string) (lexer.Token, error) {
 	token := p.tok
 	if token.Kind == lexer.NAME && token.Value == value {
