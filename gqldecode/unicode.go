@@ -19,10 +19,7 @@ func IsValidPlane0Unicode(s string) bool {
 }
 
 var unicodeSanitizeReplacer = strings.NewReplacer(
-	string('\u200B'), "", // zero-width space
-	string('\uFEFF'), "", // zero-width no-break space
-	string('\u200D'), "", // zero-width joiner
-	string('\u200C'), "", // zero-width non-joiner
+	"\uFEFF", "", // zero-width no-break space (though really now only a byte order marker)
 )
 
 func sanitizeUnicode(s string) string {
