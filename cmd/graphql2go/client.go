@@ -242,7 +242,7 @@ func genClientDo(g *generator) {
 				return 0, err
 			}
 			c.log.Debugf(ctx, "Request: %s - %s", c.endpoint, string(bBody))
-			req, err := http.NewRequest(http.MethodPost, c.endpoint, bytes.NewReader(bBody))
+			req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.endpoint, bytes.NewReader(bBody))
 			if err != nil {
 				return 0, err
 			}
@@ -301,7 +301,6 @@ func genClientDo(g *generator) {
 						return resp.StatusCode, fmt.Errorf("unhandled response data type %T %+v", gqlResp.Data[dataField], gqlResp.Data[dataField])
 					}
 				}
-				
 				return resp.StatusCode, nil
 			}
 			return resp.StatusCode, fmt.Errorf("Non 200 Response (%d) from %s: %s", resp.StatusCode, req.URL, string(ball))
