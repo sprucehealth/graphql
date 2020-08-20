@@ -68,7 +68,7 @@ func TestSimple(t *testing.T) {
 }
 func TestSanitization(t *testing.T) {
 	input := map[string]interface{}{
-		"name": "Go\u200Bb",
+		"name": "Go\uFEFFb",
 	}
 	type simpleStruct struct {
 		Name string `gql:"name"`

@@ -620,7 +620,7 @@ type Field struct {
 	Type              Output              `json:"type"`
 	Args              FieldConfigArgument `json:"args"`
 	Resolve           FieldResolveFn
-	DeprecationReason string `json:"deprecationReason"`
+	DeprecationReason string `json:"deprecationReason,omitempty"`
 	Description       string `json:"description"`
 }
 
@@ -639,7 +639,7 @@ type FieldDefinition struct {
 	Type              Output         `json:"type"`
 	Args              []*Argument    `json:"args"`
 	Resolve           FieldResolveFn `json:"-"`
-	DeprecationReason string         `json:"deprecationReason"`
+	DeprecationReason string         `json:"deprecationReason,omitempty"`
 }
 
 type FieldArgument struct {
@@ -925,7 +925,7 @@ type Enum struct {
 type EnumValueConfigMap map[string]*EnumValueConfig
 type EnumValueConfig struct {
 	Value             interface{} `json:"value"`
-	DeprecationReason string      `json:"deprecationReason"`
+	DeprecationReason string      `json:"deprecationReason,omitempty"`
 	Description       string      `json:"description"`
 }
 type EnumConfig struct {
@@ -936,7 +936,7 @@ type EnumConfig struct {
 type EnumValueDefinition struct {
 	Name              string      `json:"name"`
 	Value             interface{} `json:"value"`
-	DeprecationReason string      `json:"deprecationReason"`
+	DeprecationReason string      `json:"deprecationReason,omitempty"`
 	Description       string      `json:"description"`
 }
 
