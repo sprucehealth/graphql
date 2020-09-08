@@ -537,7 +537,7 @@ func (g *generator) genInterfaceDefinition(def *ast.InterfaceDefinition) {
 	if len(objDefs) != 0 {
 		g.printf("\nfunc init() {\n")
 		g.printf("\t// Resolve the type of an interface value. This done here rather than at declaration time to avoid an unresolvable compile time declaration loop.\n")
-		g.printf("\t%s.ResolveType = func(p graphql.ResolveTypeParams) *graphql.Object {\n", goName)
+		g.printf("\t%s.ResolveType = func(ctx context.Context, p graphql.ResolveTypeParams) *graphql.Object {\n", goName)
 		g.printf("\t\tswitch p.Value.(type) {\n")
 		for _, def := range objDefs {
 			name := exportedName(def.Name.Value)
