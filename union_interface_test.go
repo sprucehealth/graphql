@@ -78,7 +78,7 @@ var petType = graphql.NewUnion(graphql.UnionConfig{
 	Types: []*graphql.Object{
 		dogType, catType,
 	},
-	ResolveType: func(p graphql.ResolveTypeParams) *graphql.Object {
+	ResolveType: func(ctx context.Context, p graphql.ResolveTypeParams) *graphql.Object {
 		if _, ok := p.Value.(*testCat2); ok {
 			return catType
 		}
@@ -204,7 +204,7 @@ func TestUnionIntersectionTypes_CanIntrospectOnUnionAndIntersectionTypes(t *test
 		Schema: unionInterfaceTestSchema,
 		AST:    ast,
 	}
-	result := testutil.TestExecute(t, ep)
+	result := testutil.TestExecute(t, context.Background(), ep)
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
@@ -253,7 +253,7 @@ func TestUnionIntersectionTypes_ExecutesUsingUnionTypes(t *testing.T) {
 		AST:    ast,
 		Root:   john,
 	}
-	result := testutil.TestExecute(t, ep)
+	result := testutil.TestExecute(t, context.Background(), ep)
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
@@ -307,7 +307,7 @@ func TestUnionIntersectionTypes_ExecutesUnionTypesWithInlineFragments(t *testing
 		AST:    ast,
 		Root:   john,
 	}
-	result := testutil.TestExecute(t, ep)
+	result := testutil.TestExecute(t, context.Background(), ep)
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
@@ -356,7 +356,7 @@ func TestUnionIntersectionTypes_ExecutesUsingInterfaceTypes(t *testing.T) {
 		AST:    ast,
 		Root:   john,
 	}
-	result := testutil.TestExecute(t, ep)
+	result := testutil.TestExecute(t, context.Background(), ep)
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
@@ -409,7 +409,7 @@ func TestUnionIntersectionTypes_ExecutesInterfaceTypesWithInlineFragments(t *tes
 		AST:    ast,
 		Root:   john,
 	}
-	result := testutil.TestExecute(t, ep)
+	result := testutil.TestExecute(t, context.Background(), ep)
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
@@ -489,7 +489,7 @@ func TestUnionIntersectionTypes_AllowsFragmentConditionsToBeAbstractTypes(t *tes
 		AST:    ast,
 		Root:   john,
 	}
-	result := testutil.TestExecute(t, ep)
+	result := testutil.TestExecute(t, context.Background(), ep)
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
@@ -511,9 +511,9 @@ func TestUnionIntersectionTypes_GetsExecutionInfoInResolver(t *testing.T) {
 				Type: graphql.String,
 			},
 		},
-		ResolveType: func(p graphql.ResolveTypeParams) *graphql.Object {
+		ResolveType: func(ctx context.Context, p graphql.ResolveTypeParams) *graphql.Object {
 			encounteredSchema = p.Info.Schema
-			encounteredContextValue, _ = p.Context.Value("authToken").(string)
+			encounteredContextValue, _ = ctx.Value("authToken").(string)
 			encounteredRootValue = p.Info.RootValue.(*testPerson).Name
 			return personType2
 		},
@@ -561,16 +561,16 @@ func TestUnionIntersectionTypes_GetsExecutionInfoInResolver(t *testing.T) {
 
 	// create context
 	ctx := context.Background()
+	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "authToken", "contextStringValue123")
 
 	// execute
 	ep := graphql.ExecuteParams{
-		Schema:  schema2,
-		AST:     ast,
-		Root:    john2,
-		Context: ctx,
+		Schema: schema2,
+		AST:    ast,
+		Root:   john2,
 	}
-	result := testutil.TestExecute(t, ep)
+	result := testutil.TestExecute(t, ctx, ep)
 
 	if !reflect.DeepEqual(expected, result) {
 		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expected, result))

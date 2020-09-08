@@ -1,6 +1,7 @@
 package graphql
 
 import (
+	"context"
 	"testing"
 
 	"github.com/sprucehealth/graphql/language/parser"
@@ -24,7 +25,7 @@ func TestDefaultResolveFn(t *testing.T) {
 			FieldName: "F",
 		},
 	}
-	v, err := defaultResolveFn(p)
+	v, err := defaultResolveFn(context.Background(), p)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,7 +50,7 @@ func TestDefaultResolveFn(t *testing.T) {
 			FieldName: "F",
 		},
 	}
-	v, err = defaultResolveFn(p)
+	v, err = defaultResolveFn(context.Background(), p)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,7 +61,7 @@ func TestDefaultResolveFn(t *testing.T) {
 	}
 
 	p.Info.FieldName = "G"
-	v, err = defaultResolveFn(p)
+	v, err = defaultResolveFn(context.Background(), p)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,7 +94,7 @@ func BenchmarkDefaultResolveFnStruct(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := defaultResolveFn(p); err != nil {
+		if _, err := defaultResolveFn(context.Background(), p); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -119,7 +120,7 @@ func BenchmarkDefaultResolveFnMap(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := defaultResolveFn(p); err != nil {
+		if _, err := defaultResolveFn(context.Background(), p); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -145,37 +146,37 @@ func BenchmarkQuery(b *testing.B) {
 			Fields: Fields{
 				"foo": &Field{
 					Type: NewNonNull(enumType),
-					Resolve: func(p ResolveParams) (interface{}, error) {
+					Resolve: func(ctx context.Context, p ResolveParams) (interface{}, error) {
 						return enumValue, nil
 					},
 				},
 				"someID": &Field{
 					Type: NewNonNull(ID),
-					Resolve: func(p ResolveParams) (interface{}, error) {
+					Resolve: func(ctx context.Context, p ResolveParams) (interface{}, error) {
 						return "abc", nil
 					},
 				},
 				"someString": &Field{
 					Type: NewNonNull(String),
-					Resolve: func(p ResolveParams) (interface{}, error) {
+					Resolve: func(ctx context.Context, p ResolveParams) (interface{}, error) {
 						return "bar", nil
 					},
 				},
 				"someInt": &Field{
 					Type: NewNonNull(Int),
-					Resolve: func(p ResolveParams) (interface{}, error) {
+					Resolve: func(ctx context.Context, p ResolveParams) (interface{}, error) {
 						return 123, nil
 					},
 				},
 				"someFloat": &Field{
 					Type: NewNonNull(Float),
-					Resolve: func(p ResolveParams) (interface{}, error) {
+					Resolve: func(ctx context.Context, p ResolveParams) (interface{}, error) {
 						return 1.23, nil
 					},
 				},
 				"someBoolean": &Field{
 					Type: NewNonNull(Boolean),
-					Resolve: func(p ResolveParams) (interface{}, error) {
+					Resolve: func(ctx context.Context, p ResolveParams) (interface{}, error) {
 						return true, nil
 					},
 				},
@@ -211,7 +212,7 @@ func BenchmarkQuery(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		result := Execute(ep)
+		result := Execute(context.Background(), ep)
 		if len(result.Errors) > 0 {
 			b.Fatalf("wrong result, unexpected errors: %v", result.Errors)
 		}

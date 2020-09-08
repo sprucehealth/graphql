@@ -1,6 +1,7 @@
 package graphql_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/sprucehealth/graphql"
@@ -311,7 +312,7 @@ var schema graphql.Schema
 func init() {
 	someBoxInterface = graphql.NewInterface(graphql.InterfaceConfig{
 		Name: "SomeBox",
-		ResolveType: func(p graphql.ResolveTypeParams) *graphql.Object {
+		ResolveType: func(ctx context.Context, p graphql.ResolveTypeParams) *graphql.Object {
 			return stringBoxObject
 		},
 		Fields: graphql.FieldsThunk(func() graphql.Fields {
@@ -383,7 +384,7 @@ func init() {
 	})
 	var nonNullStringBox1Interface = graphql.NewInterface(graphql.InterfaceConfig{
 		Name: "NonNullStringBox1",
-		ResolveType: func(p graphql.ResolveTypeParams) *graphql.Object {
+		ResolveType: func(ctx context.Context, p graphql.ResolveTypeParams) *graphql.Object {
 			return stringBoxObject
 		},
 		Fields: graphql.Fields{
@@ -411,7 +412,7 @@ func init() {
 	})
 	var nonNullStringBox2Interface = graphql.NewInterface(graphql.InterfaceConfig{
 		Name: "NonNullStringBox2",
-		ResolveType: func(p graphql.ResolveTypeParams) *graphql.Object {
+		ResolveType: func(ctx context.Context, p graphql.ResolveTypeParams) *graphql.Object {
 			return stringBoxObject
 		},
 		Fields: graphql.Fields{

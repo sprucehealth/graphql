@@ -1,6 +1,7 @@
 package testutil
 
 import (
+	"context"
 	"reflect"
 	"testing"
 
@@ -255,7 +256,7 @@ func init() {
 			dogType,
 			humanType,
 		},
-		ResolveType: func(p graphql.ResolveTypeParams) *graphql.Object {
+		ResolveType: func(ctx context.Context, p graphql.ResolveTypeParams) *graphql.Object {
 			// not used for validation
 			return nil
 		},
@@ -266,7 +267,7 @@ func init() {
 			alienType,
 			humanType,
 		},
-		ResolveType: func(p graphql.ResolveTypeParams) *graphql.Object {
+		ResolveType: func(ctx context.Context, p graphql.ResolveTypeParams) *graphql.Object {
 			// not used for validation
 			return nil
 		},

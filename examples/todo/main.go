@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -70,8 +71,7 @@ var rootMutation = graphql.NewObject(graphql.ObjectConfig{
 					Type: graphql.NewNonNull(graphql.String),
 				},
 			},
-			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
-
+			Resolve: func(ctx context.Context, params graphql.ResolveParams) (interface{}, error) {
 				// marshall and cast the argument value
 				text, _ := params.Args["text"].(string)
 
@@ -112,7 +112,7 @@ var rootMutation = graphql.NewObject(graphql.ObjectConfig{
 					Type: graphql.Boolean,
 				},
 			},
-			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+			Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
 				if idQuery, ok := p.Args["id"].(string); ok {
 					for _, todo := range TodoList {
 						if todo.ID == idQuery {
@@ -149,8 +149,7 @@ var rootQuery = graphql.NewObject(graphql.ObjectConfig{
 					Type: graphql.String,
 				},
 			},
-			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
-
+			Resolve: func(ctx context.Context, params graphql.ResolveParams) (interface{}, error) {
 				idQuery, isOK := params.Args["id"].(string)
 				if isOK {
 					// Search for el with id
@@ -168,7 +167,7 @@ var rootQuery = graphql.NewObject(graphql.ObjectConfig{
 		"lastTodo": &graphql.Field{
 			Type:        todoType,
 			Description: "Last todo added",
-			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
+			Resolve: func(ctx context.Context, params graphql.ResolveParams) (interface{}, error) {
 				return TodoList[len(TodoList)-1], nil
 			},
 		},
@@ -179,7 +178,7 @@ var rootQuery = graphql.NewObject(graphql.ObjectConfig{
 		"todoList": &graphql.Field{
 			Type:        graphql.NewList(todoType),
 			Description: "List of todos",
-			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+			Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
 				return TodoList, nil
 			},
 		},
@@ -192,8 +191,8 @@ var schema, _ = graphql.NewSchema(graphql.SchemaConfig{
 	Mutation: rootMutation,
 })
 
-func executeQuery(query string, schema graphql.Schema) *graphql.Result {
-	result := graphql.Do(graphql.Params{
+func executeQuery(ctx context.Context, query string, schema graphql.Schema) *graphql.Result {
+	result := graphql.Do(ctx, graphql.Params{
 		Schema:        schema,
 		RequestString: query,
 	})
@@ -205,13 +204,13 @@ func executeQuery(query string, schema graphql.Schema) *graphql.Result {
 
 func main() {
 	http.HandleFunc("/graphql", func(w http.ResponseWriter, r *http.Request) {
-		result := executeQuery(r.URL.Query()["query"][0], schema)
-		json.NewEncoder(w).Encode(result)
+		result := executeQuery(r.Context(), r.URL.Query()["query"][0], schema)
+		_ = json.NewEncoder(w).Encode(result)
 	})
 	fmt.Println("Now server is running on port 8080")
 	fmt.Println("Get single todo: curl -g 'http://localhost:8080/graphql?query={todo(id:\"b\"){id,text,done}}'")
 	fmt.Println("Create new todo: curl -g 'http://localhost:8080/graphql?query=mutation+_{createTodo(text:\"My+new+todo\"){id,text,done}}'")
 	fmt.Println("Update a todo: curl -g 'http://localhost:8080/graphql?query=mutation+_{updateTodo(id:\"b\",text:\"My+new+todo+updated\",done:true){id,text,done}}'")
 	fmt.Println("Load todo list: curl -g 'http://localhost:8080/graphql?query={todoList{id,text,done}}'")
-	http.ListenAndServe(":8080", nil)
+	_ = http.ListenAndServe(":8080", nil)
 }

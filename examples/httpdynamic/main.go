@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -47,8 +48,8 @@ func filterUser(data []map[string]interface{}, args map[string]interface{}) map[
 	return nil
 }
 
-func executeQuery(query string, schema graphql.Schema) *graphql.Result {
-	result := graphql.Do(graphql.Params{
+func executeQuery(ctx context.Context, query string, schema graphql.Schema) *graphql.Result {
+	result := graphql.Do(ctx, graphql.Params{
 		Schema:        schema,
 		RequestString: query,
 	})
@@ -98,7 +99,7 @@ func importJSONDataFromFile(fileName string) error {
 				"user": &graphql.Field{
 					Type: userType,
 					Args: args,
-					Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+					Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
 						return filterUser(data, p.Args), nil
 					},
 				},
@@ -127,12 +128,12 @@ func main() {
 	}
 
 	http.HandleFunc("/graphql", func(w http.ResponseWriter, r *http.Request) {
-		result := executeQuery(r.URL.Query()["query"][0], schema)
-		json.NewEncoder(w).Encode(result)
+		result := executeQuery(r.Context(), r.URL.Query()["query"][0], schema)
+		_ = json.NewEncoder(w).Encode(result)
 	})
 
 	fmt.Println("Now server is running on port 8080")
 	fmt.Println("Test with Get      : curl -g 'http://localhost:8080/graphql?query={user(name:\"Dan\"){id,surname}}'")
 	fmt.Printf("Reload json file   : kill -SIGUSR1 %s\n", strconv.Itoa(os.Getpid()))
-	http.ListenAndServe(":8080", nil)
+	_ = http.ListenAndServe(":8080", nil)
 }

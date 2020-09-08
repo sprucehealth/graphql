@@ -1,6 +1,7 @@
 package graphql_test
 
 import (
+	"context"
 	"encoding/json"
 	"reflect"
 	"testing"
@@ -35,7 +36,7 @@ func TestExecutesResolveFunction_DefaultFunctionAccessesProperties(t *testing.T)
 		"test": "testValue",
 	}
 
-	result := graphql.Do(graphql.Params{
+	result := graphql.Do(context.Background(), graphql.Params{
 		Schema:        schema,
 		RequestString: `{ test }`,
 		RootObject:    source,
@@ -58,7 +59,7 @@ func TestExecutesResolveFunction_DefaultFunctionCallsMethods(t *testing.T) {
 		"test": "testValue",
 	}
 
-	result := graphql.Do(graphql.Params{
+	result := graphql.Do(context.Background(), graphql.Params{
 		Schema:        schema,
 		RequestString: `{ test }`,
 		RootObject:    source,
@@ -75,7 +76,7 @@ func TestExecutesResolveFunction_UsesProvidedResolveFunction(t *testing.T) {
 			"aStr": &graphql.ArgumentConfig{Type: graphql.String},
 			"aInt": &graphql.ArgumentConfig{Type: graphql.Int},
 		},
-		Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+		Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
 			b, err := json.Marshal(p.Args)
 			return string(b), err
 		},
@@ -84,7 +85,7 @@ func TestExecutesResolveFunction_UsesProvidedResolveFunction(t *testing.T) {
 	expected := map[string]interface{}{
 		"test": "{}",
 	}
-	result := graphql.Do(graphql.Params{
+	result := graphql.Do(context.Background(), graphql.Params{
 		Schema:        schema,
 		RequestString: `{ test }`,
 	})
@@ -95,7 +96,7 @@ func TestExecutesResolveFunction_UsesProvidedResolveFunction(t *testing.T) {
 	expected = map[string]interface{}{
 		"test": `{"aStr":"String!"}`,
 	}
-	result = graphql.Do(graphql.Params{
+	result = graphql.Do(context.Background(), graphql.Params{
 		Schema:        schema,
 		RequestString: `{ test(aStr: "String!") }`,
 	})
@@ -106,7 +107,7 @@ func TestExecutesResolveFunction_UsesProvidedResolveFunction(t *testing.T) {
 	expected = map[string]interface{}{
 		"test": `{"aInt":-123,"aStr":"String!"}`,
 	}
-	result = graphql.Do(graphql.Params{
+	result = graphql.Do(context.Background(), graphql.Params{
 		Schema:        schema,
 		RequestString: `{ test(aInt: -123, aStr: "String!") }`,
 	})
@@ -116,7 +117,6 @@ func TestExecutesResolveFunction_UsesProvidedResolveFunction(t *testing.T) {
 }
 
 func TestExecutesResolveFunction_UsesProvidedResolveFunction_SourceIsStruct_WithoutJSONTags(t *testing.T) {
-
 	// For structs without JSON tags, it will map to upper-cased exported field names
 	type SubObjectWithoutJSONTags struct {
 		Str string
@@ -136,7 +136,7 @@ func TestExecutesResolveFunction_UsesProvidedResolveFunction_SourceIsStruct_With
 			"aStr": &graphql.ArgumentConfig{Type: graphql.String},
 			"aInt": &graphql.ArgumentConfig{Type: graphql.Int},
 		},
-		Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+		Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
 			aStr, _ := p.Args["aStr"].(string)
 			aInt, _ := p.Args["aInt"].(int)
 			return &SubObjectWithoutJSONTags{
@@ -152,7 +152,7 @@ func TestExecutesResolveFunction_UsesProvidedResolveFunction_SourceIsStruct_With
 			"Int": 0,
 		},
 	}
-	result := graphql.Do(graphql.Params{
+	result := graphql.Do(context.Background(), graphql.Params{
 		Schema:        schema,
 		RequestString: `{ test { Str, Int } }`,
 	})
@@ -167,7 +167,7 @@ func TestExecutesResolveFunction_UsesProvidedResolveFunction_SourceIsStruct_With
 			"Int": 0,
 		},
 	}
-	result = graphql.Do(graphql.Params{
+	result = graphql.Do(context.Background(), graphql.Params{
 		Schema:        schema,
 		RequestString: `{ test(aStr: "String!") { Str, Int } }`,
 	})
@@ -181,7 +181,7 @@ func TestExecutesResolveFunction_UsesProvidedResolveFunction_SourceIsStruct_With
 			"Int": -123,
 		},
 	}
-	result = graphql.Do(graphql.Params{
+	result = graphql.Do(context.Background(), graphql.Params{
 		Schema:        schema,
 		RequestString: `{ test(aInt: -123, aStr: "String!") { Str, Int } }`,
 	})
@@ -212,7 +212,7 @@ func TestExecutesResolveFunction_UsesProvidedResolveFunction_SourceIsStruct_With
 			"aStr": &graphql.ArgumentConfig{Type: graphql.String},
 			"aInt": &graphql.ArgumentConfig{Type: graphql.Int},
 		},
-		Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+		Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
 			aStr, _ := p.Args["aStr"].(string)
 			aInt, _ := p.Args["aInt"].(int)
 			return &SubObjectWithJSONTags{
@@ -228,7 +228,7 @@ func TestExecutesResolveFunction_UsesProvidedResolveFunction_SourceIsStruct_With
 			"int": 0,
 		},
 	}
-	result := graphql.Do(graphql.Params{
+	result := graphql.Do(context.Background(), graphql.Params{
 		Schema:        schema,
 		RequestString: `{ test { str, int } }`,
 	})
@@ -243,7 +243,7 @@ func TestExecutesResolveFunction_UsesProvidedResolveFunction_SourceIsStruct_With
 			"int": 0,
 		},
 	}
-	result = graphql.Do(graphql.Params{
+	result = graphql.Do(context.Background(), graphql.Params{
 		Schema:        schema,
 		RequestString: `{ test(aStr: "String!") { str, int } }`,
 	})
@@ -257,7 +257,7 @@ func TestExecutesResolveFunction_UsesProvidedResolveFunction_SourceIsStruct_With
 			"int": -123,
 		},
 	}
-	result = graphql.Do(graphql.Params{
+	result = graphql.Do(context.Background(), graphql.Params{
 		Schema:        schema,
 		RequestString: `{ test(aInt: -123, aStr: "String!") { str, int } }`,
 	})

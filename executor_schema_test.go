@@ -1,6 +1,7 @@
 package graphql_test
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"testing"
@@ -106,7 +107,7 @@ func TestExecutesUsingAComplexSchema(t *testing.T) {
 						Type: graphql.Int,
 					},
 				},
-				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+				Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
 					if author, ok := p.Source.(*testAuthor); ok {
 						width := fmt.Sprintf("%v", p.Args["width"])
 						height := fmt.Sprintf("%v", p.Args["height"])
@@ -156,14 +157,14 @@ func TestExecutesUsingAComplexSchema(t *testing.T) {
 						Type: graphql.ID,
 					},
 				},
-				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+				Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
 					id := p.Args["id"]
 					return article(id), nil
 				},
 			},
 			"feed": &graphql.Field{
 				Type: graphql.NewList(blogArticle),
-				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+				Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
 					return []*testArticle{
 						article(1),
 						article(2),
@@ -305,7 +306,7 @@ func TestExecutesUsingAComplexSchema(t *testing.T) {
 		Schema: blogSchema,
 		AST:    ast,
 	}
-	result := testutil.TestExecute(t, ep)
+	result := testutil.TestExecute(t, context.Background(), ep)
 	if len(result.Errors) > 0 {
 		t.Fatalf("wrong result, unexpected errors: %v", result.Errors)
 	}
