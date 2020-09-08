@@ -1,13 +1,12 @@
 package graphql
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"regexp"
 	"sync"
 	"sync/atomic"
-
-	"context"
 
 	"github.com/sprucehealth/graphql/gqlerrors"
 	"github.com/sprucehealth/graphql/language/ast"
@@ -375,11 +374,6 @@ type IsTypeOfParams struct {
 
 	// Info is a collection of information about the current execution state.
 	Info ResolveInfo
-
-	// Context argument is a context value that is provided to every resolve function within an execution.
-	// It is commonly
-	// used to represent an authenticated user, or request-specific caches.
-	Context context.Context
 }
 
 type IsTypeOfFn func(p IsTypeOfParams) bool
@@ -592,14 +586,9 @@ type ResolveParams struct {
 
 	// Info is a collection of information about the current execution state.
 	Info ResolveInfo
-
-	// Context argument is a context value that is provided to every resolve function within an execution.
-	// It is commonly
-	// used to represent an authenticated user, or request-specific caches.
-	Context context.Context
 }
 
-type FieldResolveFn func(p ResolveParams) (interface{}, error)
+type FieldResolveFn func(ctx context.Context, p ResolveParams) (interface{}, error)
 
 type ResolveInfo struct {
 	FieldName      string
@@ -715,14 +704,9 @@ type ResolveTypeParams struct {
 
 	// Info is a collection of information about the current execution state.
 	Info ResolveInfo
-
-	// Context argument is a context value that is provided to every resolve function within an execution.
-	// It is commonly
-	// used to represent an authenticated user, or request-specific caches.
-	Context context.Context
 }
 
-type ResolveTypeFn func(p ResolveTypeParams) *Object
+type ResolveTypeFn func(ctx context.Context, p ResolveTypeParams) *Object
 
 func NewInterface(config InterfaceConfig) *Interface {
 	it := &Interface{

@@ -1,6 +1,7 @@
 package graphql_test
 
 import (
+	"context"
 	"reflect"
 	"testing"
 
@@ -40,7 +41,7 @@ var enumTypeTestQueryType = graphql.NewObject(graphql.ObjectConfig{
 					Type: graphql.String,
 				},
 			},
-			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+			Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
 				if fromInt, ok := p.Args["fromInt"]; ok {
 					return fromInt, nil
 				}
@@ -63,7 +64,7 @@ var enumTypeTestQueryType = graphql.NewObject(graphql.ObjectConfig{
 					Type: graphql.Int,
 				},
 			},
-			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+			Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
 				if fromInt, ok := p.Args["fromInt"]; ok {
 					return fromInt, nil
 				}
@@ -85,7 +86,7 @@ var enumTypeTestMutationType = graphql.NewObject(graphql.ObjectConfig{
 					Type: enumTypeTestColorType,
 				},
 			},
-			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+			Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
 				if color, ok := p.Args["color"]; ok {
 					return color, nil
 				}
@@ -105,7 +106,7 @@ var enumTypeTestSubscriptionType = graphql.NewObject(graphql.ObjectConfig{
 					Type: enumTypeTestColorType,
 				},
 			},
-			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+			Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
 				if color, ok := p.Args["color"]; ok {
 					return color, nil
 				}
@@ -122,14 +123,14 @@ var enumTypeTestSchema, _ = graphql.NewSchema(graphql.SchemaConfig{
 })
 
 func executeEnumTypeTest(query string) *graphql.Result {
-	return g(graphql.Params{
+	return graphql.Do(context.Background(), graphql.Params{
 		Schema:        enumTypeTestSchema,
 		RequestString: query,
 	})
 }
 
 func executeEnumTypeTestWithParams(query string, params map[string]interface{}) *graphql.Result {
-	return g(graphql.Params{
+	return graphql.Do(context.Background(), graphql.Params{
 		Schema:         enumTypeTestSchema,
 		RequestString:  query,
 		VariableValues: params,

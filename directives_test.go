@@ -1,6 +1,7 @@
 package graphql_test
 
 import (
+	"context"
 	"errors"
 	"reflect"
 	"testing"
@@ -37,7 +38,7 @@ func executeDirectivesTestQuery(t *testing.T, doc string) *graphql.Result {
 		AST:    ast,
 		Root:   directivesTestData,
 	}
-	return testutil.TestExecute(t, ep)
+	return testutil.TestExecute(t, context.Background(), ep)
 }
 
 func TestDirectives_DirectivesMustBeNamed(t *testing.T) {

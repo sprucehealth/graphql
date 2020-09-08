@@ -20,19 +20,9 @@ type ExecuteParams struct {
 	Args                  map[string]interface{}
 	DeprecatedFieldFn     func(ctx context.Context, parent *Object, fieldDef *FieldDefinition) error
 	DisallowIntrospection bool
-
-	// Context may be provided to pass application-specific per-request
-	// information to resolve functions.
-	Context context.Context
 }
 
-func Execute(p ExecuteParams) (result *Result) {
-	// Use background context if no context was provided
-	ctx := p.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
+func Execute(ctx context.Context, p ExecuteParams) (result *Result) {
 	resultChannel := make(chan *Result, 1)
 
 	go func(out chan<- *Result, done <-chan struct{}) {
@@ -47,7 +37,6 @@ func Execute(p ExecuteParams) (result *Result) {
 			Args:                  p.Args,
 			Errors:                nil,
 			Result:                result,
-			Context:               p.Context,
 			DeprecatedFieldFn:     p.DeprecatedFieldFn,
 			DisallowIntrospection: p.DisallowIntrospection,
 		})
@@ -73,7 +62,7 @@ func Execute(p ExecuteParams) (result *Result) {
 			}
 		}()
 
-		result = executeOperation(ExecuteOperationParams{
+		result = executeOperation(ctx, ExecuteOperationParams{
 			ExecutionContext: exeContext,
 			Root:             p.Root,
 			Operation:        exeContext.Operation,
@@ -98,10 +87,10 @@ type BuildExecutionCtxParams struct {
 	Args                  map[string]interface{}
 	Errors                []gqlerrors.FormattedError
 	Result                *Result
-	Context               context.Context
 	DeprecatedFieldFn     func(context.Context, *Object, *FieldDefinition) error
 	DisallowIntrospection bool
 }
+
 type ExecutionContext struct {
 	Schema                Schema
 	Fragments             map[string]*ast.FragmentDefinition
@@ -109,7 +98,6 @@ type ExecutionContext struct {
 	Operation             ast.Definition
 	VariableValues        map[string]interface{}
 	Errors                []gqlerrors.FormattedError
-	Context               context.Context
 	DeprecatedFieldFn     func(context.Context, *Object, *FieldDefinition) error
 	DisallowIntrospection bool
 }
@@ -153,18 +141,16 @@ func buildExecutionContext(p BuildExecutionCtxParams) (*ExecutionContext, error)
 		return nil, err
 	}
 
-	eCtx := &ExecutionContext{
+	return &ExecutionContext{
 		Schema:                p.Schema,
 		Fragments:             fragments,
 		Root:                  p.Root,
 		Operation:             operation,
 		VariableValues:        variableValues,
 		Errors:                p.Errors,
-		Context:               p.Context,
 		DeprecatedFieldFn:     p.DeprecatedFieldFn,
 		DisallowIntrospection: p.DisallowIntrospection,
-	}
-	return eCtx, nil
+	}, nil
 }
 
 type ExecuteOperationParams struct {
@@ -173,7 +159,7 @@ type ExecuteOperationParams struct {
 	Operation        ast.Definition
 }
 
-func executeOperation(p ExecuteOperationParams) *Result {
+func executeOperation(ctx context.Context, p ExecuteOperationParams) *Result {
 	operationType, err := getOperationRootType(p.ExecutionContext.Schema, p.Operation)
 	if err != nil {
 		return &Result{Errors: gqlerrors.FormatErrors(err)}
@@ -193,9 +179,9 @@ func executeOperation(p ExecuteOperationParams) *Result {
 	}
 
 	if p.Operation.GetOperation() == ast.OperationTypeMutation {
-		return executeFieldsSerially(executeFieldsParams)
+		return executeFieldsSerially(ctx, executeFieldsParams)
 	}
-	return executeFields(executeFieldsParams)
+	return executeFields(ctx, executeFieldsParams)
 }
 
 // Extracts the root type of the operation from the schema.
@@ -255,7 +241,7 @@ type ExecuteFieldsParams struct {
 }
 
 // Implements the "Evaluating selection sets" section of the spec for "write" mode.
-func executeFieldsSerially(p ExecuteFieldsParams) *Result {
+func executeFieldsSerially(ctx context.Context, p ExecuteFieldsParams) *Result {
 	if p.Source == nil {
 		p.Source = make(map[string]interface{})
 	}
@@ -265,7 +251,7 @@ func executeFieldsSerially(p ExecuteFieldsParams) *Result {
 
 	finalResults := make(map[string]interface{})
 	for responseName, fieldASTs := range p.Fields {
-		resolved, state := resolveField(p.ExecutionContext, p.ParentType, p.Source, fieldASTs)
+		resolved, state := resolveField(ctx, p.ExecutionContext, p.ParentType, p.Source, fieldASTs)
 		if state.hasNoFieldDefs {
 			continue
 		}
@@ -279,7 +265,7 @@ func executeFieldsSerially(p ExecuteFieldsParams) *Result {
 }
 
 // Implements the "Evaluating selection sets" section of the spec for "read" mode.
-func executeFields(p ExecuteFieldsParams) *Result {
+func executeFields(ctx context.Context, p ExecuteFieldsParams) *Result {
 	if p.Source == nil {
 		p.Source = make(map[string]interface{})
 	}
@@ -289,7 +275,7 @@ func executeFields(p ExecuteFieldsParams) *Result {
 
 	finalResults := make(map[string]interface{})
 	for responseName, fieldASTs := range p.Fields {
-		resolved, state := resolveField(p.ExecutionContext, p.ParentType, p.Source, fieldASTs)
+		resolved, state := resolveField(ctx, p.ExecutionContext, p.ParentType, p.Source, fieldASTs)
 		if state.hasNoFieldDefs {
 			continue
 		}
@@ -499,7 +485,7 @@ type resolveFieldResultState struct {
 // figures out the value that the field returns by calling its resolve function,
 // then calls completeValue to complete promises, serialize scalars, or execute
 // the sub-selection-set for objects.
-func resolveField(eCtx *ExecutionContext, parentType *Object, source interface{}, fieldASTs []*ast.Field) (result interface{}, resultState resolveFieldResultState) {
+func resolveField(ctx context.Context, eCtx *ExecutionContext, parentType *Object, source interface{}, fieldASTs []*ast.Field) (result interface{}, resultState resolveFieldResultState) {
 	// catch panic from resolveFn
 	var returnType Output
 	defer func() (interface{}, resolveFieldResultState) {
@@ -533,7 +519,7 @@ func resolveField(eCtx *ExecutionContext, parentType *Object, source interface{}
 	}
 
 	if fieldDef.DeprecationReason != "" && eCtx.DeprecatedFieldFn != nil {
-		if err := eCtx.DeprecatedFieldFn(eCtx.Context, parentType, fieldDef); err != nil {
+		if err := eCtx.DeprecatedFieldFn(ctx, parentType, fieldDef); err != nil {
 			panic(gqlerrors.FormatError(err))
 		}
 	}
@@ -563,22 +549,21 @@ func resolveField(eCtx *ExecutionContext, parentType *Object, source interface{}
 
 	var resolveFnError error
 
-	result, resolveFnError = resolveFn(ResolveParams{
-		Source:  source,
-		Args:    args,
-		Info:    info,
-		Context: eCtx.Context,
+	result, resolveFnError = resolveFn(ctx, ResolveParams{
+		Source: source,
+		Args:   args,
+		Info:   info,
 	})
 
 	if resolveFnError != nil {
 		panic(gqlerrors.FormatError(resolveFnError))
 	}
 
-	completed := completeValueCatchingError(eCtx, returnType, fieldASTs, info, result)
+	completed := completeValueCatchingError(ctx, eCtx, returnType, fieldASTs, info, result)
 	return completed, resultState
 }
 
-func completeValueCatchingError(eCtx *ExecutionContext, returnType Type, fieldASTs []*ast.Field, info ResolveInfo, result interface{}) (completed interface{}) {
+func completeValueCatchingError(ctx context.Context, eCtx *ExecutionContext, returnType Type, fieldASTs []*ast.Field, info ResolveInfo, result interface{}) (completed interface{}) {
 	// catch panic
 	defer func() interface{} {
 		if r := recover(); r != nil {
@@ -595,14 +580,14 @@ func completeValueCatchingError(eCtx *ExecutionContext, returnType Type, fieldAS
 	}()
 
 	if returnType, ok := returnType.(*NonNull); ok {
-		completed := completeValue(eCtx, returnType, fieldASTs, info, result)
+		completed := completeValue(ctx, eCtx, returnType, fieldASTs, info, result)
 		return completed
 	}
-	completed = completeValue(eCtx, returnType, fieldASTs, info, result)
+	completed = completeValue(ctx, eCtx, returnType, fieldASTs, info, result)
 	return completed
 }
 
-func completeValue(eCtx *ExecutionContext, returnType Type, fieldASTs []*ast.Field, info ResolveInfo, result interface{}) interface{} {
+func completeValue(ctx context.Context, eCtx *ExecutionContext, returnType Type, fieldASTs []*ast.Field, info ResolveInfo, result interface{}) interface{} {
 	resultVal := reflect.ValueOf(result)
 	if resultVal.IsValid() && resultVal.Type().Kind() == reflect.Func {
 		if propertyFn, ok := result.(func() interface{}); ok {
@@ -614,7 +599,7 @@ func completeValue(eCtx *ExecutionContext, returnType Type, fieldASTs []*ast.Fie
 	// If field type is NonNull, complete for inner type, and throw field error
 	// if result is null.
 	if returnType, ok := returnType.(*NonNull); ok {
-		completed := completeValue(eCtx, returnType.OfType, fieldASTs, info, result)
+		completed := completeValue(ctx, eCtx, returnType.OfType, fieldASTs, info, result)
 		if completed == nil {
 			err := NewLocatedError(
 				fmt.Sprintf("Cannot return null for non-nullable field %v.%v.", info.ParentType, info.FieldName),
@@ -632,7 +617,7 @@ func completeValue(eCtx *ExecutionContext, returnType Type, fieldASTs []*ast.Fie
 
 	// If field type is List, complete each item in the list with the inner type
 	if returnType, ok := returnType.(*List); ok {
-		return completeListValue(eCtx, returnType, fieldASTs, info, result)
+		return completeListValue(ctx, eCtx, returnType, fieldASTs, info, result)
 	}
 
 	// If field type is a leaf type, Scalar or Enum, serialize to a valid value,
@@ -647,15 +632,15 @@ func completeValue(eCtx *ExecutionContext, returnType Type, fieldASTs []*ast.Fie
 	// If field type is an abstract type, Interface or Union, determine the
 	// runtime Object type and complete for that type.
 	if returnType, ok := returnType.(*Union); ok {
-		return completeAbstractValue(eCtx, returnType, fieldASTs, info, result)
+		return completeAbstractValue(ctx, eCtx, returnType, fieldASTs, info, result)
 	}
 	if returnType, ok := returnType.(*Interface); ok {
-		return completeAbstractValue(eCtx, returnType, fieldASTs, info, result)
+		return completeAbstractValue(ctx, eCtx, returnType, fieldASTs, info, result)
 	}
 
 	// If field type is Object, execute and complete all sub-selections.
 	if returnType, ok := returnType.(*Object); ok {
-		return completeObjectValue(eCtx, returnType, fieldASTs, info, result)
+		return completeObjectValue(ctx, eCtx, returnType, fieldASTs, info, result)
 	}
 
 	// Not reachable. All possible output types have been considered.
@@ -664,18 +649,17 @@ func completeValue(eCtx *ExecutionContext, returnType Type, fieldASTs []*ast.Fie
 
 // completeAbstractValue completes value of an Abstract type (Union / Interface) by determining the runtime type
 // of that value, then completing based on that type.
-func completeAbstractValue(eCtx *ExecutionContext, returnType Abstract, fieldASTs []*ast.Field, info ResolveInfo, result interface{}) interface{} {
+func completeAbstractValue(ctx context.Context, eCtx *ExecutionContext, returnType Abstract, fieldASTs []*ast.Field, info ResolveInfo, result interface{}) interface{} {
 	var runtimeType *Object
 
 	resolveTypeParams := ResolveTypeParams{
-		Value:   result,
-		Info:    info,
-		Context: eCtx.Context,
+		Value: result,
+		Info:  info,
 	}
 	if unionReturnType, ok := returnType.(*Union); ok && unionReturnType.ResolveType != nil {
-		runtimeType = unionReturnType.ResolveType(resolveTypeParams)
+		runtimeType = unionReturnType.ResolveType(ctx, resolveTypeParams)
 	} else if interfaceReturnType, ok := returnType.(*Interface); ok && interfaceReturnType.ResolveType != nil {
-		runtimeType = interfaceReturnType.ResolveType(resolveTypeParams)
+		runtimeType = interfaceReturnType.ResolveType(ctx, resolveTypeParams)
 	} else {
 		runtimeType = defaultResolveTypeFn(resolveTypeParams, returnType)
 	}
@@ -694,20 +678,18 @@ func completeAbstractValue(eCtx *ExecutionContext, returnType Abstract, fieldAST
 		))
 	}
 
-	return completeObjectValue(eCtx, runtimeType, fieldASTs, info, result)
+	return completeObjectValue(ctx, eCtx, runtimeType, fieldASTs, info, result)
 }
 
 // completeObjectValue complete an Object value by executing all sub-selections.
-func completeObjectValue(eCtx *ExecutionContext, returnType *Object, fieldASTs []*ast.Field, info ResolveInfo, result interface{}) interface{} {
-
+func completeObjectValue(ctx context.Context, eCtx *ExecutionContext, returnType *Object, fieldASTs []*ast.Field, info ResolveInfo, result interface{}) interface{} {
 	// If there is an isTypeOf predicate function, call it with the
 	// current result. If isTypeOf returns false, then raise an error rather
 	// than continuing execution.
 	if returnType.IsTypeOf != nil {
 		p := IsTypeOfParams{
-			Value:   result,
-			Info:    info,
-			Context: eCtx.Context,
+			Value: result,
+			Info:  info,
 		}
 		if !returnType.IsTypeOf(p) {
 			panic(gqlerrors.NewFormattedError(
@@ -741,7 +723,7 @@ func completeObjectValue(eCtx *ExecutionContext, returnType *Object, fieldASTs [
 		Source:           result,
 		Fields:           subFieldASTs,
 	}
-	results := executeFields(executeFieldsParams)
+	results := executeFields(ctx, executeFieldsParams)
 
 	return results.Data
 
@@ -757,7 +739,7 @@ func completeLeafValue(returnType Leaf, result interface{}) interface{} {
 }
 
 // completeListValue complete a list value by completing each item in the list with the inner type
-func completeListValue(eCtx *ExecutionContext, returnType *List, fieldASTs []*ast.Field, info ResolveInfo, result interface{}) interface{} {
+func completeListValue(ctx context.Context, eCtx *ExecutionContext, returnType *List, fieldASTs []*ast.Field, info ResolveInfo, result interface{}) interface{} {
 	resultVal := reflect.ValueOf(result)
 	parentTypeName := ""
 	if info.ParentType != nil {
@@ -771,7 +753,7 @@ func completeListValue(eCtx *ExecutionContext, returnType *List, fieldASTs []*as
 	completedResults := make([]interface{}, 0, resultVal.Len())
 	for i := 0; i < resultVal.Len(); i++ {
 		val := resultVal.Index(i).Interface()
-		completedItem := completeValueCatchingError(eCtx, itemType, fieldASTs, info, val)
+		completedItem := completeValueCatchingError(ctx, eCtx, itemType, fieldASTs, info, val)
 		completedResults = append(completedResults, completedItem)
 	}
 	return completedResults
@@ -850,7 +832,7 @@ func defaultResolveTypeFn(p ResolveTypeParams, abstractType Abstract) *Object {
 // which takes the property of the source object of the same name as the field
 // and returns it as the result, or if it's a function, returns the result
 // of calling that function.
-func defaultResolveFn(p ResolveParams) (interface{}, error) {
+func defaultResolveFn(ctx context.Context, p ResolveParams) (interface{}, error) {
 	// try p.Source as a map[string]interface
 	if sourceMap, ok := p.Source.(map[string]interface{}); ok {
 		property := sourceMap[p.Info.FieldName]

@@ -1,6 +1,7 @@
 package graphql_test
 
 import (
+	"context"
 	"reflect"
 	"testing"
 
@@ -25,7 +26,7 @@ func checkList(t *testing.T, testType graphql.Type, testData interface{}, expect
 	})
 	dataType.AddFieldConfig("nest", &graphql.Field{
 		Type: dataType,
-		Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+		Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
 			return data, nil
 		},
 	})
@@ -46,7 +47,7 @@ func checkList(t *testing.T, testType graphql.Type, testData interface{}, expect
 		AST:    ast,
 		Root:   data,
 	}
-	result := testutil.TestExecute(t, ep)
+	result := testutil.TestExecute(t, context.Background(), ep)
 	if len(expected.Errors) != len(result.Errors) {
 		t.Fatalf("wrong result, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}

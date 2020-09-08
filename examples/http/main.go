@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -56,7 +57,7 @@ var queryType = graphql.NewObject(
 						Type: graphql.String,
 					},
 				},
-				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+				Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
 					idQuery, isOK := p.Args["id"].(string)
 					if isOK {
 						return data[idQuery], nil
@@ -73,8 +74,8 @@ var schema, _ = graphql.NewSchema(
 	},
 )
 
-func executeQuery(query string, schema graphql.Schema) *graphql.Result {
-	result := graphql.Do(graphql.Params{
+func executeQuery(ctx context.Context, query string, schema graphql.Schema) *graphql.Result {
+	result := graphql.Do(ctx, graphql.Params{
 		Schema:        schema,
 		RequestString: query,
 	})
@@ -88,13 +89,13 @@ func main() {
 	_ = importJSONDataFromFile("data.json", &data)
 
 	http.HandleFunc("/graphql", func(w http.ResponseWriter, r *http.Request) {
-		result := executeQuery(r.URL.Query()["query"][0], schema)
-		json.NewEncoder(w).Encode(result)
+		result := executeQuery(r.Context(), r.URL.Query()["query"][0], schema)
+		_ = json.NewEncoder(w).Encode(result)
 	})
 
 	fmt.Println("Now server is running on port 8080")
 	fmt.Println("Test with Get      : curl -g 'http://localhost:8080/graphql?query={user(id:\"1\"){name}}'")
-	http.ListenAndServe(":8080", nil)
+	_ = http.ListenAndServe(":8080", nil)
 }
 
 //Helper function to import json from file to map

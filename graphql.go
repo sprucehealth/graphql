@@ -28,13 +28,9 @@ type Params struct {
 	// possible operations. Can be omitted if requestString contains only
 	// one operation.
 	OperationName string
-
-	// Context may be provided to pass application-specific per-request
-	// information to resolve functions.
-	Context context.Context
 }
 
-func Do(p Params) *Result {
+func Do(ctx context.Context, p Params) *Result {
 	source := source.New("GraphQL request", p.RequestString)
 	ast, err := parser.Parse(parser.ParseParams{Source: source})
 	if err != nil {
@@ -50,13 +46,12 @@ func Do(p Params) *Result {
 		}
 	}
 
-	return Execute(ExecuteParams{
+	return Execute(ctx, ExecuteParams{
 		Schema:        p.Schema,
 		Root:          p.RootObject,
 		AST:           ast,
 		OperationName: p.OperationName,
 		Args:          p.VariableValues,
-		Context:       p.Context,
 	})
 }
 

@@ -856,10 +856,10 @@ func (g *generator) renderFieldDefinition(objName string, def *ast.FieldDefiniti
 			assertionType = "map[string]interface{}"
 		}
 		lines = append(lines,
-			fmt.Sprintf("%s\tResolve: func(p graphql.ResolveParams) (interface{}, error) {", indent),
+			fmt.Sprintf("%s\tResolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {", indent),
 			fmt.Sprintf("%s\t\tr := p.Info.RootValue.(map[string]interface{})[%s].(%s)", indent, goObjName+"ResolversKey", goObjName+"Resolvers"))
 		if len(def.Arguments) == 0 {
-			lines = append(lines, fmt.Sprintf("%s\t\treturn r.%s(p.Context, p.Source.(%s), p)", indent, goFieldName, assertionType))
+			lines = append(lines, fmt.Sprintf("%s\t\treturn r.%s(ctx, p.Source.(%s), p)", indent, goFieldName, assertionType))
 		} else {
 			lines = append(lines,
 				fmt.Sprintf("%s\t\tvar args %s%sArgs", indent, goObjName, goFieldName),
@@ -875,7 +875,7 @@ func (g *generator) renderFieldDefinition(objName string, def *ast.FieldDefiniti
 				fmt.Sprintf("%s\t\t\t}", indent),
 				fmt.Sprintf("%s\t\t\treturn nil, err", indent),
 				fmt.Sprintf("%s\t\t}", indent),
-				fmt.Sprintf("%s\t\treturn r.%s(p.Context, p.Source.(%s), &args, p)", indent, goFieldName, assertionType))
+				fmt.Sprintf("%s\t\treturn r.%s(ctx, p.Source.(%s), &args, p)", indent, goFieldName, assertionType))
 		}
 		lines = append(lines, fmt.Sprintf("%s\t},", indent))
 	}

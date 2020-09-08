@@ -1,6 +1,7 @@
 package graphql_test
 
 import (
+	"context"
 	"reflect"
 	"testing"
 
@@ -66,7 +67,7 @@ var mutationsTestSchema, _ = graphql.NewSchema(graphql.SchemaConfig{
 						Type: graphql.Int,
 					},
 				},
-				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+				Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
 					newNumber := 0
 					obj, _ := p.Source.(*testRoot)
 					newNumber, _ = p.Args["newNumber"].(int)
@@ -80,7 +81,7 @@ var mutationsTestSchema, _ = graphql.NewSchema(graphql.SchemaConfig{
 						Type: graphql.Int,
 					},
 				},
-				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+				Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
 					newNumber := 0
 					obj, _ := p.Source.(*testRoot)
 					newNumber, _ = p.Args["newNumber"].(int)
@@ -94,7 +95,7 @@ var mutationsTestSchema, _ = graphql.NewSchema(graphql.SchemaConfig{
 						Type: graphql.Int,
 					},
 				},
-				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+				Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
 					newNumber := 0
 					obj, _ := p.Source.(*testRoot)
 					newNumber, _ = p.Args["newNumber"].(int)
@@ -108,7 +109,7 @@ var mutationsTestSchema, _ = graphql.NewSchema(graphql.SchemaConfig{
 						Type: graphql.Int,
 					},
 				},
-				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+				Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
 					newNumber := 0
 					obj, _ := p.Source.(*testRoot)
 					newNumber, _ = p.Args["newNumber"].(int)
@@ -168,7 +169,7 @@ func TestMutations_ExecutionOrdering_EvaluatesMutationsSerially(t *testing.T) {
 		AST:    ast,
 		Root:   root,
 	}
-	result := testutil.TestExecute(t, ep)
+	result := testutil.TestExecute(t, context.Background(), ep)
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
@@ -241,7 +242,7 @@ func TestMutations_EvaluatesMutationsCorrectlyInThePresenceOfAFailedMutation(t *
 		AST:    ast,
 		Root:   root,
 	}
-	result := testutil.TestExecute(t, ep)
+	result := testutil.TestExecute(t, context.Background(), ep)
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
