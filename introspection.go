@@ -294,7 +294,11 @@ func init() {
 				Type: NewNonNull(NewList(NewNonNull(InputValueType))),
 				Resolve: func(ctx context.Context, p ResolveParams) (interface{}, error) {
 					if field, ok := p.Source.(*FieldDefinition); ok {
-						return field.Args, nil
+						args := append([]*Argument(nil), field.Args...)
+						sort.Slice(args, func(i, j int) bool {
+							return args[i].Name() < args[j].Name()
+						})
+						return args, nil
 					}
 					return []interface{}{}, nil
 				},
@@ -306,7 +310,7 @@ func init() {
 				Type: NewNonNull(Boolean),
 				Resolve: func(ctx context.Context, p ResolveParams) (interface{}, error) {
 					if field, ok := p.Source.(*FieldDefinition); ok {
-						return (field.DeprecationReason != ""), nil
+						return field.DeprecationReason != "", nil
 					}
 					return false, nil
 				},
@@ -494,7 +498,7 @@ func init() {
 				Type: NewNonNull(Boolean),
 				Resolve: func(ctx context.Context, p ResolveParams) (interface{}, error) {
 					if field, ok := p.Source.(*EnumValueDefinition); ok {
-						return (field.DeprecationReason != ""), nil
+						return field.DeprecationReason != "", nil
 					}
 					return false, nil
 				},
