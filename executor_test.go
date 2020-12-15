@@ -12,6 +12,8 @@ import (
 	"github.com/sprucehealth/graphql"
 	"github.com/sprucehealth/graphql/gqlerrors"
 	"github.com/sprucehealth/graphql/language/location"
+	"github.com/sprucehealth/graphql/language/parser"
+	"github.com/sprucehealth/graphql/language/source"
 	"github.com/sprucehealth/graphql/testutil"
 )
 
@@ -1874,6 +1876,89 @@ func TestContextDeadline(t *testing.T) {
 	result.Errors[0].OriginalError = nil
 	if !reflect.DeepEqual(expectedErrors, result.Errors) {
 		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expectedErrors, result.Errors))
+	}
+}
+
+func TestContextDeadlineWait(t *testing.T) {
+	timeout := time.Millisecond * time.Duration(100)
+	acceptableDelay := time.Millisecond * time.Duration(10)
+	expectedErrors := []gqlerrors.FormattedError{
+		{
+			Message:   context.DeadlineExceeded.Error(),
+			Locations: []location.SourceLocation{},
+			Type:      "INTERNAL",
+		},
+	}
+
+	// Query type includes a field that won't resolve within the deadline
+	var queryType = graphql.NewObject(
+		graphql.ObjectConfig{
+			Name: "Query",
+			Fields: graphql.Fields{
+				"hello": &graphql.Field{
+					Type: graphql.String,
+					Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
+						<-ctx.Done()
+						return nil, fmt.Errorf("Resolvers: %s", ctx.Err())
+					},
+				},
+			},
+		})
+	schema, err := graphql.NewSchema(graphql.SchemaConfig{
+		Query: queryType,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error, got: %v", err)
+	}
+
+	// 0 timeout wait
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	startTime := time.Now()
+	result := graphql.Do(ctx, graphql.Params{
+		Schema:        schema,
+		RequestString: "{hello}",
+	})
+	duration := time.Since(startTime)
+
+	if duration > timeout+acceptableDelay {
+		t.Fatalf("graphql.Do completed in %s, should have completed in %s", duration, timeout)
+	}
+	if !result.HasErrors() || len(result.Errors) == 0 {
+		t.Fatalf("Result should include errors when deadline is exceeded")
+	}
+	result.Errors[0].OriginalError = nil
+	if !reflect.DeepEqual(expectedErrors, result.Errors) {
+		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expectedErrors, result.Errors))
+	}
+
+	// >0 second timeout wait
+
+	ctx, cancel = context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	startTime = time.Now()
+	ast, err := parser.Parse(parser.ParseParams{Source: source.New("GraphQL request", "{hello}")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result = graphql.Execute(ctx, graphql.ExecuteParams{
+		Schema:      schema,
+		AST:         ast,
+		TimeoutWait: time.Second,
+	})
+	duration = time.Since(startTime)
+
+	if duration > timeout+acceptableDelay {
+		t.Fatalf("graphql.Do completed in %s, should have completed in %s", duration, timeout)
+	}
+	if !result.HasErrors() || len(result.Errors) == 0 {
+		t.Fatalf("Result should include errors when deadline is exceeded")
+	}
+	if result.Errors[0].Error() != "Resolvers: context deadline exceeded" {
+		t.Fatalf("Unexpected 'Resolvers: context deadline exceeded' got '%s'", result.Errors[0].Error())
 	}
 }
 
