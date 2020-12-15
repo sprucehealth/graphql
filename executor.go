@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/sprucehealth/graphql/gqlerrors"
 	"github.com/sprucehealth/graphql/language/ast"
@@ -20,13 +21,15 @@ type ExecuteParams struct {
 	Args                  map[string]interface{}
 	DeprecatedFieldFn     func(ctx context.Context, parent *Object, fieldDef *FieldDefinition) error
 	DisallowIntrospection bool
+	// TimeoutWait is the amount of time to allow for resolvers to handle
+	// a context deadline error before the executor does.
+	TimeoutWait time.Duration
 }
 
-func Execute(ctx context.Context, p ExecuteParams) (result *Result) {
+func Execute(ctx context.Context, p ExecuteParams) *Result {
 	resultChannel := make(chan *Result, 1)
 
 	go func(out chan<- *Result, done <-chan struct{}) {
-
 		result := &Result{}
 
 		exeContext, err := buildExecutionContext(BuildExecutionCtxParams{
@@ -43,10 +46,7 @@ func Execute(ctx context.Context, p ExecuteParams) (result *Result) {
 
 		if err != nil {
 			result.Errors = append(result.Errors, gqlerrors.FormatError(err))
-			select {
-			case out <- result:
-			case <-done:
-			}
+			out <- result
 			return
 		}
 
@@ -56,10 +56,7 @@ func Execute(ctx context.Context, p ExecuteParams) (result *Result) {
 				exeContext.Errors = append(exeContext.Errors, gqlerrors.FormatError(err))
 				result.Errors = exeContext.Errors
 			}
-			select {
-			case out <- result:
-			case <-done:
-			}
+			out <- result
 		}()
 
 		result = executeOperation(ctx, ExecuteOperationParams{
@@ -69,14 +66,25 @@ func Execute(ctx context.Context, p ExecuteParams) (result *Result) {
 		})
 	}(resultChannel, ctx.Done())
 
+	var result *Result
 	select {
-	case <-ctx.Done():
-		result = &Result{}
-		result.Errors = append(result.Errors, gqlerrors.FormatError(ctx.Err()))
 	case r := <-resultChannel:
 		result = r
+	case <-ctx.Done():
+		err := ctx.Err()
+		if errors.Is(err, context.DeadlineExceeded) && p.TimeoutWait != 0 {
+			select {
+			case r := <-resultChannel:
+				result = r
+			case <-time.After(p.TimeoutWait):
+			}
+		}
+		if result == nil {
+			result = &Result{}
+			result.Errors = append(result.Errors, gqlerrors.FormatError(err))
+		}
 	}
-	return
+	return result
 }
 
 type BuildExecutionCtxParams struct {
