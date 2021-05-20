@@ -7,7 +7,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"regexp"
@@ -67,13 +66,13 @@ func main() {
 	var schema []byte
 	if *flagSchemaFile != "" {
 		var err error
-		schema, err = ioutil.ReadFile(*flagSchemaFile)
+		schema, err = os.ReadFile(*flagSchemaFile)
 		if err != nil {
 			log.Fatalf("Failed to read schema file %q: %s", *flagSchemaFile, err)
 		}
 	} else {
 		var err error
-		schema, err = ioutil.ReadAll(os.Stdin)
+		schema, err = io.ReadAll(os.Stdin)
 		if err != nil {
 			log.Fatalf("Failed to read schema from stdin: %s", err)
 		}
@@ -247,7 +246,7 @@ func newGenerator(outWriter io.Writer, root *ast.Document) *generator {
 		cycleBreaks:  make(map[string]map[string]struct{}),
 	}
 	if *flagConfigFile != "" {
-		b, err := ioutil.ReadFile(*flagConfigFile)
+		b, err := os.ReadFile(*flagConfigFile)
 		if err != nil {
 			log.Fatalf("Failed to read config file: %s", err)
 		}

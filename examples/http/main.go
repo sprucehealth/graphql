@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
+	"os"
 
 	"github.com/sprucehealth/graphql"
 )
@@ -101,7 +101,7 @@ func main() {
 //Helper function to import json from file to map
 func importJSONDataFromFile(fileName string, result interface{}) (isOK bool) {
 	isOK = true
-	content, err := ioutil.ReadFile(fileName)
+	content, err := os.ReadFile(fileName)
 	if err != nil {
 		fmt.Print("Error:", err)
 		isOK = false

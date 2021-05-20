@@ -1,7 +1,7 @@
 package visitor_test
 
 import (
-	"io/ioutil"
+	"os"
 	"reflect"
 	"testing"
 
@@ -142,7 +142,7 @@ func TestVisitor_AllowsEarlyExitWhileVisiting(t *testing.T) {
 func TestVisitor_VisitsKitchenSink(t *testing.T) {
 	t.Skip("This test seems bad")
 
-	b, err := ioutil.ReadFile("../../kitchen-sink.graphql")
+	b, err := os.ReadFile("../../kitchen-sink.graphql")
 	if err != nil {
 		t.Fatalf("unable to load kitchen-sink.graphql")
 	}

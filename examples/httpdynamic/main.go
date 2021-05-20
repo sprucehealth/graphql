@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/signal"
@@ -60,7 +59,7 @@ func executeQuery(ctx context.Context, query string, schema graphql.Schema) *gra
 }
 
 func importJSONDataFromFile(fileName string) error {
-	content, err := ioutil.ReadFile(fileName)
+	content, err := os.ReadFile(fileName)
 	if err != nil {
 		return err
 	}

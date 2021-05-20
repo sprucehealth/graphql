@@ -1,7 +1,7 @@
 package printer_test
 
 import (
-	"io/ioutil"
+	"os"
 	"reflect"
 	"testing"
 
@@ -23,7 +23,7 @@ func parse(t testing.TB, query string) *ast.Document {
 }
 
 func TestDoesNotAlterAST(t *testing.T) {
-	b, err := ioutil.ReadFile("../../kitchen-sink.graphql")
+	b, err := os.ReadFile("../../kitchen-sink.graphql")
 	if err != nil {
 		t.Fatalf("unable to load kitchen-sink.graphql")
 	}
@@ -112,7 +112,7 @@ func TestPrinter_CorrectlyPrintsNonQueryOperationsWithoutName(t *testing.T) {
 }
 
 func TestPrintsKitchenSink(t *testing.T) {
-	b, err := ioutil.ReadFile("../../kitchen-sink.graphql")
+	b, err := os.ReadFile("../../kitchen-sink.graphql")
 	if err != nil {
 		t.Fatalf("unable to load kitchen-sink.graphql")
 	}
@@ -250,7 +250,7 @@ input SomeInput {
 }
 
 func BenchmarkPrint(b *testing.B) {
-	buf, err := ioutil.ReadFile("../../kitchen-sink.graphql")
+	buf, err := os.ReadFile("../../kitchen-sink.graphql")
 	if err != nil {
 		b.Fatalf("unable to load kitchen-sink.graphql: %s", err)
 	}

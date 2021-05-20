@@ -262,7 +262,7 @@ func genClientDo(g *generator) {
 				return 0, err
 			}
 			defer resp.Body.Close()
-			ball, err := ioutil.ReadAll(resp.Body)
+			ball, err := io.ReadAll(resp.Body)
 			if err != nil {
 				return resp.StatusCode, fmt.Errorf("Error reading body - in response from %v: %s", req.URL.String(), err)
 			}
