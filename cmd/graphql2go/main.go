@@ -52,11 +52,12 @@ var initialisms = map[string]string{
 }
 
 type config struct {
-	Resolvers         map[string][]string          // type -> fields
-	CustomFieldTypes  map[string]string            // Type.Field -> go type
-	ExtraFields       map[string]map[string]string // type -> field -> go type
-	Initialisms       map[string]string
-	CustomScalarTypes map[string]string // Type.Field -> go type
+	Resolvers          map[string][]string          // type -> fields
+	CustomFieldTypes   map[string]string            // Type.Field -> go type
+	ExtraFields        map[string]map[string]string // type -> field -> go type
+	Initialisms        map[string]string
+	CustomScalarTypes  map[string]string // Type.Field -> go type
+	NullableInputTypes map[string]bool
 }
 
 func main() {
@@ -934,7 +935,7 @@ func (g *generator) genInputModel(def *ast.InputObjectDefinition) {
 	g.printf("type %s struct {\n", exportedName(def.Name.Value))
 	for _, f := range def.Fields {
 		iType := g.goType(f.Type, def.Name.Value+"."+f.Name.Value)
-		if *flagNullableInputs {
+		if n, ok := g.cfg.NullableInputTypes[def.Name.Value]; (ok && n) || (!ok && *flagNullableInputs) {
 			iType = g.goInputType(f.Type, def.Name.Value+"."+f.Name.Value, true)
 		}
 		g.printf("\t%s %s `gql:%q json:%q`\n", exportedName(f.Name.Value), iType, f.Name.Value, f.Name.Value)
