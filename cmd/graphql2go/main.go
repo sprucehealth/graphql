@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
@@ -27,6 +28,7 @@ var (
 	flagOutFile        = flag.String("out", "", "Path to output file (stdout if not set)")
 	flagSchemaFile     = flag.String("schema", "", "Path to schema file (stdin if not set)")
 	flagNullableInputs = flag.Bool("nullable_inputs", false, "Flag to determine if nullable inputs should be serialized into pointers")
+	flagVerbose        = flag.Bool("v", false, "Verbose output")
 )
 
 var initialisms = map[string]string{
@@ -66,10 +68,26 @@ func main() {
 
 	var schema []byte
 	if *flagSchemaFile != "" {
-		var err error
-		schema, err = os.ReadFile(*flagSchemaFile)
-		if err != nil {
-			log.Fatalf("Failed to read schema file %q: %s", *flagSchemaFile, err)
+		var paths []string
+		if strings.Contains(*flagSchemaFile, "*") {
+			var err error
+			paths, err = filepath.Glob(*flagSchemaFile)
+			if err != nil {
+				log.Fatalf("Failed to glob %q: %s", *flagSchemaFile, err)
+			}
+		} else {
+			paths = strings.Split(*flagSchemaFile, " ")
+		}
+		for _, p := range paths {
+			p = strings.TrimSpace(p)
+			b, err := os.ReadFile(p)
+			if err != nil {
+				log.Fatalf("Failed to read schema file %q: %s", p, err)
+			}
+			if len(schema) != 0 && schema[len(schema)-1] != '\n' {
+				schema = append(schema, '\n')
+			}
+			schema = append(schema, b...)
 		}
 	} else {
 		var err error
@@ -315,7 +333,9 @@ func newGenerator(outWriter io.Writer, root *ast.Document) *generator {
 		} else {
 			g.cycleBreaks[name] = pathMap
 		}
-		log.Printf("Cycle: %s [breaking with %s]\n", strings.Join(path, " → "), name)
+		if *flagVerbose {
+			log.Printf("Cycle: %s [breaking with %s]\n", strings.Join(path, " → "), name)
+		}
 	}
 
 	if g.cfg.Resolvers == nil {
