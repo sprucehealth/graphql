@@ -14,13 +14,15 @@ import (
 )
 
 type ExecuteParams struct {
-	Schema                Schema
-	Root                  interface{}
-	AST                   *ast.Document
-	OperationName         string
-	Args                  map[string]interface{}
-	DeprecatedFieldFn     func(ctx context.Context, parent *Object, fieldDef *FieldDefinition) error
-	DisallowIntrospection bool
+	Schema            Schema
+	Root              interface{}
+	AST               *ast.Document
+	OperationName     string
+	Args              map[string]interface{}
+	DeprecatedFieldFn func(ctx context.Context, parent *Object, fieldDef *FieldDefinition) error
+	// TODO: Abstract this to possibly handle more types
+	FieldDefinitionDirectiveHandler func(context.Context, *ast.Directive, *FieldDefinition) error
+	DisallowIntrospection           bool
 	// TimeoutWait is the amount of time to allow for resolvers to handle
 	// a context deadline error before the executor does.
 	TimeoutWait time.Duration
@@ -33,15 +35,16 @@ func Execute(ctx context.Context, p ExecuteParams) *Result {
 		result := &Result{}
 
 		exeContext, err := buildExecutionContext(BuildExecutionCtxParams{
-			Schema:                p.Schema,
-			Root:                  p.Root,
-			AST:                   p.AST,
-			OperationName:         p.OperationName,
-			Args:                  p.Args,
-			Errors:                nil,
-			Result:                result,
-			DeprecatedFieldFn:     p.DeprecatedFieldFn,
-			DisallowIntrospection: p.DisallowIntrospection,
+			Schema:                          p.Schema,
+			Root:                            p.Root,
+			AST:                             p.AST,
+			OperationName:                   p.OperationName,
+			Args:                            p.Args,
+			Errors:                          nil,
+			Result:                          result,
+			DeprecatedFieldFn:               p.DeprecatedFieldFn,
+			FieldDefinitionDirectiveHandler: p.FieldDefinitionDirectiveHandler,
+			DisallowIntrospection:           p.DisallowIntrospection,
 		})
 
 		if err != nil {
@@ -88,26 +91,30 @@ func Execute(ctx context.Context, p ExecuteParams) *Result {
 }
 
 type BuildExecutionCtxParams struct {
-	Schema                Schema
-	Root                  interface{}
-	AST                   *ast.Document
-	OperationName         string
-	Args                  map[string]interface{}
-	Errors                []gqlerrors.FormattedError
-	Result                *Result
-	DeprecatedFieldFn     func(context.Context, *Object, *FieldDefinition) error
-	DisallowIntrospection bool
+	Schema            Schema
+	Root              interface{}
+	AST               *ast.Document
+	OperationName     string
+	Args              map[string]interface{}
+	Errors            []gqlerrors.FormattedError
+	Result            *Result
+	DeprecatedFieldFn func(context.Context, *Object, *FieldDefinition) error
+	// TODO: Abstract this to possibly handle more types
+	FieldDefinitionDirectiveHandler func(context.Context, *ast.Directive, *FieldDefinition) error
+	DisallowIntrospection           bool
 }
 
 type ExecutionContext struct {
-	Schema                Schema
-	Fragments             map[string]*ast.FragmentDefinition
-	Root                  interface{}
-	Operation             ast.Definition
-	VariableValues        map[string]interface{}
-	Errors                []gqlerrors.FormattedError
-	DeprecatedFieldFn     func(context.Context, *Object, *FieldDefinition) error
-	DisallowIntrospection bool
+	Schema            Schema
+	Fragments         map[string]*ast.FragmentDefinition
+	Root              interface{}
+	Operation         ast.Definition
+	VariableValues    map[string]interface{}
+	Errors            []gqlerrors.FormattedError
+	DeprecatedFieldFn func(context.Context, *Object, *FieldDefinition) error
+	// TODO: Abstract this to possibly handle more types
+	FieldDefinitionDirectiveHandler func(context.Context, *ast.Directive, *FieldDefinition) error
+	DisallowIntrospection           bool
 }
 
 func safeNodeType(n ast.Node) string {
@@ -150,14 +157,15 @@ func buildExecutionContext(p BuildExecutionCtxParams) (*ExecutionContext, error)
 	}
 
 	return &ExecutionContext{
-		Schema:                p.Schema,
-		Fragments:             fragments,
-		Root:                  p.Root,
-		Operation:             operation,
-		VariableValues:        variableValues,
-		Errors:                p.Errors,
-		DeprecatedFieldFn:     p.DeprecatedFieldFn,
-		DisallowIntrospection: p.DisallowIntrospection,
+		Schema:                          p.Schema,
+		Fragments:                       fragments,
+		Root:                            p.Root,
+		Operation:                       operation,
+		VariableValues:                  variableValues,
+		Errors:                          p.Errors,
+		DeprecatedFieldFn:               p.DeprecatedFieldFn,
+		FieldDefinitionDirectiveHandler: p.FieldDefinitionDirectiveHandler,
+		DisallowIntrospection:           p.DisallowIntrospection,
 	}, nil
 }
 
@@ -329,7 +337,6 @@ func collectFields(p CollectFieldsParams) map[string][]*ast.Field {
 			name := getFieldEntryKey(selection)
 			fields[name] = append(fields[name], selection)
 		case *ast.InlineFragment:
-
 			if !shouldIncludeNode(p.ExeContext, selection.Directives) ||
 				!doesFragmentConditionMatch(p.ExeContext, selection, p.RuntimeType) {
 				continue
@@ -529,6 +536,14 @@ func resolveField(ctx context.Context, eCtx *ExecutionContext, parentType *Objec
 	if fieldDef.DeprecationReason != "" && eCtx.DeprecatedFieldFn != nil {
 		if err := eCtx.DeprecatedFieldFn(ctx, parentType, fieldDef); err != nil {
 			panic(gqlerrors.FormatError(err))
+		}
+	}
+
+	if len(fieldDef.Directives) != 0 && eCtx.FieldDefinitionDirectiveHandler != nil {
+		for _, d := range fieldDef.Directives {
+			if err := eCtx.FieldDefinitionDirectiveHandler(ctx, d, fieldDef); err != nil {
+				panic(gqlerrors.FormatError(err))
+			}
 		}
 	}
 
