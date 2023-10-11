@@ -142,7 +142,15 @@ func main() {
 	}
 
 	g := newGenerator(outWriter, root)
-	g.assertAllowIdentityAssumptionConditions(root)
+	for _, def := range g.doc.Definitions {
+		switch def := def.(type) {
+		case *ast.DirectiveDefinition:
+			// If the assert allow identity assumption directive is defined, assert it's usage
+			if def.Name.Value == "allowAssumedIdentity" {
+				g.assertAllowIdentityAssumptionConditions(root)
+			}
+		}
+	}
 
 	switch *flagArtifact {
 	case "server":
