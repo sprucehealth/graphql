@@ -142,6 +142,15 @@ func main() {
 	}
 
 	g := newGenerator(outWriter, root)
+	for _, def := range g.doc.Definitions {
+		switch def := def.(type) {
+		case *ast.DirectiveDefinition:
+			// If the assert allow identity assumption directive is defined, assert its usage
+			if def.Name.Value == "allowAssumedIdentity" {
+				g.assertAllowIdentityAssumptionConditions(root)
+			}
+		}
+	}
 
 	switch *flagArtifact {
 	case "server":
@@ -226,6 +235,14 @@ func generateServer(g *generator) {
 		}
 		g.printf("}\n\n")
 	}
+	g.printf("var Directives = []*graphql.Directive{\n")
+	for _, def := range g.doc.Definitions {
+		switch def := def.(type) {
+		case *ast.DirectiveDefinition:
+			g.printf("\t%s,\n", goDirectiveDefName(def.Name.Value))
+		}
+	}
+	g.printf("}\n\n")
 	// Generate types
 	for _, def := range g.doc.Definitions {
 		g.genNode(def)
@@ -247,6 +264,8 @@ func generateServer(g *generator) {
 			name = goEnumDefName(def.Name.Value)
 		case *ast.ScalarDefinition:
 			name = goScalarDefName(def.Name.Value)
+		case *ast.DirectiveDefinition:
+			continue
 		default:
 			log.Fatalf("Unhandled node type %T", def)
 		}
@@ -292,6 +311,8 @@ func newGenerator(outWriter io.Writer, root *ast.Document) *generator {
 		case *ast.UnionDefinition:
 			name = def.Name.Value
 		case *ast.ScalarDefinition:
+			name = def.Name.Value
+		case *ast.DirectiveDefinition:
 			name = def.Name.Value
 		default:
 			log.Fatalf("Unhandled node type %T", def)
@@ -358,6 +379,53 @@ func newGenerator(outWriter io.Writer, root *ast.Document) *generator {
 	return g
 }
 
+func (g *generator) assertAllowIdentityAssumptionConditions(root *ast.Document) {
+	for _, def := range root.Definitions {
+		switch d := def.(type) {
+		case *ast.ObjectDefinition:
+			if isTopLevelObject(d.Name.Value) {
+				g.assertAllowIdentityAssumptionConditionsOnFields(d.Name.Value, d.Fields, make(map[string]struct{}), true)
+			}
+		}
+	}
+}
+
+func (g *generator) assertAllowIdentityAssumptionConditionsOnFields(parentName string, fieldDefs []*ast.FieldDefinition, seenTypes map[string]struct{}, requiredOnAll bool) {
+	for _, f := range fieldDefs {
+		allow, ok := identityAssumptionDirectiveAllowValue(f.Directives)
+		if !ok && requiredOnAll {
+			g.failf("@allowAssumedIdentity directive required on field %q since parent %q is top level or has @allowAssumedIdentity(allow: true)", f.Name.Value, parentName)
+		}
+		def := g.defForType(f.Type)
+		if def == nil {
+			g.failf("unable to resolve def for type %q", f.Type)
+		}
+		switch d := def.(type) {
+		case *ast.ObjectDefinition:
+			// avoid cycles
+			if _, ok := seenTypes[d.Name.Value]; !ok {
+				seenTypes[d.Name.Value] = struct{}{}
+				g.assertAllowIdentityAssumptionConditionsOnFields(f.Name.Value+":"+f.Type.String(), d.Fields, seenTypes, allow)
+			}
+		}
+	}
+}
+
+// identityAssumptionDirectiveAllowValue returns the value directive and a boolean representing if the directive was found at all
+func identityAssumptionDirectiveAllowValue(ds []*ast.Directive) (bool, bool) {
+	for _, d := range ds {
+		if d.Name.Value == "allowAssumedIdentity" {
+			for _, a := range d.Arguments {
+				if a.Name.Value == "allow" {
+					allow, ok := a.Value.GetValue().(bool)
+					return allow, ok
+				}
+			}
+		}
+	}
+	return false, false
+}
+
 func cycleKey(path []string) string {
 	// Avoid modifying the path so clone it
 	p := append([]string(nil), path...)
@@ -416,6 +484,8 @@ func (g *generator) findCycles(def ast.Node, ancestors []string) {
 		// Enums can't form cycles
 		return
 	case *ast.ScalarDefinition:
+		// Don't think cycles are possible
+	case *ast.DirectiveDefinition:
 		// Don't think cycles are possible
 	default:
 		log.Fatalf("Unhandled node type %T", def)
@@ -521,6 +591,9 @@ func (g *generator) genNode(node ast.Node) {
 	case *ast.ScalarDefinition:
 		g.genScalarDefinition(def)
 		g.printf("\n")
+	case *ast.DirectiveDefinition:
+		g.genDirectiveDefinition(def)
+		g.printf("\n")
 	default:
 		log.Fatalf("Unhandled node type %T", node)
 	}
@@ -606,6 +679,24 @@ func (g *generator) genUnionModel(def *ast.UnionDefinition) {
 	// TODO: do we want anything here to make guarantees of match?
 	g.printf("type %s interface {\n", exportedName(def.Name.Value))
 	g.printf("}\n")
+}
+
+func (g *generator) genDirectiveDefinition(def *ast.DirectiveDefinition) {
+	g.printf("var %s = graphql.NewDirective(graphql.DirectiveConfig{\n", goDirectiveDefName(def.Name.Value))
+	g.printf("\tName: %q,\n", def.Name.Value)
+	g.printf("\tLocations: []string{\n")
+	for _, l := range def.Locations {
+		g.printf("\t\t%q,\n", l.Value)
+	}
+	g.printf("\t},\n")
+	if len(def.Arguments) != 0 {
+		g.printf("\tArgs: graphql.FieldConfigArgument{")
+		for _, a := range def.Arguments {
+			g.printf(g.renderArgumentConfig(a, "\t\t") + ",")
+		}
+		g.printf("\t},\n")
+	}
+	g.printf("})\n")
 }
 
 func (g *generator) genScalarDefinition(def *ast.ScalarDefinition) {
@@ -719,6 +810,7 @@ func (g *generator) genObjectDefinition(def *ast.ObjectDefinition) {
 			g.printf("%s,\n", g.renderFieldDefinition(def.Name.Value, f, "\t\t", false))
 		}
 	}
+	g.print("\t")
 	g.printf("\t},\n")
 	g.printf("\tIsTypeOf: func(p graphql.IsTypeOfParams) bool {\n")
 	g.printf("\t\t_, ok := p.Value.(*%s)\n", exportedName(def.Name.Value))
@@ -822,8 +914,6 @@ func (g *generator) deprecationReasonFromDirectives(dirs []*ast.Directive, paren
 					g.failf("Unsupport argument %q directive %q on %s", derefName(a.Name, ""), derefName(d.Name, ""), parent)
 				}
 			}
-		} else {
-			g.failf("Unsupport directive %q on %s", derefName(d.Name, ""), parent)
 		}
 	}
 	return deprecationReason
@@ -835,16 +925,42 @@ func (g *generator) renderFieldDefinition(objName string, def *ast.FieldDefiniti
 	comment := renderLineComments(def.Comment, indent)
 	deprecationReason := g.deprecationReasonFromDirectives(def.Directives, fmt.Sprintf("%s.%s", objName, derefName(def.Name, "")))
 	customResolve := g.hasCustomResolver(objName, def.Name.Value)
+	nonDeprecatedDirectives := make([]*ast.Directive, 0, len(def.Directives))
+	for _, d := range def.Directives {
+		if d.Name.Value != "deprecated" {
+			nonDeprecatedDirectives = append(nonDeprecatedDirectives, d)
+		}
+	}
+	var directivesDef string
+	if len(nonDeprecatedDirectives) != 0 {
+		var directiveLines []string
+		directiveLines = append(directiveLines, indent+"\tDirectives: []*ast.Directive{")
+		for _, d := range def.Directives {
+			if d.Name.Value != "deprecated" {
+				directiveLines = append(directiveLines, g.renderASTDirective(d, indent+"\t\t", true)+",")
+			}
+		}
+		directiveLines = append(directiveLines, indent+"\t},")
+		directivesDef = strings.Join(directiveLines, "\n")
+	}
+
+	var lines []string
 	if comments == nil && len(def.Arguments) == 0 && deprecationReason == "" && !customResolve {
 		if comment != "" {
 			comment += "\n"
 		}
 		if noName {
-			return fmt.Sprintf("&graphql.Field{Type: %s}", g.renderType(def.Type, false))
+			lines = append(lines, "&graphql.Field{")
+		} else {
+			lines = append(lines, fmt.Sprintf("%s%s%q: &graphql.Field{", comment, indent, def.Name.Value))
 		}
-		return fmt.Sprintf("%s%s%q: &graphql.Field{Type: %s}", comment, indent, def.Name.Value, g.renderType(def.Type, false))
+		lines = append(lines, fmt.Sprintf(indent+"\tType: %s,", g.renderType(def.Type, false)))
+		if directivesDef != "" {
+			lines = append(lines, directivesDef)
+		}
+		lines = append(lines, "}")
+		return strings.Join(lines, "\n")
 	}
-	var lines []string
 	if !noName && comment != "" && deprecationReason == "" {
 		lines = append(lines, comment)
 	}
@@ -867,6 +983,9 @@ func (g *generator) renderFieldDefinition(objName string, def *ast.FieldDefiniti
 	}
 	if deprecationReason != "" {
 		lines = append(lines, fmt.Sprintf("%s\tDeprecationReason: %s,", indent, renderDeprecationReason(deprecationReason)))
+	}
+	if directivesDef != "" {
+		lines = append(lines, directivesDef)
 	}
 	if customResolve {
 		goFieldName := exportedName(def.Name.Value)
@@ -991,6 +1110,35 @@ func (g *generator) renderInputValueDefinition(objDef *ast.InputObjectDefinition
 	if def.DefaultValue != nil {
 		lines = append(lines, fmt.Sprintf("%s\tDefaultValue: %s,", indent, g.renderValue(objDef.Name.Value+"."+def.Name.Value, def.Type, def.DefaultValue)))
 	}
+	lines = append(lines, indent+"}")
+	return strings.Join(lines, "\n")
+}
+
+func (g *generator) renderASTDirective(def *ast.Directive, indent string, inSliceLiteral bool) string {
+	lines := []string{indent + "&ast.Directive{"}
+	if inSliceLiteral {
+		lines[0] = indent + "{"
+	}
+	lines = append(lines, fmt.Sprintf(indent+"\tName: &ast.Name{Value: %q},", def.Name.Value))
+	if len(def.Arguments) != 0 {
+		lines = append(lines, indent+"\tArguments: []*ast.Argument{")
+		for _, a := range def.Arguments {
+			lines = append(lines, g.renderASTArgument(a, indent+"\t\t", true)+",")
+		}
+		lines = append(lines, indent+"\t},")
+	}
+	lines = append(lines, indent+"}")
+	return strings.Join(lines, "\n")
+}
+
+func (g *generator) renderASTArgument(def *ast.Argument, indent string, inSliceLiteral bool) string {
+	lines := []string{indent + "&ast.Argument{"}
+	if inSliceLiteral {
+		lines[0] = indent + "{"
+	}
+	lines = append(lines, fmt.Sprintf(indent+"\tName: &ast.Name{Value: %q},", def.Name.Value))
+	// HACK/TODO: For now only support rendering boolean AST arguments. This is to save time figuring out how to support more
+	lines = append(lines, fmt.Sprintf(indent+"\tValue: &ast.BooleanValue{Value: %t},", def.Value.GetValue()))
 	lines = append(lines, indent+"}")
 	return strings.Join(lines, "\n")
 }
@@ -1241,6 +1389,10 @@ func interfaceMarker(typeName string) string {
 }
 
 func goObjectDefName(name string) string {
+	return exportedName(name) + "Def"
+}
+
+func goDirectiveDefName(name string) string {
 	return exportedName(name) + "Def"
 }
 
