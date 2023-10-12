@@ -394,11 +394,11 @@ func (g *generator) assertAllowIdentityAssumptionConditionsOnFields(parentName s
 	for _, f := range fieldDefs {
 		allow, ok := identityAssumptionDirectiveAllowValue(f.Directives)
 		if !ok && requiredOnAll {
-			log.Fatalf("@allowAssumedIdentity directive required on field %q since parent %q is top level or has @allowAssumedIdentity(allow: true)", f.Name.Value, parentName)
+			g.failf("@allowAssumedIdentity directive required on field %q since parent %q is top level or has @allowAssumedIdentity(allow: true)", f.Name.Value, parentName)
 		}
 		def := g.defForType(f.Type)
 		if def == nil {
-			log.Fatalf("unable to resolve def for type %q", f.Type)
+			g.failf("unable to resolve def for type %q", f.Type)
 		}
 		switch d := def.(type) {
 		case *ast.ObjectDefinition:
