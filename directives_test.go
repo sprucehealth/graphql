@@ -3,6 +3,7 @@ package graphql_test
 import (
 	"context"
 	"errors"
+	"github.com/sprucehealth/graphql/language/ast"
 	"reflect"
 	"testing"
 
@@ -594,5 +595,73 @@ func TestDirectivesWorksWithSkipAndIncludeDirectives_NoIncludeOrSkip(t *testing.
 	}
 	if !reflect.DeepEqual(expected, result) {
 		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expected, result))
+	}
+}
+
+var fieldDefinitionDirectivesTestSchema, _ = graphql.NewSchema(graphql.SchemaConfig{
+	Query: graphql.NewObject(graphql.ObjectConfig{
+		Name: "TestType",
+		Fields: graphql.Fields{
+			"a": &graphql.Field{
+				Type: graphql.NewObject(graphql.ObjectConfig{
+					Name: "InnerType",
+					Fields: graphql.Fields{
+						"b": &graphql.Field{
+							Type: graphql.String,
+							Directives: []*ast.Directive{
+								{
+									Name: &ast.Name{Value: "fieldDefDirective"},
+								},
+							},
+						},
+					},
+				}),
+				Directives: []*ast.Directive{
+					{
+						Name: &ast.Name{Value: "fieldDefDirective"},
+					},
+				},
+			},
+		},
+	}),
+})
+
+var fieldDefinitionDirectivesTestData map[string]interface{} = map[string]interface{}{
+	"a": func() interface{} { return "a" },
+	"b": func() interface{} { return "b" },
+}
+
+func executeFieldDefinitionDirectivesTestQuery(t *testing.T, doc string, handler func(context.Context, *ast.Directive, *graphql.FieldDefinition) error) *graphql.Result {
+	ast := testutil.TestParse(t, doc)
+	ep := graphql.ExecuteParams{
+		Schema:                          fieldDefinitionDirectivesTestSchema,
+		AST:                             ast,
+		Root:                            fieldDefinitionDirectivesTestData,
+		FieldDefinitionDirectiveHandler: handler,
+	}
+	return testutil.TestExecute(t, context.Background(), ep)
+}
+
+func TestFieldDefinitionDirectiveHandler(t *testing.T) {
+	query := `{ a { b } }`
+	var checkedA bool
+	var checkedB bool
+	result := executeFieldDefinitionDirectivesTestQuery(t, query, func(ctx context.Context, d *ast.Directive, fd *graphql.FieldDefinition) error {
+		if fd.Name == "a" {
+			checkedA = true
+		}
+		if fd.Name == "b" {
+			checkedB = true
+		}
+		return nil
+	})
+	if len(result.Errors) != 0 {
+		t.Fatalf("wrong result, unexpected errors: %v", result.Errors)
+	}
+	if !checkedA {
+		t.Fatalf("A was never checked by handler")
+	}
+	if !checkedB {
+		t.Fatalf("B was never checked by handler")
 	}
 }

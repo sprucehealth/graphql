@@ -145,7 +145,7 @@ func main() {
 	for _, def := range g.doc.Definitions {
 		switch def := def.(type) {
 		case *ast.DirectiveDefinition:
-			// If the assert allow identity assumption directive is defined, assert it's usage
+			// If the assert allow identity assumption directive is defined, assert its usage
 			if def.Name.Value == "allowAssumedIdentity" {
 				g.assertAllowIdentityAssumptionConditions(root)
 			}
@@ -925,16 +925,42 @@ func (g *generator) renderFieldDefinition(objName string, def *ast.FieldDefiniti
 	comment := renderLineComments(def.Comment, indent)
 	deprecationReason := g.deprecationReasonFromDirectives(def.Directives, fmt.Sprintf("%s.%s", objName, derefName(def.Name, "")))
 	customResolve := g.hasCustomResolver(objName, def.Name.Value)
+	nonDeprecatedDirectives := make([]*ast.Directive, 0, len(def.Directives))
+	for _, d := range def.Directives {
+		if d.Name.Value != "deprecated" {
+			nonDeprecatedDirectives = append(nonDeprecatedDirectives, d)
+		}
+	}
+	var directivesDef string
+	if len(nonDeprecatedDirectives) != 0 {
+		var directiveLines []string
+		directiveLines = append(directiveLines, indent+"\tDirectives: []*ast.Directive{")
+		for _, d := range def.Directives {
+			if d.Name.Value != "deprecated" {
+				directiveLines = append(directiveLines, g.renderASTDirective(d, indent+"\t\t", true)+",")
+			}
+		}
+		directiveLines = append(directiveLines, indent+"\t},")
+		directivesDef = strings.Join(directiveLines, "\n")
+	}
+
+	var lines []string
 	if comments == nil && len(def.Arguments) == 0 && deprecationReason == "" && !customResolve {
 		if comment != "" {
 			comment += "\n"
 		}
 		if noName {
-			return fmt.Sprintf("&graphql.Field{Type: %s}", g.renderType(def.Type, false))
+			lines = append(lines, "&graphql.Field{")
+		} else {
+			lines = append(lines, fmt.Sprintf("%s%s%q: &graphql.Field{", comment, indent, def.Name.Value))
 		}
-		return fmt.Sprintf("%s%s%q: &graphql.Field{Type: %s}", comment, indent, def.Name.Value, g.renderType(def.Type, false))
+		lines = append(lines, fmt.Sprintf(indent+"\tType: %s,", g.renderType(def.Type, false)))
+		if directivesDef != "" {
+			lines = append(lines, directivesDef)
+		}
+		lines = append(lines, "}")
+		return strings.Join(lines, "\n")
 	}
-	var lines []string
 	if !noName && comment != "" && deprecationReason == "" {
 		lines = append(lines, comment)
 	}
@@ -958,20 +984,8 @@ func (g *generator) renderFieldDefinition(objName string, def *ast.FieldDefiniti
 	if deprecationReason != "" {
 		lines = append(lines, fmt.Sprintf("%s\tDeprecationReason: %s,", indent, renderDeprecationReason(deprecationReason)))
 	}
-	nonDeprecatedDirectives := make([]*ast.Directive, 0, len(def.Directives))
-	for _, d := range def.Directives {
-		if d.Name.Value != "deprecated" {
-			nonDeprecatedDirectives = append(nonDeprecatedDirectives, d)
-		}
-	}
-	if len(nonDeprecatedDirectives) != 0 {
-		lines = append(lines, indent+"\tDirectives: []*ast.Directive{")
-		for _, d := range def.Directives {
-			if d.Name.Value != "deprecated" {
-				lines = append(lines, g.renderASTDirective(d, indent+"\t\t", true)+",")
-			}
-		}
-		lines = append(lines, indent+"\t},")
+	if directivesDef != "" {
+		lines = append(lines, directivesDef)
 	}
 	if customResolve {
 		goFieldName := exportedName(def.Name.Value)
@@ -1103,7 +1117,7 @@ func (g *generator) renderInputValueDefinition(objDef *ast.InputObjectDefinition
 func (g *generator) renderASTDirective(def *ast.Directive, indent string, inSliceLiteral bool) string {
 	lines := []string{indent + "&ast.Directive{"}
 	if inSliceLiteral {
-		lines[0] = "{"
+		lines[0] = indent + "{"
 	}
 	lines = append(lines, fmt.Sprintf(indent+"\tName: &ast.Name{Value: %q},", def.Name.Value))
 	if len(def.Arguments) != 0 {
@@ -1120,7 +1134,7 @@ func (g *generator) renderASTDirective(def *ast.Directive, indent string, inSlic
 func (g *generator) renderASTArgument(def *ast.Argument, indent string, inSliceLiteral bool) string {
 	lines := []string{indent + "&ast.Argument{"}
 	if inSliceLiteral {
-		lines[0] = "{"
+		lines[0] = indent + "{"
 	}
 	lines = append(lines, fmt.Sprintf(indent+"\tName: &ast.Name{Value: %q},", def.Name.Value))
 	// HACK/TODO: For now only support rendering boolean AST arguments. This is to save time figuring out how to support more
