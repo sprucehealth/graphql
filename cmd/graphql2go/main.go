@@ -22,13 +22,14 @@ import (
 )
 
 var (
-	flagArtifact       = flag.String("artifact", "server", "The artifact to generate from the schema (server or client)")
-	flagClientTypes    = flag.String("client_types", "Query,Mutation", "The types that should be used to create client methods")
-	flagConfigFile     = flag.String("config", "", "Path to config file")
-	flagOutFile        = flag.String("out", "", "Path to output file (stdout if not set)")
-	flagSchemaFile     = flag.String("schema", "", "Path to schema file (stdin if not set)")
-	flagNullableInputs = flag.Bool("nullable_inputs", false, "Flag to determine if nullable inputs should be serialized into pointers")
-	flagVerbose        = flag.Bool("v", false, "Verbose output")
+	flagArtifact                 = flag.String("artifact", "server", "The artifact to generate from the schema (server or client)")
+	flagClientTypes              = flag.String("client_types", "Query,Mutation", "The types that should be used to create client methods")
+	flagConfigFile               = flag.String("config", "", "Path to config file")
+	flagOutFile                  = flag.String("out", "", "Path to output file (stdout if not set)")
+	flagSchemaFile               = flag.String("schema", "", "Path to schema file (stdin if not set)")
+	flagNullableInputs           = flag.Bool("nullable_inputs", false, "Flag to determine if nullable inputs should be serialized into pointers")
+	flagVerbose                  = flag.Bool("v", false, "Verbose output")
+	flagAssertIdentityAssumption = flag.Bool("assert_identity", false, "Asserts specific usage of the allowIdentityAssumption directive")
 )
 
 var initialisms = map[string]string{
@@ -142,14 +143,9 @@ func main() {
 	}
 
 	g := newGenerator(outWriter, root)
-	for _, def := range g.doc.Definitions {
-		switch def := def.(type) {
-		case *ast.DirectiveDefinition:
-			// If the assert allow identity assumption directive is defined, assert its usage
-			if def.Name.Value == "allowAssumedIdentity" {
-				g.assertAllowIdentityAssumptionConditions(root)
-			}
-		}
+	if *flagAssertIdentityAssumption {
+		// Assert proper usage of identity assumption annotations
+		g.assertAllowIdentityAssumptionConditions(root)
 	}
 
 	switch *flagArtifact {
@@ -390,6 +386,44 @@ func (g *generator) assertAllowIdentityAssumptionConditions(root *ast.Document) 
 	}
 }
 
+func (g *generator) resolveListTypeDef(l *ast.List) ast.Node {
+	t := g.defForType(l.Type)
+	if lt, ok := t.(*ast.List); ok {
+		return g.resolveListTypeDef(lt)
+	}
+	return t
+}
+
+func (g *generator) resolveImplementingTypes(i *ast.InterfaceDefinition) []*ast.ObjectDefinition {
+	var objectDefs []*ast.ObjectDefinition
+	for _, node := range g.doc.Definitions {
+		if d, ok := node.(*ast.ObjectDefinition); ok {
+			for _, impl := range d.Interfaces {
+				if impl.Name.Value == i.Name.Value {
+					objectDefs = append(objectDefs, d)
+				}
+			}
+		}
+	}
+	return objectDefs
+}
+
+func (g *generator) resolveUnionTypes(u *ast.UnionDefinition) []*ast.ObjectDefinition {
+	tNames := make(map[string]struct{})
+	for _, t := range u.Types {
+		tNames[t.Name.Value] = struct{}{}
+	}
+	var objectDefs []*ast.ObjectDefinition
+	for _, node := range g.doc.Definitions {
+		if d, ok := node.(*ast.ObjectDefinition); ok {
+			if _, ok := tNames[d.Name.Value]; ok {
+				objectDefs = append(objectDefs, d)
+			}
+		}
+	}
+	return objectDefs
+}
+
 func (g *generator) assertAllowIdentityAssumptionConditionsOnFields(parentName string, fieldDefs []*ast.FieldDefinition, seenTypes map[string]struct{}, requiredOnAll bool) {
 	for _, f := range fieldDefs {
 		allow, ok := identityAssumptionDirectiveAllowValue(f.Directives)
@@ -400,12 +434,30 @@ func (g *generator) assertAllowIdentityAssumptionConditionsOnFields(parentName s
 		if def == nil {
 			g.failf("unable to resolve def for type %q", f.Type)
 		}
+		if lt, ok := def.(*ast.List); ok {
+			def = g.resolveListTypeDef(lt)
+		}
+		fieldDefsByParentName := make(map[string][]*ast.FieldDefinition)
 		switch d := def.(type) {
+		case *ast.UnionDefinition:
+			for _, oDef := range g.resolveUnionTypes(d) {
+				fieldDefsByParentName[oDef.Name.Value] = oDef.Fields
+			}
+		case *ast.InterfaceDefinition:
+			fieldDefsByParentName[d.Name.Value] = d.Fields
+			for _, oDef := range g.resolveImplementingTypes(d) {
+				fieldDefsByParentName[oDef.Name.Value] = oDef.Fields
+			}
 		case *ast.ObjectDefinition:
-			// avoid cycles
-			if _, ok := seenTypes[d.Name.Value]; !ok {
-				seenTypes[d.Name.Value] = struct{}{}
-				g.assertAllowIdentityAssumptionConditionsOnFields(f.Name.Value+":"+f.Type.String(), d.Fields, seenTypes, allow)
+			fieldDefsByParentName[d.Name.Value] = d.Fields
+		}
+		for parentName, fieldDefs := range fieldDefsByParentName {
+			if len(fieldDefs) != 0 {
+				// avoid cycles
+				if _, ok := seenTypes[parentName]; !ok {
+					seenTypes[parentName] = struct{}{}
+					g.assertAllowIdentityAssumptionConditionsOnFields(f.Name.Value, fieldDefs, seenTypes, allow)
+				}
 			}
 		}
 	}
