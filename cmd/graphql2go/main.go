@@ -430,6 +430,10 @@ func (g *generator) assertAllowIdentityAssumptionConditionsOnFields(parentName s
 		if !ok && requiredOnAll {
 			g.failf("@allowAssumedIdentity directive required on field %q since parent %q is top level or has @allowAssumedIdentity(allow: true)", f.Name.Value, parentName)
 		}
+		// If a field doesn't allow identity assumption, we don't need to continue looking at it's children
+		if !allow {
+			continue
+		}
 		def := g.defForType(f.Type)
 		if def == nil {
 			g.failf("unable to resolve def for type %q", f.Type)
@@ -456,7 +460,7 @@ func (g *generator) assertAllowIdentityAssumptionConditionsOnFields(parentName s
 				// avoid cycles
 				if _, ok := seenTypes[parentName]; !ok {
 					seenTypes[parentName] = struct{}{}
-					g.assertAllowIdentityAssumptionConditionsOnFields(f.Name.Value, fieldDefs, seenTypes, allow)
+					g.assertAllowIdentityAssumptionConditionsOnFields(f.Name.Value+":"+parentName, fieldDefs, seenTypes, allow)
 				}
 			}
 		}
