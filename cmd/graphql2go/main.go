@@ -836,7 +836,7 @@ func (g *generator) genObjectDefinition(def *ast.ObjectDefinition) {
 	var fieldDefNamesByFieldName = make(map[string]string, len(def.Fields))
 	var stubFields []*ast.FieldDefinition
 	for _, f := range def.Fields {
-		fieldDefName := goName + "Field" + exportedName(f.Name.Value)
+		fieldDefName := unexportedName(goName) + "Field" + exportedName(f.Name.Value)
 		fieldDefNamesByFieldName[f.Name.Value] = fieldDefName
 		if _, ok := cycleTypes[g.baseTypeName(f.Type)]; ok {
 			// Use a placeholder and set the actual type in an init function to break the cycle
