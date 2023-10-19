@@ -833,7 +833,7 @@ func (g *generator) genEnumConstants(def *ast.EnumDefinition) {
 func (g *generator) genObjectDefinition(def *ast.ObjectDefinition) {
 	goName := goObjectDefName(def.Name.Value)
 	cycleTypes := g.cycleBreaks[def.Name.Value]
-	var fieldDefNamesByFieldName = make(map[string]string, len(def.Fields))
+	fieldDefNamesByFieldName := make(map[string]string, len(def.Fields))
 	var stubFields []*ast.FieldDefinition
 	for _, f := range def.Fields {
 		fieldDefName := unexportedName(goName) + "Field" + exportedName(f.Name.Value)
@@ -870,8 +870,8 @@ func (g *generator) genObjectDefinition(def *ast.ObjectDefinition) {
 		g.printf("\t},\n")
 	}
 	g.printf("\tFields: graphql.Fields{\n")
-	for fieldName, fieldDefName := range fieldDefNamesByFieldName {
-		g.printf("\t%q: %s,\n", fieldName, fieldDefName)
+	for _, f := range def.Fields {
+		g.printf("\t%q: %s,\n", f.Name.Value, fieldDefNamesByFieldName[f.Name.Value])
 	}
 	g.printf("\t},\n")
 	g.printf("\tIsTypeOf: func(p graphql.IsTypeOfParams) bool {\n")
