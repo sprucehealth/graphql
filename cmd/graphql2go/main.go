@@ -832,12 +832,31 @@ func (g *generator) genEnumConstants(def *ast.EnumDefinition) {
 
 func (g *generator) genObjectDefinition(def *ast.ObjectDefinition) {
 	goName := goObjectDefName(def.Name.Value)
+	cycleTypes := g.cycleBreaks[def.Name.Value]
+	var fieldDefNamesByFieldName = make(map[string]string, len(def.Fields))
+	var stubFields []*ast.FieldDefinition
+	for _, f := range def.Fields {
+		fieldDefName := goName + "Field" + exportedName(f.Name.Value)
+		fieldDefNamesByFieldName[f.Name.Value] = fieldDefName
+		if _, ok := cycleTypes[g.baseTypeName(f.Type)]; ok {
+			// Use a placeholder and set the actual type in an init function to break the cycle
+			g.printf("// Placeholder to break cycle. Actual type defined during init.\n")
+			g.printf("var %s = %s\n", fieldDefName, g.renderFieldDefinition("",
+				&ast.FieldDefinition{
+					Name: f.Name,
+					Type: &ast.Named{Name: &ast.Name{Value: "String"}},
+				}, "", true))
+			stubFields = append(stubFields, f)
+		} else {
+			g.printf("var %s = %s\n", fieldDefName, g.renderFieldDefinition(def.Name.Value, f, "", true))
+		}
+		g.print("\n")
+	}
 	if def.Doc != nil {
 		g.printf("%s\n", renderLineComments(def.Doc, ""))
 	} else if strings.HasSuffix(def.Name.Value, "Payload") {
 		g.printf("// %s is the return type for the %s mutation.\n", goName, unexportedName(def.Name.Value[:len(def.Name.Value)-7]))
 	}
-	cycleTypes := g.cycleBreaks[def.Name.Value]
 	g.printf("var %s = graphql.NewObject(graphql.ObjectConfig{\n", goName)
 	g.printf("\tName: %q,\n", def.Name.Value)
 	if def.Doc != nil {
@@ -851,22 +870,9 @@ func (g *generator) genObjectDefinition(def *ast.ObjectDefinition) {
 		g.printf("\t},\n")
 	}
 	g.printf("\tFields: graphql.Fields{\n")
-	var stubFields []*ast.FieldDefinition
-	for _, f := range def.Fields {
-		if _, ok := cycleTypes[g.baseTypeName(f.Type)]; ok {
-			// Use a placeholder and set the actual type in an init function to break the cycle
-			g.printf("\t\t// Placeholder to break cycle. Actual type defined during init.\n")
-			g.printf("%s,\n", g.renderFieldDefinition("",
-				&ast.FieldDefinition{
-					Name: f.Name,
-					Type: &ast.Named{Name: &ast.Name{Value: "String"}},
-				}, "\t\t", false))
-			stubFields = append(stubFields, f)
-		} else {
-			g.printf("%s,\n", g.renderFieldDefinition(def.Name.Value, f, "\t\t", false))
-		}
+	for fieldName, fieldDefName := range fieldDefNamesByFieldName {
+		g.printf("\t%q: %s,\n", fieldName, fieldDefName)
 	}
-	g.print("\t")
 	g.printf("\t},\n")
 	g.printf("\tIsTypeOf: func(p graphql.IsTypeOfParams) bool {\n")
 	g.printf("\t\t_, ok := p.Value.(*%s)\n", exportedName(def.Name.Value))
