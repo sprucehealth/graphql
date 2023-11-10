@@ -501,6 +501,11 @@ type resolveFieldResultState struct {
 // then calls completeValue to complete promises, serialize scalars, or execute
 // the sub-selection-set for objects.
 func resolveField(ctx context.Context, eCtx *ExecutionContext, parentType *Object, source interface{}, fieldASTs []*ast.Field) (result interface{}, resultState resolveFieldResultState) {
+	if err := ctx.Err(); err != nil {
+		// Jump straight to the top-level recover to void anymore work.
+		panic(gqlerrors.FormatError(err))
+	}
+
 	// catch panic from resolveFn
 	var returnType Output
 	defer func() (interface{}, resolveFieldResultState) {
@@ -611,6 +616,10 @@ func completeValueCatchingError(ctx context.Context, eCtx *ExecutionContext, ret
 }
 
 func completeValue(ctx context.Context, eCtx *ExecutionContext, returnType Type, fieldASTs []*ast.Field, info ResolveInfo, result interface{}) interface{} {
+	if err := ctx.Err(); err != nil {
+		panic(gqlerrors.FormatError(err))
+	}
+
 	resultVal := reflect.ValueOf(result)
 	if resultVal.IsValid() && resultVal.Type().Kind() == reflect.Func {
 		if propertyFn, ok := result.(func() interface{}); ok {
