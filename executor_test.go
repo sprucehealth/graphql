@@ -1962,6 +1962,66 @@ func TestContextDeadlineWait(t *testing.T) {
 	}
 }
 
+func TestContextCancel(t *testing.T) {
+	expectedErrors := []gqlerrors.FormattedError{
+		{
+			Message:   context.Canceled.Error(),
+			Locations: []location.SourceLocation{},
+			Type:      "INTERNAL",
+		},
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Query type includes a field that won't resolve within the deadline
+	var resolveCount int
+	var queryType = graphql.NewObject(
+		graphql.ObjectConfig{
+			Name: "Query",
+			Fields: graphql.Fields{
+				"hello1": &graphql.Field{
+					Type: graphql.String,
+					Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
+						resolveCount++
+						cancel()
+						return "hello1", nil
+					},
+				},
+				"hello2": &graphql.Field{
+					Type: graphql.String,
+					Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
+						resolveCount++
+						cancel()
+						return "hello2", nil
+					},
+				},
+			},
+		})
+	schema, err := graphql.NewSchema(graphql.SchemaConfig{
+		Query: queryType,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error, got: %v", err)
+	}
+
+	result := graphql.Do(ctx, graphql.Params{
+		Schema:        schema,
+		RequestString: "{hello1 hello2}",
+	})
+
+	if !result.HasErrors() || len(result.Errors) == 0 {
+		t.Fatalf("Result should include errors when deadline is exceeded")
+	}
+	result.Errors[0].OriginalError = nil
+	if !reflect.DeepEqual(expectedErrors, result.Errors) {
+		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expectedErrors, result.Errors))
+	}
+	if resolveCount != 1 {
+		t.Fatalf("Expected only 1 resolver to be called")
+	}
+}
+
 func TestDeprecatedField(t *testing.T) {
 	query := `
 		query _ {
