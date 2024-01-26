@@ -56,6 +56,7 @@ func checkList(t *testing.T, testType graphql.Type, testData interface{}, expect
 	}
 	for i := range result.Errors {
 		result.Errors[i].OriginalError = nil
+		result.Errors[i].StackTrace = ""
 	}
 	if !reflect.DeepEqual(expected, result) {
 		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expected, result))

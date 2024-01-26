@@ -385,6 +385,7 @@ func TestResolveTypeOnInterfaceYieldsUsefulError(t *testing.T) {
 		t.Fatalf("wrong result, expected errors: %v, got: %v", len(expected.Errors), len(result.Errors))
 	}
 	result.Errors[0].OriginalError = nil
+	result.Errors[0].StackTrace = ""
 	if !reflect.DeepEqual(expected, result) {
 		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expected, result))
 	}
@@ -504,6 +505,7 @@ func TestResolveTypeOnUnionYieldsUsefulError(t *testing.T) {
 		t.Fatalf("wrong result, expected errors: %v, got: %v", len(expected.Errors), len(result.Errors))
 	}
 	result.Errors[0].OriginalError = nil
+	result.Errors[0].StackTrace = ""
 	if !reflect.DeepEqual(expected, result) {
 		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expected, result))
 	}

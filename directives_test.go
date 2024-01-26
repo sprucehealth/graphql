@@ -3,12 +3,12 @@ package graphql_test
 import (
 	"context"
 	"errors"
-	"github.com/sprucehealth/graphql/language/ast"
 	"reflect"
 	"testing"
 
 	"github.com/sprucehealth/graphql"
 	"github.com/sprucehealth/graphql/gqlerrors"
+	"github.com/sprucehealth/graphql/language/ast"
 	"github.com/sprucehealth/graphql/language/location"
 	"github.com/sprucehealth/graphql/testutil"
 )
@@ -65,7 +65,9 @@ func TestDirectives_DirectivesMustBeNamed(t *testing.T) {
 		Type:          "INTERNAL",
 		OriginalError: errors.New("Directive must be named."),
 	}
-	if !reflect.DeepEqual(expectedErr, err) {
+	e := err.(gqlerrors.FormattedError)
+	e.StackTrace = ""
+	if !reflect.DeepEqual(expectedErr, e) {
 		t.Fatalf("Expected error to be equal, got: %v", testutil.Diff(expectedErr, err))
 	}
 }
@@ -94,7 +96,9 @@ func TestDirectives_DirectiveNameMustBeValid(t *testing.T) {
 		Type:          "INTERNAL",
 		OriginalError: errors.New("Names must match /^[_a-zA-Z][_a-zA-Z0-9]*$/ but \"123invalid name\" does not."),
 	}
-	if !reflect.DeepEqual(expectedErr, err) {
+	e := err.(gqlerrors.FormattedError)
+	e.StackTrace = ""
+	if !reflect.DeepEqual(expectedErr, e) {
 		t.Fatalf("Expected error to be equal, got: %v", testutil.Diff(expectedErr, err))
 	}
 }
@@ -120,7 +124,9 @@ func TestDirectives_DirectiveNameMustProvideLocations(t *testing.T) {
 		Type:          "INTERNAL",
 		OriginalError: errors.New("Must provide locations for directive."),
 	}
-	if !reflect.DeepEqual(expectedErr, err) {
+	e := err.(gqlerrors.FormattedError)
+	e.StackTrace = ""
+	if !reflect.DeepEqual(expectedErr, e) {
 		t.Fatalf("Expected error to be equal, got: %v", testutil.Diff(expectedErr, err))
 	}
 }
@@ -159,7 +165,9 @@ func TestDirectives_DirectiveArgNamesMustBeValid(t *testing.T) {
 		Type:          "INTERNAL",
 		OriginalError: errors.New("Names must match /^[_a-zA-Z][_a-zA-Z0-9]*$/ but \"123if\" does not."),
 	}
-	if !reflect.DeepEqual(expectedErr, err) {
+	e := err.(gqlerrors.FormattedError)
+	e.StackTrace = ""
+	if !reflect.DeepEqual(expectedErr, e) {
 		t.Fatalf("Expected error to be equal, got: %v", testutil.Diff(expectedErr, err))
 	}
 }
