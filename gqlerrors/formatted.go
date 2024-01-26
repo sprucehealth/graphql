@@ -57,6 +57,7 @@ func FormatError(err error) FormattedError {
 			Type:          ErrorTypeInternal,
 			Message:       err.Error(),
 			Locations:     []location.SourceLocation{},
+			StackTrace:    stackTrace(),
 			OriginalError: err,
 		}
 	}
