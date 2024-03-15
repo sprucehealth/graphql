@@ -31,7 +31,7 @@ type ExecuteParams struct {
 func Execute(ctx context.Context, p ExecuteParams) *Result {
 	resultChannel := make(chan *Result, 1)
 
-	go func(out chan<- *Result, done <-chan struct{}) {
+	go func(out chan<- *Result) {
 		result := &Result{}
 
 		exeContext, err := buildExecutionContext(BuildExecutionCtxParams{
@@ -67,7 +67,7 @@ func Execute(ctx context.Context, p ExecuteParams) *Result {
 			Root:             p.Root,
 			Operation:        exeContext.Operation,
 		})
-	}(resultChannel, ctx.Done())
+	}(resultChannel)
 
 	var result *Result
 	select {

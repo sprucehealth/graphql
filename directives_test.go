@@ -626,7 +626,7 @@ var fieldDefinitionDirectivesTestSchema, _ = graphql.NewSchema(graphql.SchemaCon
 				}),
 				Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
 					return struct {
-						b string `json:"b"`
+						b string
 					}{
 						b: "b",
 					}, nil

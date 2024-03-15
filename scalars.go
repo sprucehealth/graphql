@@ -55,7 +55,7 @@ func coerceInt(value interface{}) interface{} {
 		}
 		return int(v)
 	case string:
-		val, err := strconv.ParseFloat(v, 0)
+		val, err := strconv.ParseFloat(v, 64)
 		if err != nil {
 			return nil
 		}
@@ -180,6 +180,11 @@ var String = NewScalar(ScalarConfig{
 
 func coerceBool(value interface{}) interface{} {
 	switch v := value.(type) {
+	case *bool:
+		if v == nil {
+			return false
+		}
+		return *v
 	case bool:
 		return value
 	case string:

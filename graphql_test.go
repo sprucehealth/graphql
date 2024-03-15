@@ -219,3 +219,47 @@ func TestEmptyStringIsNotNull(t *testing.T) {
 		t.Errorf("wrong result, query: %v, graphql result diff: %v", query, testutil.Diff(expected, result))
 	}
 }
+
+func TestBoolPointer(t *testing.T) {
+	tr := true
+	fa := false
+	for _, exp := range []*bool{nil, &tr, &fa} {
+		trueField := func(ctx context.Context, p graphql.ResolveParams) (any, error) {
+			return exp, nil
+		}
+
+		schema, err := graphql.NewSchema(graphql.SchemaConfig{
+			Query: graphql.NewObject(graphql.ObjectConfig{
+				Name: "RootQueryType",
+				Fields: graphql.Fields{
+					"allowed": &graphql.Field{
+						Description: "Returns true",
+						Type:        graphql.Boolean,
+						Resolve:     trueField,
+					},
+				},
+			}),
+		})
+		if err != nil {
+			t.Fatalf("wrong result, unexpected errors: %v", err.Error())
+		}
+		query := "{ allowed }"
+		expected := map[string]any{
+			"allowed": nil,
+		}
+		if exp != nil {
+			expected["allowed"] = *exp
+		}
+
+		result := graphql.Do(context.Background(), graphql.Params{
+			Schema:        schema,
+			RequestString: query,
+		})
+		if len(result.Errors) > 0 {
+			t.Fatalf("wrong result, unexpected errors: %v", result.Errors)
+		}
+		if !reflect.DeepEqual(result.Data, expected) {
+			t.Fatalf("wrong result, query: %v, graphql result diff: %v", query, testutil.Diff(expected, result.Data))
+		}
+	}
+}
