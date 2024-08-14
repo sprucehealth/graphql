@@ -201,7 +201,7 @@ func generateServer(g *generator) {
 		fields := r.fields
 		assertionType := fmt.Sprintf("*%s", exportedName(typeName))
 		if isTopLevelObject(exportedName(typeName)) {
-			assertionType = "map[string]interface{}"
+			assertionType = "map[string]any"
 		}
 		sort.Strings(fields)
 		g.printf("const %sResolversKey = %q\n\n", exportedName(typeName), exportedName(typeName)+"Resolvers")
@@ -601,7 +601,7 @@ func (g *generator) baseTypeName(t ast.Type) string {
 	return ""
 }
 
-func (g *generator) printf(m string, a ...interface{}) {
+func (g *generator) printf(m string, a ...any) {
 	if _, err := fmt.Fprintf(g.w, m, a...); err != nil {
 		g.fail(err)
 	}
@@ -613,7 +613,7 @@ func (g *generator) print(m string) {
 	}
 }
 
-func (g *generator) failf(m string, a ...interface{}) {
+func (g *generator) failf(m string, a ...any) {
 	panic(fmt.Errorf(m, a...))
 }
 
@@ -1054,11 +1054,11 @@ func (g *generator) renderFieldDefinition(objName string, def *ast.FieldDefiniti
 		goObjName := exportedName(objName)
 		assertionType := fmt.Sprintf("*%s", goObjName)
 		if isTopLevelObject(goObjName) {
-			assertionType = "map[string]interface{}"
+			assertionType = "map[string]any"
 		}
 		lines = append(lines,
-			fmt.Sprintf("%s\tResolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {", indent),
-			fmt.Sprintf("%s\t\tr := p.Info.RootValue.(map[string]interface{})[%s].(%s)", indent, goObjName+"ResolversKey", goObjName+"Resolvers"))
+			fmt.Sprintf("%s\tResolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {", indent),
+			fmt.Sprintf("%s\t\tr := p.Info.RootValue.(map[string]any)[%s].(%s)", indent, goObjName+"ResolversKey", goObjName+"Resolvers"))
 		if len(def.Arguments) == 0 {
 			lines = append(lines, fmt.Sprintf("%s\t\treturn r.%s(ctx, p.Source.(%s), p)", indent, goFieldName, assertionType))
 		} else {
@@ -1439,7 +1439,7 @@ func (g *generator) renderValue(fieldPath string, valueType ast.Type, value ast.
 		for i, vv := range v {
 			values[i] = g.renderValue("", itemType, vv)
 		}
-		return fmt.Sprintf("[]interface{}{%s}", strings.Join(values, ", "))
+		return fmt.Sprintf("[]any{%s}", strings.Join(values, ", "))
 	case bool, int, int64, uint64, float64, string:
 		return fmt.Sprintf("%#v", v)
 	}

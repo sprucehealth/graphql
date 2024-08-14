@@ -101,11 +101,11 @@ func generateClient(g *generator) {
 		}
 
 		type Logger interface {
-			Debugf(ctx context.Context, msg string, v ...interface{})
+			Debugf(ctx context.Context, msg string, v ...any)
 		}
 
 		type nullLogger struct{}
-		func (nullLogger) Debugf(ctx context.Context, msg string, v ...interface{}){}
+		func (nullLogger) Debugf(ctx context.Context, msg string, v ...any){}
 
 		func New(endpoint, authToken string, opts ...clientOption) Client {
 			c := &client{
@@ -143,9 +143,9 @@ func renderSignatureForField(g *generator, d *ast.ObjectDefinition, f *ast.Field
 }
 
 func genDecoderHook(g *generator) {
-	g.printf("func decoderHook(from reflect.Kind, to reflect.Kind, v interface{}) (interface{}, error) {\n")
+	g.printf("func decoderHook(from reflect.Kind, to reflect.Kind, v any) (any, error) {\n")
 	g.printf("\tif from == reflect.Map && to == reflect.Interface {\n")
-	g.printf("\t\tcVal := reflect.New(objectTypesByTypename[v.(map[string]interface{})[\"__typename\"].(string)])\n")
+	g.printf("\t\tcVal := reflect.New(objectTypesByTypename[v.(map[string]any)[\"__typename\"].(string)])\n")
 	g.printf("\t\tout := cVal.Elem().Addr().Interface()\n")
 	g.printf("\t\tdecoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{\n")
 	g.printf("\t\t\tDecodeHook: decoderHook,\n")
@@ -154,7 +154,7 @@ func genDecoderHook(g *generator) {
 	g.printf("\t\tif err != nil {\n")
 	g.printf("\t\t\treturn 0, err\n")
 	g.printf("\t\t}\n")
-	g.printf("\t\tif err := decoder.Decode(v.(map[string]interface{})); err != nil {\n")
+	g.printf("\t\tif err := decoder.Decode(v.(map[string]any)); err != nil {\n")
 	g.print("\t\t\treturn nil, fmt.Errorf(\"error decoding %+v into %+v: %w\", v, out, err)\n")
 	g.printf("\t\t}\n")
 	g.printf("\t\treturn out, nil\n")
@@ -208,8 +208,8 @@ func genQueryWrapperTypes(g *generator) {
 		}
 
 		type gqlResponse struct {
-			Data   map[string]interface{}   ` + "`json:\"data\"`" + `
-			Errors []map[string]interface{} ` + "`json:\"errors\"`" + `
+			Data   map[string]any   ` + "`json:\"data\"`" + `
+			Errors []map[string]any ` + "`json:\"errors\"`" + `
 		}
 	`)
 }
@@ -231,7 +231,7 @@ func genRewriteQuery(g *generator) {
 
 func genClientDo(g *generator) {
 	g.print(`
-		func (c *client) do(ctx context.Context, dataField, query string, out interface{}) (int, error) {
+		func (c *client) do(ctx context.Context, dataField, query string, out any) (int, error) {
 			query, err := rewriteQuery(query)
 			if err != nil {
 				return 0, err
@@ -264,7 +264,7 @@ func genClientDo(g *generator) {
 			defer resp.Body.Close()
 			ball, err := io.ReadAll(resp.Body)
 			if err != nil {
-				return resp.StatusCode, fmt.Errorf("error reading body - in response from %w: %s", req.URL, err)
+				return resp.StatusCode, fmt.Errorf("error reading body - in response from %s: %w", req.URL, err)
 			}
 			c.log.Debugf(ctx, "Response: %s - %s", resp.Status, ball)
 			gqlResp := &gqlResponse{}
@@ -286,13 +286,13 @@ func genClientDo(g *generator) {
 				if err != nil {
 					return 0, err
 				}
-				mData, ok := gqlResp.Data[dataField].(map[string]interface{})
+				mData, ok := gqlResp.Data[dataField].(map[string]any)
 				if ok {
 					if err := decoder.Decode(mData); err != nil {
 						return resp.StatusCode, fmt.Errorf("error parsing body into output: %w", err)
 					}
 				} else {
-					sData, ok := gqlResp.Data[dataField].([]interface{})
+					sData, ok := gqlResp.Data[dataField].([]any)
 					if ok {
 						if err := decoder.Decode(sData); err != nil {
 							return resp.StatusCode, fmt.Errorf("error parsing body into output: %w", err)
