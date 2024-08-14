@@ -155,7 +155,7 @@ func genDecoderHook(g *generator) {
 	g.printf("\t\t\treturn 0, err\n")
 	g.printf("\t\t}\n")
 	g.printf("\t\tif err := decoder.Decode(v.(map[string]interface{})); err != nil {\n")
-	g.print("\t\t\treturn nil, fmt.Errorf(\"Error decoding %+v into %+v: %s\", v, out, err)\n")
+	g.print("\t\t\treturn nil, fmt.Errorf(\"error decoding %+v into %+v: %w\", v, out, err)\n")
 	g.printf("\t\t}\n")
 	g.printf("\t\treturn out, nil\n")
 	g.printf("\t}\n")
@@ -264,13 +264,13 @@ func genClientDo(g *generator) {
 			defer resp.Body.Close()
 			ball, err := io.ReadAll(resp.Body)
 			if err != nil {
-				return resp.StatusCode, fmt.Errorf("Error reading body - in response from %v: %s", req.URL.String(), err)
+				return resp.StatusCode, fmt.Errorf("error reading body - in response from %w: %s", req.URL.String(), err)
 			}
 			c.log.Debugf(ctx, "Response: %s - %s", resp.Status, ball)
 			gqlResp := &gqlResponse{}
 			if resp.StatusCode == http.StatusOK {
 				if err := json.NewDecoder(bytes.NewReader(ball)).Decode(gqlResp); err != nil {
-					return resp.StatusCode, fmt.Errorf("Error parsing body into output: %s", err)
+					return resp.StatusCode, fmt.Errorf("error parsing body into output: %w", err)
 				}
 				if len(gqlResp.Errors) != 0 {
 					var allErrors string
@@ -289,13 +289,13 @@ func genClientDo(g *generator) {
 				mData, ok := gqlResp.Data[dataField].(map[string]interface{})
 				if ok {
 					if err := decoder.Decode(mData); err != nil {
-						return resp.StatusCode, fmt.Errorf("Error parsing body into output: %s", err)
+						return resp.StatusCode, fmt.Errorf("error parsing body into output: %w", err)
 					}
 				} else {
 					sData, ok := gqlResp.Data[dataField].([]interface{})
 					if ok {
 						if err := decoder.Decode(sData); err != nil {
-							return resp.StatusCode, fmt.Errorf("Error parsing body into output: %s", err)
+							return resp.StatusCode, fmt.Errorf("error parsing body into output: %w", err)
 						}
 					} else {
 						return resp.StatusCode, fmt.Errorf("unhandled response data type %T %+v", gqlResp.Data[dataField], gqlResp.Data[dataField])
@@ -303,7 +303,7 @@ func genClientDo(g *generator) {
 				}
 				return resp.StatusCode, nil
 			}
-			return resp.StatusCode, fmt.Errorf("Non 200 Response (%d) from %s: %s", resp.StatusCode, req.URL, string(ball))
+			return resp.StatusCode, fmt.Errorf("non 200 Response (%d) from %s: %s", resp.StatusCode, req.URL, ball)
 		}
 	`)
 }
