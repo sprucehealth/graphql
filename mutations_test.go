@@ -67,7 +67,7 @@ var mutationsTestSchema, _ = graphql.NewSchema(graphql.SchemaConfig{
 						Type: graphql.Int,
 					},
 				},
-				Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
+				Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
 					newNumber := 0
 					obj, _ := p.Source.(*testRoot)
 					newNumber, _ = p.Args["newNumber"].(int)
@@ -81,7 +81,7 @@ var mutationsTestSchema, _ = graphql.NewSchema(graphql.SchemaConfig{
 						Type: graphql.Int,
 					},
 				},
-				Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
+				Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
 					newNumber := 0
 					obj, _ := p.Source.(*testRoot)
 					newNumber, _ = p.Args["newNumber"].(int)
@@ -95,7 +95,7 @@ var mutationsTestSchema, _ = graphql.NewSchema(graphql.SchemaConfig{
 						Type: graphql.Int,
 					},
 				},
-				Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
+				Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
 					newNumber := 0
 					obj, _ := p.Source.(*testRoot)
 					newNumber, _ = p.Args["newNumber"].(int)
@@ -109,7 +109,7 @@ var mutationsTestSchema, _ = graphql.NewSchema(graphql.SchemaConfig{
 						Type: graphql.Int,
 					},
 				},
-				Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
+				Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
 					newNumber := 0
 					obj, _ := p.Source.(*testRoot)
 					newNumber, _ = p.Args["newNumber"].(int)
@@ -142,20 +142,20 @@ func TestMutations_ExecutionOrdering_EvaluatesMutationsSerially(t *testing.T) {
     }`
 
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
-			"first": map[string]interface{}{
+		Data: map[string]any{
+			"first": map[string]any{
 				"theNumber": 1,
 			},
-			"second": map[string]interface{}{
+			"second": map[string]any{
 				"theNumber": 2,
 			},
-			"third": map[string]interface{}{
+			"third": map[string]any{
 				"theNumber": 3,
 			},
-			"fourth": map[string]interface{}{
+			"fourth": map[string]any{
 				"theNumber": 4,
 			},
-			"fifth": map[string]interface{}{
+			"fifth": map[string]any{
 				"theNumber": 5,
 			},
 		},
@@ -202,18 +202,18 @@ func TestMutations_EvaluatesMutationsCorrectlyInThePresenceOfAFailedMutation(t *
     }`
 
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
-			"first": map[string]interface{}{
+		Data: map[string]any{
+			"first": map[string]any{
 				"theNumber": 1,
 			},
-			"second": map[string]interface{}{
+			"second": map[string]any{
 				"theNumber": 2,
 			},
 			"third": nil,
-			"fourth": map[string]interface{}{
+			"fourth": map[string]any{
 				"theNumber": 4,
 			},
-			"fifth": map[string]interface{}{
+			"fifth": map[string]any{
 				"theNumber": 5,
 			},
 			"sixth": nil,

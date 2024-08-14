@@ -28,11 +28,11 @@ func testSchema(t *testing.T, testField *graphql.Field) graphql.Schema {
 func TestExecutesResolveFunction_DefaultFunctionAccessesProperties(t *testing.T) {
 	schema := testSchema(t, &graphql.Field{Type: graphql.String})
 
-	source := map[string]interface{}{
+	source := map[string]any{
 		"test": "testValue",
 	}
 
-	expected := map[string]interface{}{
+	expected := map[string]any{
 		"test": "testValue",
 	}
 
@@ -49,13 +49,13 @@ func TestExecutesResolveFunction_DefaultFunctionAccessesProperties(t *testing.T)
 func TestExecutesResolveFunction_DefaultFunctionCallsMethods(t *testing.T) {
 	schema := testSchema(t, &graphql.Field{Type: graphql.String})
 
-	source := map[string]interface{}{
-		"test": func() interface{} {
+	source := map[string]any{
+		"test": func() any {
 			return "testValue"
 		},
 	}
 
-	expected := map[string]interface{}{
+	expected := map[string]any{
 		"test": "testValue",
 	}
 
@@ -76,13 +76,13 @@ func TestExecutesResolveFunction_UsesProvidedResolveFunction(t *testing.T) {
 			"aStr": &graphql.ArgumentConfig{Type: graphql.String},
 			"aInt": &graphql.ArgumentConfig{Type: graphql.Int},
 		},
-		Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
+		Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
 			b, err := json.Marshal(p.Args)
 			return string(b), err
 		},
 	})
 
-	expected := map[string]interface{}{
+	expected := map[string]any{
 		"test": "{}",
 	}
 	result := graphql.Do(context.Background(), graphql.Params{
@@ -93,7 +93,7 @@ func TestExecutesResolveFunction_UsesProvidedResolveFunction(t *testing.T) {
 		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expected, result.Data))
 	}
 
-	expected = map[string]interface{}{
+	expected = map[string]any{
 		"test": `{"aStr":"String!"}`,
 	}
 	result = graphql.Do(context.Background(), graphql.Params{
@@ -104,7 +104,7 @@ func TestExecutesResolveFunction_UsesProvidedResolveFunction(t *testing.T) {
 		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expected, result.Data))
 	}
 
-	expected = map[string]interface{}{
+	expected = map[string]any{
 		"test": `{"aInt":-123,"aStr":"String!"}`,
 	}
 	result = graphql.Do(context.Background(), graphql.Params{
@@ -136,7 +136,7 @@ func TestExecutesResolveFunction_UsesProvidedResolveFunction_SourceIsStruct_With
 			"aStr": &graphql.ArgumentConfig{Type: graphql.String},
 			"aInt": &graphql.ArgumentConfig{Type: graphql.Int},
 		},
-		Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
+		Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
 			aStr, _ := p.Args["aStr"].(string)
 			aInt, _ := p.Args["aInt"].(int)
 			return &SubObjectWithoutJSONTags{
@@ -146,8 +146,8 @@ func TestExecutesResolveFunction_UsesProvidedResolveFunction_SourceIsStruct_With
 		},
 	})
 
-	expected := map[string]interface{}{
-		"test": map[string]interface{}{
+	expected := map[string]any{
+		"test": map[string]any{
 			"Str": "",
 			"Int": 0,
 		},
@@ -161,8 +161,8 @@ func TestExecutesResolveFunction_UsesProvidedResolveFunction_SourceIsStruct_With
 		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expected, result.Data))
 	}
 
-	expected = map[string]interface{}{
-		"test": map[string]interface{}{
+	expected = map[string]any{
+		"test": map[string]any{
 			"Str": "String!",
 			"Int": 0,
 		},
@@ -175,8 +175,8 @@ func TestExecutesResolveFunction_UsesProvidedResolveFunction_SourceIsStruct_With
 		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expected, result.Data))
 	}
 
-	expected = map[string]interface{}{
-		"test": map[string]interface{}{
+	expected = map[string]any{
+		"test": map[string]any{
 			"Str": "String!",
 			"Int": -123,
 		},
@@ -212,7 +212,7 @@ func TestExecutesResolveFunction_UsesProvidedResolveFunction_SourceIsStruct_With
 			"aStr": &graphql.ArgumentConfig{Type: graphql.String},
 			"aInt": &graphql.ArgumentConfig{Type: graphql.Int},
 		},
-		Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
+		Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
 			aStr, _ := p.Args["aStr"].(string)
 			aInt, _ := p.Args["aInt"].(int)
 			return &SubObjectWithJSONTags{
@@ -222,8 +222,8 @@ func TestExecutesResolveFunction_UsesProvidedResolveFunction_SourceIsStruct_With
 		},
 	})
 
-	expected := map[string]interface{}{
-		"test": map[string]interface{}{
+	expected := map[string]any{
+		"test": map[string]any{
 			"str": "",
 			"int": 0,
 		},
@@ -237,8 +237,8 @@ func TestExecutesResolveFunction_UsesProvidedResolveFunction_SourceIsStruct_With
 		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expected, result.Data))
 	}
 
-	expected = map[string]interface{}{
-		"test": map[string]interface{}{
+	expected = map[string]any{
+		"test": map[string]any{
 			"str": "String!",
 			"int": 0,
 		},
@@ -251,8 +251,8 @@ func TestExecutesResolveFunction_UsesProvidedResolveFunction_SourceIsStruct_With
 		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expected, result.Data))
 	}
 
-	expected = map[string]interface{}{
-		"test": map[string]interface{}{
+	expected = map[string]any{
+		"test": map[string]any{
 			"str": "String!",
 			"int": -123,
 		},

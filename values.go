@@ -16,8 +16,8 @@ import (
 // Prepares an object map of variableValues of the correct type based on the
 // provided variable definitions and arbitrary input. If the input cannot be
 // parsed to match the variable definitions, a GraphQLError will be returned.
-func getVariableValues(schema Schema, definitionASTs []*ast.VariableDefinition, inputs map[string]interface{}) (map[string]interface{}, error) {
-	values := make(map[string]interface{}, len(definitionASTs))
+func getVariableValues(schema Schema, definitionASTs []*ast.VariableDefinition, inputs map[string]any) (map[string]any, error) {
+	values := make(map[string]any, len(definitionASTs))
 	for _, defAST := range definitionASTs {
 		if defAST == nil || defAST.Variable == nil || defAST.Variable.Name == nil {
 			continue
@@ -34,14 +34,14 @@ func getVariableValues(schema Schema, definitionASTs []*ast.VariableDefinition, 
 
 // Prepares an object map of argument values given a list of argument
 // definitions and list of argument AST nodes.
-func getArgumentValues(argDefs []*Argument, argASTs []*ast.Argument, variableVariables map[string]interface{}) map[string]interface{} {
+func getArgumentValues(argDefs []*Argument, argASTs []*ast.Argument, variableVariables map[string]any) map[string]any {
 	argASTMap := make(map[string]*ast.Argument, len(argASTs))
 	for _, argAST := range argASTs {
 		if argAST.Name != nil {
 			argASTMap[argAST.Name.Value] = argAST
 		}
 	}
-	results := make(map[string]interface{}, len(argDefs))
+	results := make(map[string]any, len(argDefs))
 	for _, argDef := range argDefs {
 		name := argDef.PrivateName
 		var valueAST ast.Value
@@ -61,7 +61,7 @@ func getArgumentValues(argDefs []*Argument, argASTs []*ast.Argument, variableVar
 
 // Given a variable definition, and any value of input, return a value which
 // adheres to the variable definition, or throw an error.
-func getVariableValue(schema Schema, definitionAST *ast.VariableDefinition, input interface{}) (interface{}, error) {
+func getVariableValue(schema Schema, definitionAST *ast.VariableDefinition, input any) (any, error) {
 	ttype, err := typeFromAST(schema, definitionAST.Type)
 	if err != nil {
 		return nil, err
@@ -86,7 +86,7 @@ func getVariableValue(schema Schema, definitionAST *ast.VariableDefinition, inpu
 		if isNullish(input) {
 			defaultValue := definitionAST.DefaultValue
 			if defaultValue != nil {
-				variables := map[string]interface{}{}
+				variables := map[string]any{}
 				val := valueFromAST(defaultValue, ttype, variables)
 				return val, nil
 			}
@@ -128,7 +128,7 @@ func getVariableValue(schema Schema, definitionAST *ast.VariableDefinition, inpu
 }
 
 // Given a type and any value, return a runtime value coerced to match the type.
-func coerceValue(ttype Input, value interface{}) interface{} {
+func coerceValue(ttype Input, value any) any {
 	if ttype, ok := ttype.(*NonNull); ok {
 		return coerceValue(ttype.OfType, value)
 	}
@@ -139,7 +139,7 @@ func coerceValue(ttype Input, value interface{}) interface{} {
 		itemType := ttype.OfType
 		valType := reflect.ValueOf(value)
 		if valType.Kind() == reflect.Slice {
-			values := []interface{}{}
+			values := []any{}
 			for i := 0; i < valType.Len(); i++ {
 				val := valType.Index(i).Interface()
 				v := coerceValue(itemType, val)
@@ -148,15 +148,15 @@ func coerceValue(ttype Input, value interface{}) interface{} {
 			return values
 		}
 		val := coerceValue(itemType, value)
-		return []interface{}{val}
+		return []any{val}
 	}
 	if ttype, ok := ttype.(*InputObject); ok {
-		valueMap, ok := value.(map[string]interface{})
+		valueMap, ok := value.(map[string]any)
 		if !ok {
-			valueMap = map[string]interface{}{}
+			valueMap = map[string]any{}
 		}
 
-		obj := map[string]interface{}{}
+		obj := map[string]any{}
 		for fieldName, field := range ttype.Fields() {
 			value := valueMap[fieldName]
 			fieldValue := coerceValue(field.Type, value)
@@ -221,7 +221,7 @@ func typeFromAST(schema Schema, inputTypeAST ast.Type) (Type, error) {
 // Given a value and a GraphQL type, determine if the value will be
 // accepted for that type. This is primarily useful for validating the
 // runtime values of query variables.
-func isValidInputValue(value interface{}, ttype Input) (bool, []string) {
+func isValidInputValue(value any, ttype Input) (bool, []string) {
 	if ttype, ok := ttype.(*NonNull); ok {
 		if isNullish(value) {
 			if ttype.OfType.Name() != "" {
@@ -257,7 +257,7 @@ func isValidInputValue(value interface{}, ttype Input) (bool, []string) {
 		return isValidInputValue(value, itemType)
 
 	case *InputObject:
-		valueMap, ok := value.(map[string]interface{})
+		valueMap, ok := value.(map[string]any)
 		if !ok {
 			return false, []string{fmt.Sprintf(`Expected "%v", found not an object.`, ttype.Name())}
 		}
@@ -315,7 +315,7 @@ func isValidInputValue(value interface{}, ttype Input) (bool, []string) {
 }
 
 // Returns true if a value is null, undefined, or NaN.
-func isNullish(value interface{}) bool {
+func isNullish(value any) bool {
 	switch v := value.(type) {
 	case nil:
 		return true
@@ -324,7 +324,7 @@ func isNullish(value interface{}) bool {
 	case float64:
 		return math.IsNaN(v)
 	}
-	// The interface{} can hide an underlying nil ptr
+	// The any can hide an underlying nil ptr
 	if v := reflect.ValueOf(value); v.Kind() == reflect.Ptr {
 		return v.IsNil()
 	}
@@ -364,7 +364,7 @@ func isEmptyValue(v reflect.Value) bool {
  * | Int / Float          | Number        |
  *
  */
-func valueFromAST(valueAST ast.Value, ttype Input, variables map[string]interface{}) interface{} {
+func valueFromAST(valueAST ast.Value, ttype Input, variables map[string]any) any {
 	if ttype, ok := ttype.(*NonNull); ok {
 		val := valueFromAST(valueAST, ttype.OfType, variables)
 		return val
@@ -395,7 +395,7 @@ func valueFromAST(valueAST ast.Value, ttype Input, variables map[string]interfac
 	if ttype, ok := ttype.(*List); ok {
 		itemType := ttype.OfType
 		if valueAST, ok := valueAST.(*ast.ListValue); ok {
-			values := []interface{}{}
+			values := []any{}
 			for _, itemAST := range valueAST.Values {
 				v := valueFromAST(itemAST, itemType, variables)
 				values = append(values, v)
@@ -403,7 +403,7 @@ func valueFromAST(valueAST ast.Value, ttype Input, variables map[string]interfac
 			return values
 		}
 		v := valueFromAST(valueAST, itemType, variables)
-		return []interface{}{v}
+		return []any{v}
 	}
 
 	if ttype, ok := ttype.(*InputObject); ok {
@@ -420,7 +420,7 @@ func valueFromAST(valueAST ast.Value, ttype Input, variables map[string]interfac
 			fieldASTs[fieldName] = fieldAST
 
 		}
-		obj := make(map[string]interface{})
+		obj := make(map[string]any)
 		for fieldName, field := range ttype.Fields() {
 			fieldAST, ok := fieldASTs[fieldName]
 			if !ok || fieldAST == nil {

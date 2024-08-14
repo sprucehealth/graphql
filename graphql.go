@@ -18,11 +18,11 @@ type Params struct {
 
 	// RootObject is the value provided as the first argument to resolver functions on the top
 	// level type (e.g. the query object type).
-	RootObject map[string]interface{}
+	RootObject map[string]any
 
 	// VariableValues is a mapping of variable name to runtime value to use for all variables
 	// defined in the requestString.
-	VariableValues map[string]interface{}
+	VariableValues map[string]any
 
 	// OperationName is the name of the operation to use if requestString contains multiple
 	// possible operations. Can be omitted if requestString contains only

@@ -59,7 +59,7 @@ func newValidationError(message string, nodes []ast.Node) *gqlerrors.Error {
 	)
 }
 
-func reportErrorAndReturn(context *ValidationContext, message string, nodes []ast.Node) (string, interface{}) {
+func reportErrorAndReturn(context *ValidationContext, message string, nodes []ast.Node) (string, any) {
 	context.ReportError(newValidationError(message, nodes))
 	return visitor.ActionNoChange, nil
 }
@@ -70,7 +70,7 @@ func reportErrorAndReturn(context *ValidationContext, message string, nodes []as
 // of the type expected by their position.
 func ArgumentsOfCorrectTypeRule(context *ValidationContext) *ValidationRuleInstance {
 	return &ValidationRuleInstance{
-		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
+		Enter: func(p visitor.VisitFuncParams) (string, any) {
 			if argAST, ok := p.Node.(*ast.Argument); ok {
 				value := argAST.Value
 				argDef := context.Argument()
@@ -106,7 +106,7 @@ func ArgumentsOfCorrectTypeRule(context *ValidationContext) *ValidationRuleInsta
 // type expected by their definition.
 func DefaultValuesOfCorrectTypeRule(context *ValidationContext) *ValidationRuleInstance {
 	return &ValidationRuleInstance{
-		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
+		Enter: func(p visitor.VisitFuncParams) (string, any) {
 			switch node := p.Node.(type) {
 			case *ast.VariableDefinition:
 				name := ""
@@ -192,7 +192,7 @@ func UndefinedFieldMessage(fieldName string, ttypeName string, suggestedTypeName
 // parent type, or are an allowed meta field such as __typenamme
 func FieldsOnCorrectTypeRule(context *ValidationContext) *ValidationRuleInstance {
 	return &ValidationRuleInstance{
-		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
+		Enter: func(p visitor.VisitFuncParams) (string, any) {
 			var action = visitor.ActionNoChange
 			if node, ok := p.Node.(*ast.Field); ok {
 				ttype := context.ParentType()
@@ -337,7 +337,7 @@ func (s suggestedInterfaceSortedSlice) Less(i, j int) bool {
 // type condition must also be a composite type.
 func FragmentsOnCompositeTypesRule(context *ValidationContext) *ValidationRuleInstance {
 	return &ValidationRuleInstance{
-		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
+		Enter: func(p visitor.VisitFuncParams) (string, any) {
 			switch node := p.Node.(type) {
 			case *ast.InlineFragment:
 				ttype := context.Type()
@@ -393,7 +393,7 @@ func unknownDirectiveArgMessage(argName string, directiveName string, suggestedA
 // that field.
 func KnownArgumentNamesRule(context *ValidationContext) *ValidationRuleInstance {
 	return &ValidationRuleInstance{
-		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
+		Enter: func(p visitor.VisitFuncParams) (string, any) {
 			var action = visitor.ActionNoChange
 			if node, ok := p.Node.(*ast.Argument); ok {
 				var argumentOf ast.Node
@@ -475,7 +475,7 @@ func MisplaceDirectiveMessage(directiveName, location string) string {
 // schema and legally positioned.
 func KnownDirectivesRule(context *ValidationContext) *ValidationRuleInstance {
 	return &ValidationRuleInstance{
-		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
+		Enter: func(p visitor.VisitFuncParams) (string, any) {
 			if node, ok := p.Node.(*ast.Directive); ok {
 				nodeName := ""
 				if node.Name != nil {
@@ -584,7 +584,7 @@ func getDirectiveLocationForASTPath(ancestors []ast.Node) string {
 // to fragments defined in the same document.
 func KnownFragmentNamesRule(context *ValidationContext) *ValidationRuleInstance {
 	return &ValidationRuleInstance{
-		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
+		Enter: func(p visitor.VisitFuncParams) (string, any) {
 			var action = visitor.ActionNoChange
 			if node, ok := p.Node.(*ast.FragmentSpread); ok {
 				fragmentName := ""
@@ -621,7 +621,7 @@ func unknownTypeMessage(typeName string, suggestedTypes []string) string {
 // variable definitions and fragment conditions) are defined by the type schema.
 func KnownTypeNamesRule(context *ValidationContext) *ValidationRuleInstance {
 	return &ValidationRuleInstance{
-		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
+		Enter: func(p visitor.VisitFuncParams) (string, any) {
 			switch node := p.Node.(type) {
 			case *ast.ObjectDefinition:
 				return visitor.ActionSkip, nil
@@ -663,7 +663,7 @@ func KnownTypeNamesRule(context *ValidationContext) *ValidationRuleInstance {
 func LoneAnonymousOperationRule(context *ValidationContext) *ValidationRuleInstance {
 	var operationCount = 0
 	return &ValidationRuleInstance{
-		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
+		Enter: func(p visitor.VisitFuncParams) (string, any) {
 			switch node := p.Node.(type) {
 			case *ast.Document:
 				operationCount = 0
@@ -768,7 +768,7 @@ func NoFragmentCyclesRule(context *ValidationContext) *ValidationRuleInstance {
 	}
 
 	return &ValidationRuleInstance{
-		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
+		Enter: func(p visitor.VisitFuncParams) (string, any) {
 			switch node := p.Node.(type) {
 			case *ast.OperationDefinition:
 				return visitor.ActionSkip, nil
@@ -801,7 +801,7 @@ func UndefinedVarMessage(varName string, opName string) string {
 func NoUndefinedVariablesRule(context *ValidationContext) *ValidationRuleInstance {
 	var variableNameDefined = map[string]bool{}
 	return &ValidationRuleInstance{
-		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
+		Enter: func(p visitor.VisitFuncParams) (string, any) {
 			switch node := p.Node.(type) {
 			case *ast.OperationDefinition:
 				variableNameDefined = map[string]bool{}
@@ -814,7 +814,7 @@ func NoUndefinedVariablesRule(context *ValidationContext) *ValidationRuleInstanc
 			}
 			return visitor.ActionNoChange, nil
 		},
-		Leave: func(p visitor.VisitFuncParams) (string, interface{}) {
+		Leave: func(p visitor.VisitFuncParams) (string, any) {
 			switch node := p.Node.(type) {
 			case *ast.OperationDefinition:
 				usages := context.RecursiveVariableUsages(node)
@@ -854,7 +854,7 @@ func NoUnusedFragmentsRule(context *ValidationContext) *ValidationRuleInstance {
 	var operationDefs []*ast.OperationDefinition
 
 	return &ValidationRuleInstance{
-		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
+		Enter: func(p visitor.VisitFuncParams) (string, any) {
 			switch node := p.Node.(type) {
 			case *ast.OperationDefinition:
 				operationDefs = append(operationDefs, node)
@@ -865,7 +865,7 @@ func NoUnusedFragmentsRule(context *ValidationContext) *ValidationRuleInstance {
 			}
 			return visitor.ActionNoChange, nil
 		},
-		Leave: func(p visitor.VisitFuncParams) (string, interface{}) {
+		Leave: func(p visitor.VisitFuncParams) (string, any) {
 			switch p.Node.(type) {
 			case *ast.Document:
 				fragmentNameUsed := make(map[string]bool)
@@ -913,7 +913,7 @@ func UnusedVariableMessage(varName string, opName string) string {
 func NoUnusedVariablesRule(context *ValidationContext) *ValidationRuleInstance {
 	var variableDefs = []*ast.VariableDefinition{}
 	return &ValidationRuleInstance{
-		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
+		Enter: func(p visitor.VisitFuncParams) (string, any) {
 			switch def := p.Node.(type) {
 			case *ast.OperationDefinition:
 				variableDefs = variableDefs[:0]
@@ -922,7 +922,7 @@ func NoUnusedVariablesRule(context *ValidationContext) *ValidationRuleInstance {
 			}
 			return visitor.ActionNoChange, nil
 		},
-		Leave: func(p visitor.VisitFuncParams) (string, interface{}) {
+		Leave: func(p visitor.VisitFuncParams) (string, any) {
 			if operation, ok := p.Node.(*ast.OperationDefinition); ok {
 				usages := context.RecursiveVariableUsages(operation)
 				variableNameUsed := make(map[string]bool, len(usages))
@@ -1079,7 +1079,7 @@ func (pair *pairSet) Add(a ast.Node, b ast.Node) bool {
 
 type conflictReason struct {
 	Name    string
-	Message interface{} // conflictReason || []conflictReason
+	Message any // conflictReason || []conflictReason
 }
 type conflict struct {
 	Reason      conflictReason
@@ -1351,8 +1351,8 @@ func findConflict(context *ValidationContext, parentFieldsAreMutuallyExclusive b
 func OverlappingFieldsCanBeMergedRule(context *ValidationContext) *ValidationRuleInstance {
 	comparedSet := newPairSet()
 
-	var reasonMessage func(message interface{}) string
-	reasonMessage = func(message interface{}) string {
+	var reasonMessage func(message any) string
+	reasonMessage = func(message any) string {
 		switch reason := message.(type) {
 		case string:
 			return reason
@@ -1373,7 +1373,7 @@ func OverlappingFieldsCanBeMergedRule(context *ValidationContext) *ValidationRul
 	}
 
 	return &ValidationRuleInstance{
-		Leave: func(p visitor.VisitFuncParams) (string, interface{}) {
+		Leave: func(p visitor.VisitFuncParams) (string, any) {
 			if selectionSet, ok := p.Node.(*ast.SelectionSet); ok && selectionSet != nil {
 				parentType, _ := context.ParentType().(Named)
 				fieldMap := collectFieldASTsAndDefs(
@@ -1463,7 +1463,7 @@ func doTypesOverlap(schema *Schema, t1 Type, t2 Type) bool {
 // and possible types which pass the type condition.
 func PossibleFragmentSpreadsRule(context *ValidationContext) *ValidationRuleInstance {
 	return &ValidationRuleInstance{
-		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
+		Enter: func(p visitor.VisitFuncParams) (string, any) {
 			switch node := p.Node.(type) {
 			case *ast.InlineFragment:
 				fragType := context.Type()
@@ -1504,7 +1504,7 @@ func PossibleFragmentSpreadsRule(context *ValidationContext) *ValidationRuleInst
 // have been provided.
 func ProvidedNonNullArgumentsRule(context *ValidationContext) *ValidationRuleInstance {
 	return &ValidationRuleInstance{
-		Leave: func(p visitor.VisitFuncParams) (string, interface{}) {
+		Leave: func(p visitor.VisitFuncParams) (string, any) {
 			// Validate on leave to allow for deeper errors to appear first.
 			if fieldAST, ok := p.Node.(*ast.Field); ok && fieldAST != nil {
 				fieldDef := context.FieldDef()
@@ -1539,7 +1539,7 @@ func ProvidedNonNullArgumentsRule(context *ValidationContext) *ValidationRuleIns
 			}
 			return visitor.ActionNoChange, nil
 		},
-		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
+		Enter: func(p visitor.VisitFuncParams) (string, any) {
 			// Validate on leave to allow for deeper errors to appear first.
 
 			if directiveAST, ok := p.Node.(*ast.Directive); ok && directiveAST != nil {
@@ -1584,7 +1584,7 @@ func ProvidedNonNullArgumentsRule(context *ValidationContext) *ValidationRuleIns
 // sub selections) are of scalar or enum types.
 func ScalarLeafsRule(context *ValidationContext) *ValidationRuleInstance {
 	return &ValidationRuleInstance{
-		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
+		Enter: func(p visitor.VisitFuncParams) (string, any) {
 			if node, ok := p.Node.(*ast.Field); ok && node != nil {
 				nodeName := ""
 				if node.Name != nil {
@@ -1622,7 +1622,7 @@ func UniqueArgumentNamesRule(context *ValidationContext) *ValidationRuleInstance
 	knownArgNames := make(map[string]*ast.Name)
 
 	return &ValidationRuleInstance{
-		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
+		Enter: func(p visitor.VisitFuncParams) (string, any) {
 			switch node := p.Node.(type) {
 			case *ast.Field:
 				if len(knownArgNames) != 0 {
@@ -1658,7 +1658,7 @@ func UniqueArgumentNamesRule(context *ValidationContext) *ValidationRuleInstance
 func UniqueFragmentNamesRule(context *ValidationContext) *ValidationRuleInstance {
 	knownFragmentNames := make(map[string]*ast.Name)
 	return &ValidationRuleInstance{
-		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
+		Enter: func(p visitor.VisitFuncParams) (string, any) {
 			switch node := p.Node.(type) {
 			case *ast.OperationDefinition:
 				return visitor.ActionSkip, nil
@@ -1690,7 +1690,7 @@ func UniqueInputFieldNamesRule(context *ValidationContext) *ValidationRuleInstan
 	knownNames := make(map[string]*ast.Name)
 
 	return &ValidationRuleInstance{
-		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
+		Enter: func(p visitor.VisitFuncParams) (string, any) {
 			switch node := p.Node.(type) {
 			case *ast.ObjectValue:
 				knownNameStack = append(knownNameStack, knownNames)
@@ -1713,7 +1713,7 @@ func UniqueInputFieldNamesRule(context *ValidationContext) *ValidationRuleInstan
 			}
 			return visitor.ActionNoChange, nil
 		},
-		Leave: func(p visitor.VisitFuncParams) (string, interface{}) {
+		Leave: func(p visitor.VisitFuncParams) (string, any) {
 			switch p.Node.(type) {
 			case *ast.ObjectValue:
 				knownNames, knownNameStack = knownNameStack[len(knownNameStack)-1], knownNameStack[:len(knownNameStack)-1]
@@ -1729,7 +1729,7 @@ func UniqueInputFieldNamesRule(context *ValidationContext) *ValidationRuleInstan
 func UniqueOperationNamesRule(context *ValidationContext) *ValidationRuleInstance {
 	knownOperationNames := make(map[string]*ast.Name)
 	return &ValidationRuleInstance{
-		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
+		Enter: func(p visitor.VisitFuncParams) (string, any) {
 			switch node := p.Node.(type) {
 			case *ast.OperationDefinition:
 				var operationName string
@@ -1757,7 +1757,7 @@ func UniqueOperationNamesRule(context *ValidationContext) *ValidationRuleInstanc
 // A GraphQL operation is only valid if all its variables are uniquely named.
 func UniqueVariableNamesRule(context *ValidationContext) *ValidationRuleInstance {
 	return &ValidationRuleInstance{
-		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
+		Enter: func(p visitor.VisitFuncParams) (string, any) {
 			if node, ok := p.Node.(*ast.OperationDefinition); ok {
 				knownVariableNames := make(map[string]*ast.Name)
 				for _, def := range node.VariableDefinitions {
@@ -1787,7 +1787,7 @@ func UniqueVariableNamesRule(context *ValidationContext) *ValidationRuleInstance
 // input types (scalar, enum, or input object).
 func VariablesAreInputTypesRule(context *ValidationContext) *ValidationRuleInstance {
 	return &ValidationRuleInstance{
-		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
+		Enter: func(p visitor.VisitFuncParams) (string, any) {
 			if node, ok := p.Node.(*ast.VariableDefinition); ok && node != nil {
 				ttype, _ := typeFromAST(*context.Schema(), node.Type)
 
@@ -1825,7 +1825,7 @@ func effectiveType(varType Type, varDef *ast.VariableDefinition) Type {
 func VariablesInAllowedPositionRule(context *ValidationContext) *ValidationRuleInstance {
 	varDefMap := make(map[string]*ast.VariableDefinition)
 	return &ValidationRuleInstance{
-		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
+		Enter: func(p visitor.VisitFuncParams) (string, any) {
 			switch node := p.Node.(type) {
 			case *ast.OperationDefinition:
 				if len(varDefMap) != 0 {
@@ -1841,7 +1841,7 @@ func VariablesInAllowedPositionRule(context *ValidationContext) *ValidationRuleI
 			}
 			return visitor.ActionNoChange, nil
 		},
-		Leave: func(p visitor.VisitFuncParams) (string, interface{}) {
+		Leave: func(p visitor.VisitFuncParams) (string, any) {
 			switch operation := p.Node.(type) {
 			case *ast.OperationDefinition:
 				usages := context.RecursiveVariableUsages(operation)

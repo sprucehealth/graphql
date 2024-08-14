@@ -36,14 +36,14 @@ func TestDefaultResolveFn(t *testing.T) {
 	}
 
 	p = ResolveParams{
-		Source: map[string]interface{}{
+		Source: map[string]any{
 			"A": "a",
 			"B": "b",
 			"C": "c",
 			"D": "d",
 			"E": "e",
 			"F": "testing",
-			"G": func() interface{} { return "g" },
+			"G": func() any { return "g" },
 			"H": "h",
 		},
 		Info: ResolveInfo{
@@ -102,7 +102,7 @@ func BenchmarkDefaultResolveFnStruct(b *testing.B) {
 
 func BenchmarkDefaultResolveFnMap(b *testing.B) {
 	p := ResolveParams{
-		Source: map[string]interface{}{
+		Source: map[string]any{
 			"A": "a",
 			"B": "b",
 			"C": "c",
@@ -146,37 +146,37 @@ func BenchmarkQuery(b *testing.B) {
 			Fields: Fields{
 				"foo": &Field{
 					Type: NewNonNull(enumType),
-					Resolve: func(ctx context.Context, p ResolveParams) (interface{}, error) {
+					Resolve: func(ctx context.Context, p ResolveParams) (any, error) {
 						return enumValue, nil
 					},
 				},
 				"someID": &Field{
 					Type: NewNonNull(ID),
-					Resolve: func(ctx context.Context, p ResolveParams) (interface{}, error) {
+					Resolve: func(ctx context.Context, p ResolveParams) (any, error) {
 						return "abc", nil
 					},
 				},
 				"someString": &Field{
 					Type: NewNonNull(String),
-					Resolve: func(ctx context.Context, p ResolveParams) (interface{}, error) {
+					Resolve: func(ctx context.Context, p ResolveParams) (any, error) {
 						return "bar", nil
 					},
 				},
 				"someInt": &Field{
 					Type: NewNonNull(Int),
-					Resolve: func(ctx context.Context, p ResolveParams) (interface{}, error) {
+					Resolve: func(ctx context.Context, p ResolveParams) (any, error) {
 						return 123, nil
 					},
 				},
 				"someFloat": &Field{
 					Type: NewNonNull(Float),
-					Resolve: func(ctx context.Context, p ResolveParams) (interface{}, error) {
+					Resolve: func(ctx context.Context, p ResolveParams) (any, error) {
 						return 1.23, nil
 					},
 				},
 				"someBoolean": &Field{
 					Type: NewNonNull(Boolean),
-					Resolve: func(ctx context.Context, p ResolveParams) (interface{}, error) {
+					Resolve: func(ctx context.Context, p ResolveParams) (any, error) {
 						return true, nil
 					},
 				},

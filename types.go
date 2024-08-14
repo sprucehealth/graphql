@@ -4,10 +4,10 @@ import (
 	"github.com/sprucehealth/graphql/gqlerrors"
 )
 
-// type Schema interface{}
+// type Schema any
 
 type Result struct {
-	Data   interface{}                `json:"data"`
+	Data   any                        `json:"data"`
 	Errors []gqlerrors.FormattedError `json:"errors,omitempty"`
 }
 

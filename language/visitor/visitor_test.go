@@ -26,50 +26,50 @@ func TestVisitor_AllowsSkippingASubTree(t *testing.T) {
 	query := `{ a, b { x }, c }`
 	astDoc := parse(t, query)
 
-	visited := []interface{}{}
-	expectedVisited := []interface{}{
-		[]interface{}{"enter", "Document", nil},
-		[]interface{}{"enter", "OperationDefinition", nil},
-		[]interface{}{"enter", "SelectionSet", nil},
-		[]interface{}{"enter", "Field", nil},
-		[]interface{}{"enter", "Name", "a"},
-		[]interface{}{"leave", "Name", "a"},
-		[]interface{}{"leave", "Field", nil},
-		[]interface{}{"enter", "Field", nil},
-		[]interface{}{"enter", "Field", nil},
-		[]interface{}{"enter", "Name", "c"},
-		[]interface{}{"leave", "Name", "c"},
-		[]interface{}{"leave", "Field", nil},
-		[]interface{}{"leave", "SelectionSet", nil},
-		[]interface{}{"leave", "OperationDefinition", nil},
-		[]interface{}{"leave", "Document", nil},
+	visited := []any{}
+	expectedVisited := []any{
+		[]any{"enter", "Document", nil},
+		[]any{"enter", "OperationDefinition", nil},
+		[]any{"enter", "SelectionSet", nil},
+		[]any{"enter", "Field", nil},
+		[]any{"enter", "Name", "a"},
+		[]any{"leave", "Name", "a"},
+		[]any{"leave", "Field", nil},
+		[]any{"enter", "Field", nil},
+		[]any{"enter", "Field", nil},
+		[]any{"enter", "Name", "c"},
+		[]any{"leave", "Name", "c"},
+		[]any{"leave", "Field", nil},
+		[]any{"leave", "SelectionSet", nil},
+		[]any{"leave", "OperationDefinition", nil},
+		[]any{"leave", "Document", nil},
 	}
 
 	v := &visitor.VisitorOptions{
-		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
+		Enter: func(p visitor.VisitFuncParams) (string, any) {
 			switch node := p.Node.(type) {
 			case *ast.Name:
-				visited = append(visited, []interface{}{"enter", kind(node), node.Value})
+				visited = append(visited, []any{"enter", kind(node), node.Value})
 			case *ast.Field:
-				visited = append(visited, []interface{}{"enter", kind(node), nil})
+				visited = append(visited, []any{"enter", kind(node), nil})
 				if node.Name != nil && node.Name.Value == "b" {
 					return visitor.ActionSkip, nil
 				}
 			case ast.Node:
-				visited = append(visited, []interface{}{"enter", kind(node), nil})
+				visited = append(visited, []any{"enter", kind(node), nil})
 			default:
-				visited = append(visited, []interface{}{"enter", nil, nil})
+				visited = append(visited, []any{"enter", nil, nil})
 			}
 			return visitor.ActionNoChange, nil
 		},
-		Leave: func(p visitor.VisitFuncParams) (string, interface{}) {
+		Leave: func(p visitor.VisitFuncParams) (string, any) {
 			switch node := p.Node.(type) {
 			case *ast.Name:
-				visited = append(visited, []interface{}{"leave", kind(node), node.Value})
+				visited = append(visited, []any{"leave", kind(node), node.Value})
 			case ast.Node:
-				visited = append(visited, []interface{}{"leave", kind(node), nil})
+				visited = append(visited, []any{"leave", kind(node), nil})
 			default:
-				visited = append(visited, []interface{}{"leave", nil, nil})
+				visited = append(visited, []any{"leave", nil, nil})
 			}
 			return visitor.ActionNoChange, nil
 		},
@@ -83,50 +83,50 @@ func TestVisitor_AllowsSkippingASubTree(t *testing.T) {
 }
 
 func TestVisitor_AllowsEarlyExitWhileVisiting(t *testing.T) {
-	visited := []interface{}{}
+	visited := []any{}
 
 	query := `{ a, b { x }, c }`
 	astDoc := parse(t, query)
 
-	expectedVisited := []interface{}{
-		[]interface{}{"enter", "Document", nil},
-		[]interface{}{"enter", "OperationDefinition", nil},
-		[]interface{}{"enter", "SelectionSet", nil},
-		[]interface{}{"enter", "Field", nil},
-		[]interface{}{"enter", "Name", "a"},
-		[]interface{}{"leave", "Name", "a"},
-		[]interface{}{"leave", "Field", nil},
-		[]interface{}{"enter", "Field", nil},
-		[]interface{}{"enter", "Name", "b"},
-		[]interface{}{"leave", "Name", "b"},
-		[]interface{}{"enter", "SelectionSet", nil},
-		[]interface{}{"enter", "Field", nil},
-		[]interface{}{"enter", "Name", "x"},
+	expectedVisited := []any{
+		[]any{"enter", "Document", nil},
+		[]any{"enter", "OperationDefinition", nil},
+		[]any{"enter", "SelectionSet", nil},
+		[]any{"enter", "Field", nil},
+		[]any{"enter", "Name", "a"},
+		[]any{"leave", "Name", "a"},
+		[]any{"leave", "Field", nil},
+		[]any{"enter", "Field", nil},
+		[]any{"enter", "Name", "b"},
+		[]any{"leave", "Name", "b"},
+		[]any{"enter", "SelectionSet", nil},
+		[]any{"enter", "Field", nil},
+		[]any{"enter", "Name", "x"},
 	}
 
 	v := &visitor.VisitorOptions{
-		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
+		Enter: func(p visitor.VisitFuncParams) (string, any) {
 			switch node := p.Node.(type) {
 			case *ast.Name:
-				visited = append(visited, []interface{}{"enter", kind(node), node.Value})
+				visited = append(visited, []any{"enter", kind(node), node.Value})
 				if node.Value == "x" {
 					return visitor.ActionBreak, nil
 				}
 			case ast.Node:
-				visited = append(visited, []interface{}{"enter", kind(node), nil})
+				visited = append(visited, []any{"enter", kind(node), nil})
 			default:
-				visited = append(visited, []interface{}{"enter", nil, nil})
+				visited = append(visited, []any{"enter", nil, nil})
 			}
 			return visitor.ActionNoChange, nil
 		},
-		Leave: func(p visitor.VisitFuncParams) (string, interface{}) {
+		Leave: func(p visitor.VisitFuncParams) (string, any) {
 			switch node := p.Node.(type) {
 			case *ast.Name:
-				visited = append(visited, []interface{}{"leave", kind(node), node.Value})
+				visited = append(visited, []any{"leave", kind(node), node.Value})
 			case ast.Node:
-				visited = append(visited, []interface{}{"leave", kind(node), nil})
+				visited = append(visited, []any{"leave", kind(node), nil})
 			default:
-				visited = append(visited, []interface{}{"leave", nil, nil})
+				visited = append(visited, []any{"leave", nil, nil})
 			}
 			return visitor.ActionNoChange, nil
 		},
@@ -150,243 +150,243 @@ func TestVisitor_VisitsKitchenSink(t *testing.T) {
 	query := string(b)
 	astDoc := parse(t, query)
 
-	visited := []interface{}{}
-	expectedVisited := []interface{}{
-		[]interface{}{"enter", "Document", nil},
-		[]interface{}{"enter", "OperationDefinition", nil},
-		[]interface{}{"enter", "Name", "OperationDefinition"},
-		[]interface{}{"leave", "Name", "OperationDefinition"},
-		[]interface{}{"enter", "VariableDefinition", nil},
-		[]interface{}{"enter", "Variable", "VariableDefinition"},
-		[]interface{}{"enter", "Name", "Variable"},
-		[]interface{}{"leave", "Name", "Variable"},
-		[]interface{}{"leave", "Variable", "VariableDefinition"},
-		[]interface{}{"enter", "Named", "VariableDefinition"},
-		[]interface{}{"enter", "Name", "Named"},
-		[]interface{}{"leave", "Name", "Named"},
-		[]interface{}{"leave", "Named", "VariableDefinition"},
-		[]interface{}{"leave", "VariableDefinition", nil},
-		[]interface{}{"enter", "VariableDefinition", nil},
-		[]interface{}{"enter", "Variable", "VariableDefinition"},
-		[]interface{}{"enter", "Name", "Variable"},
-		[]interface{}{"leave", "Name", "Variable"},
-		[]interface{}{"leave", "Variable", "VariableDefinition"},
-		[]interface{}{"enter", "Named", "VariableDefinition"},
-		[]interface{}{"enter", "Name", "Named"},
-		[]interface{}{"leave", "Name", "Named"},
-		[]interface{}{"leave", "Named", "VariableDefinition"},
-		[]interface{}{"enter", "EnumValue", "VariableDefinition"},
-		[]interface{}{"leave", "EnumValue", "VariableDefinition"},
-		[]interface{}{"leave", "VariableDefinition", nil},
-		[]interface{}{"enter", "SelectionSet", "OperationDefinition"},
-		[]interface{}{"enter", "Field", nil},
-		[]interface{}{"enter", "Name", "Field"},
-		[]interface{}{"leave", "Name", "Field"},
-		[]interface{}{"enter", "Name", "Field"},
-		[]interface{}{"leave", "Name", "Field"},
-		[]interface{}{"enter", "Argument", nil},
-		[]interface{}{"enter", "Name", "Argument"},
-		[]interface{}{"leave", "Name", "Argument"},
-		[]interface{}{"enter", "ListValue", "Argument"},
-		[]interface{}{"enter", "IntValue", nil},
-		[]interface{}{"leave", "IntValue", nil},
-		[]interface{}{"enter", "IntValue", nil},
-		[]interface{}{"leave", "IntValue", nil},
-		[]interface{}{"leave", "ListValue", "Argument"},
-		[]interface{}{"leave", "Argument", nil},
-		[]interface{}{"enter", "SelectionSet", "Field"},
-		[]interface{}{"enter", "Field", nil},
-		[]interface{}{"enter", "Name", "Field"},
-		[]interface{}{"leave", "Name", "Field"},
-		[]interface{}{"leave", "Field", nil},
-		[]interface{}{"enter", "InlineFragment", nil},
-		[]interface{}{"enter", "Named", "InlineFragment"},
-		[]interface{}{"enter", "Name", "Named"},
-		[]interface{}{"leave", "Name", "Named"},
-		[]interface{}{"leave", "Named", "InlineFragment"},
-		[]interface{}{"enter", "Directive", nil},
-		[]interface{}{"enter", "Name", "Directive"},
-		[]interface{}{"leave", "Name", "Directive"},
-		[]interface{}{"leave", "Directive", nil},
-		[]interface{}{"enter", "SelectionSet", "InlineFragment"},
-		[]interface{}{"enter", "Field", nil},
-		[]interface{}{"enter", "Name", "Field"},
-		[]interface{}{"leave", "Name", "Field"},
-		[]interface{}{"enter", "SelectionSet", "Field"},
-		[]interface{}{"enter", "Field", nil},
-		[]interface{}{"enter", "Name", "Field"},
-		[]interface{}{"leave", "Name", "Field"},
-		[]interface{}{"leave", "Field", nil},
-		[]interface{}{"enter", "Field", nil},
-		[]interface{}{"enter", "Name", "Field"},
-		[]interface{}{"leave", "Name", "Field"},
-		[]interface{}{"enter", "Name", "Field"},
-		[]interface{}{"leave", "Name", "Field"},
-		[]interface{}{"enter", "Argument", nil},
-		[]interface{}{"enter", "Name", "Argument"},
-		[]interface{}{"leave", "Name", "Argument"},
-		[]interface{}{"enter", "IntValue", "Argument"},
-		[]interface{}{"leave", "IntValue", "Argument"},
-		[]interface{}{"leave", "Argument", nil},
-		[]interface{}{"enter", "Argument", nil},
-		[]interface{}{"enter", "Name", "Argument"},
-		[]interface{}{"leave", "Name", "Argument"},
-		[]interface{}{"enter", "Variable", "Argument"},
-		[]interface{}{"enter", "Name", "Variable"},
-		[]interface{}{"leave", "Name", "Variable"},
-		[]interface{}{"leave", "Variable", "Argument"},
-		[]interface{}{"leave", "Argument", nil},
-		[]interface{}{"enter", "Directive", nil},
-		[]interface{}{"enter", "Name", "Directive"},
-		[]interface{}{"leave", "Name", "Directive"},
-		[]interface{}{"enter", "Argument", nil},
-		[]interface{}{"enter", "Name", "Argument"},
-		[]interface{}{"leave", "Name", "Argument"},
-		[]interface{}{"enter", "Variable", "Argument"},
-		[]interface{}{"enter", "Name", "Variable"},
-		[]interface{}{"leave", "Name", "Variable"},
-		[]interface{}{"leave", "Variable", "Argument"},
-		[]interface{}{"leave", "Argument", nil},
-		[]interface{}{"leave", "Directive", nil},
-		[]interface{}{"enter", "SelectionSet", "Field"},
-		[]interface{}{"enter", "Field", nil},
-		[]interface{}{"enter", "Name", "Field"},
-		[]interface{}{"leave", "Name", "Field"},
-		[]interface{}{"leave", "Field", nil},
-		[]interface{}{"enter", "FragmentSpread", nil},
-		[]interface{}{"enter", "Name", "FragmentSpread"},
-		[]interface{}{"leave", "Name", "FragmentSpread"},
-		[]interface{}{"leave", "FragmentSpread", nil},
-		[]interface{}{"leave", "SelectionSet", "Field"},
-		[]interface{}{"leave", "Field", nil},
-		[]interface{}{"leave", "SelectionSet", "Field"},
-		[]interface{}{"leave", "Field", nil},
-		[]interface{}{"leave", "SelectionSet", "InlineFragment"},
-		[]interface{}{"leave", "InlineFragment", nil},
-		[]interface{}{"leave", "SelectionSet", "Field"},
-		[]interface{}{"leave", "Field", nil},
-		[]interface{}{"leave", "SelectionSet", "OperationDefinition"},
-		[]interface{}{"leave", "OperationDefinition", nil},
-		[]interface{}{"enter", "OperationDefinition", nil},
-		[]interface{}{"enter", "Name", "OperationDefinition"},
-		[]interface{}{"leave", "Name", "OperationDefinition"},
-		[]interface{}{"enter", "SelectionSet", "OperationDefinition"},
-		[]interface{}{"enter", "Field", nil},
-		[]interface{}{"enter", "Name", "Field"},
-		[]interface{}{"leave", "Name", "Field"},
-		[]interface{}{"enter", "Argument", nil},
-		[]interface{}{"enter", "Name", "Argument"},
-		[]interface{}{"leave", "Name", "Argument"},
-		[]interface{}{"enter", "IntValue", "Argument"},
-		[]interface{}{"leave", "IntValue", "Argument"},
-		[]interface{}{"leave", "Argument", nil},
-		[]interface{}{"enter", "Directive", nil},
-		[]interface{}{"enter", "Name", "Directive"},
-		[]interface{}{"leave", "Name", "Directive"},
-		[]interface{}{"leave", "Directive", nil},
-		[]interface{}{"enter", "SelectionSet", "Field"},
-		[]interface{}{"enter", "Field", nil},
-		[]interface{}{"enter", "Name", "Field"},
-		[]interface{}{"leave", "Name", "Field"},
-		[]interface{}{"enter", "SelectionSet", "Field"},
-		[]interface{}{"enter", "Field", nil},
-		[]interface{}{"enter", "Name", "Field"},
-		[]interface{}{"leave", "Name", "Field"},
-		[]interface{}{"leave", "Field", nil},
-		[]interface{}{"leave", "SelectionSet", "Field"},
-		[]interface{}{"leave", "Field", nil},
-		[]interface{}{"leave", "SelectionSet", "Field"},
-		[]interface{}{"leave", "Field", nil},
-		[]interface{}{"leave", "SelectionSet", "OperationDefinition"},
-		[]interface{}{"leave", "OperationDefinition", nil},
-		[]interface{}{"enter", "FragmentDefinition", nil},
-		[]interface{}{"enter", "Name", "FragmentDefinition"},
-		[]interface{}{"leave", "Name", "FragmentDefinition"},
-		[]interface{}{"enter", "Named", "FragmentDefinition"},
-		[]interface{}{"enter", "Name", "Named"},
-		[]interface{}{"leave", "Name", "Named"},
-		[]interface{}{"leave", "Named", "FragmentDefinition"},
-		[]interface{}{"enter", "SelectionSet", "FragmentDefinition"},
-		[]interface{}{"enter", "Field", nil},
-		[]interface{}{"enter", "Name", "Field"},
-		[]interface{}{"leave", "Name", "Field"},
-		[]interface{}{"enter", "Argument", nil},
-		[]interface{}{"enter", "Name", "Argument"},
-		[]interface{}{"leave", "Name", "Argument"},
-		[]interface{}{"enter", "Variable", "Argument"},
-		[]interface{}{"enter", "Name", "Variable"},
-		[]interface{}{"leave", "Name", "Variable"},
-		[]interface{}{"leave", "Variable", "Argument"},
-		[]interface{}{"leave", "Argument", nil},
-		[]interface{}{"enter", "Argument", nil},
-		[]interface{}{"enter", "Name", "Argument"},
-		[]interface{}{"leave", "Name", "Argument"},
-		[]interface{}{"enter", "Variable", "Argument"},
-		[]interface{}{"enter", "Name", "Variable"},
-		[]interface{}{"leave", "Name", "Variable"},
-		[]interface{}{"leave", "Variable", "Argument"},
-		[]interface{}{"leave", "Argument", nil},
-		[]interface{}{"enter", "Argument", nil},
-		[]interface{}{"enter", "Name", "Argument"},
-		[]interface{}{"leave", "Name", "Argument"},
-		[]interface{}{"enter", "ObjectValue", "Argument"},
-		[]interface{}{"enter", "ObjectField", nil},
-		[]interface{}{"enter", "Name", "ObjectField"},
-		[]interface{}{"leave", "Name", "ObjectField"},
-		[]interface{}{"enter", "StringValue", "ObjectField"},
-		[]interface{}{"leave", "StringValue", "ObjectField"},
-		[]interface{}{"leave", "ObjectField", nil},
-		[]interface{}{"leave", "ObjectValue", "Argument"},
-		[]interface{}{"leave", "Argument", nil},
-		[]interface{}{"leave", "Field", nil},
-		[]interface{}{"leave", "SelectionSet", "FragmentDefinition"},
-		[]interface{}{"leave", "FragmentDefinition", nil},
-		[]interface{}{"enter", "OperationDefinition", nil},
-		[]interface{}{"enter", "SelectionSet", "OperationDefinition"},
-		[]interface{}{"enter", "Field", nil},
-		[]interface{}{"enter", "Name", "Field"},
-		[]interface{}{"leave", "Name", "Field"},
-		[]interface{}{"enter", "Argument", nil},
-		[]interface{}{"enter", "Name", "Argument"},
-		[]interface{}{"leave", "Name", "Argument"},
-		[]interface{}{"enter", "BooleanValue", "Argument"},
-		[]interface{}{"leave", "BooleanValue", "Argument"},
-		[]interface{}{"leave", "Argument", nil},
-		[]interface{}{"enter", "Argument", nil},
-		[]interface{}{"enter", "Name", "Argument"},
-		[]interface{}{"leave", "Name", "Argument"},
-		[]interface{}{"enter", "BooleanValue", "Argument"},
-		[]interface{}{"leave", "BooleanValue", "Argument"},
-		[]interface{}{"leave", "Argument", nil},
-		[]interface{}{"leave", "Field", nil},
-		[]interface{}{"enter", "Field", nil},
-		[]interface{}{"enter", "Name", "Field"},
-		[]interface{}{"leave", "Name", "Field"},
-		[]interface{}{"leave", "Field", nil},
-		[]interface{}{"leave", "SelectionSet", "OperationDefinition"},
-		[]interface{}{"leave", "OperationDefinition", nil},
-		[]interface{}{"leave", "Document", nil},
+	visited := []any{}
+	expectedVisited := []any{
+		[]any{"enter", "Document", nil},
+		[]any{"enter", "OperationDefinition", nil},
+		[]any{"enter", "Name", "OperationDefinition"},
+		[]any{"leave", "Name", "OperationDefinition"},
+		[]any{"enter", "VariableDefinition", nil},
+		[]any{"enter", "Variable", "VariableDefinition"},
+		[]any{"enter", "Name", "Variable"},
+		[]any{"leave", "Name", "Variable"},
+		[]any{"leave", "Variable", "VariableDefinition"},
+		[]any{"enter", "Named", "VariableDefinition"},
+		[]any{"enter", "Name", "Named"},
+		[]any{"leave", "Name", "Named"},
+		[]any{"leave", "Named", "VariableDefinition"},
+		[]any{"leave", "VariableDefinition", nil},
+		[]any{"enter", "VariableDefinition", nil},
+		[]any{"enter", "Variable", "VariableDefinition"},
+		[]any{"enter", "Name", "Variable"},
+		[]any{"leave", "Name", "Variable"},
+		[]any{"leave", "Variable", "VariableDefinition"},
+		[]any{"enter", "Named", "VariableDefinition"},
+		[]any{"enter", "Name", "Named"},
+		[]any{"leave", "Name", "Named"},
+		[]any{"leave", "Named", "VariableDefinition"},
+		[]any{"enter", "EnumValue", "VariableDefinition"},
+		[]any{"leave", "EnumValue", "VariableDefinition"},
+		[]any{"leave", "VariableDefinition", nil},
+		[]any{"enter", "SelectionSet", "OperationDefinition"},
+		[]any{"enter", "Field", nil},
+		[]any{"enter", "Name", "Field"},
+		[]any{"leave", "Name", "Field"},
+		[]any{"enter", "Name", "Field"},
+		[]any{"leave", "Name", "Field"},
+		[]any{"enter", "Argument", nil},
+		[]any{"enter", "Name", "Argument"},
+		[]any{"leave", "Name", "Argument"},
+		[]any{"enter", "ListValue", "Argument"},
+		[]any{"enter", "IntValue", nil},
+		[]any{"leave", "IntValue", nil},
+		[]any{"enter", "IntValue", nil},
+		[]any{"leave", "IntValue", nil},
+		[]any{"leave", "ListValue", "Argument"},
+		[]any{"leave", "Argument", nil},
+		[]any{"enter", "SelectionSet", "Field"},
+		[]any{"enter", "Field", nil},
+		[]any{"enter", "Name", "Field"},
+		[]any{"leave", "Name", "Field"},
+		[]any{"leave", "Field", nil},
+		[]any{"enter", "InlineFragment", nil},
+		[]any{"enter", "Named", "InlineFragment"},
+		[]any{"enter", "Name", "Named"},
+		[]any{"leave", "Name", "Named"},
+		[]any{"leave", "Named", "InlineFragment"},
+		[]any{"enter", "Directive", nil},
+		[]any{"enter", "Name", "Directive"},
+		[]any{"leave", "Name", "Directive"},
+		[]any{"leave", "Directive", nil},
+		[]any{"enter", "SelectionSet", "InlineFragment"},
+		[]any{"enter", "Field", nil},
+		[]any{"enter", "Name", "Field"},
+		[]any{"leave", "Name", "Field"},
+		[]any{"enter", "SelectionSet", "Field"},
+		[]any{"enter", "Field", nil},
+		[]any{"enter", "Name", "Field"},
+		[]any{"leave", "Name", "Field"},
+		[]any{"leave", "Field", nil},
+		[]any{"enter", "Field", nil},
+		[]any{"enter", "Name", "Field"},
+		[]any{"leave", "Name", "Field"},
+		[]any{"enter", "Name", "Field"},
+		[]any{"leave", "Name", "Field"},
+		[]any{"enter", "Argument", nil},
+		[]any{"enter", "Name", "Argument"},
+		[]any{"leave", "Name", "Argument"},
+		[]any{"enter", "IntValue", "Argument"},
+		[]any{"leave", "IntValue", "Argument"},
+		[]any{"leave", "Argument", nil},
+		[]any{"enter", "Argument", nil},
+		[]any{"enter", "Name", "Argument"},
+		[]any{"leave", "Name", "Argument"},
+		[]any{"enter", "Variable", "Argument"},
+		[]any{"enter", "Name", "Variable"},
+		[]any{"leave", "Name", "Variable"},
+		[]any{"leave", "Variable", "Argument"},
+		[]any{"leave", "Argument", nil},
+		[]any{"enter", "Directive", nil},
+		[]any{"enter", "Name", "Directive"},
+		[]any{"leave", "Name", "Directive"},
+		[]any{"enter", "Argument", nil},
+		[]any{"enter", "Name", "Argument"},
+		[]any{"leave", "Name", "Argument"},
+		[]any{"enter", "Variable", "Argument"},
+		[]any{"enter", "Name", "Variable"},
+		[]any{"leave", "Name", "Variable"},
+		[]any{"leave", "Variable", "Argument"},
+		[]any{"leave", "Argument", nil},
+		[]any{"leave", "Directive", nil},
+		[]any{"enter", "SelectionSet", "Field"},
+		[]any{"enter", "Field", nil},
+		[]any{"enter", "Name", "Field"},
+		[]any{"leave", "Name", "Field"},
+		[]any{"leave", "Field", nil},
+		[]any{"enter", "FragmentSpread", nil},
+		[]any{"enter", "Name", "FragmentSpread"},
+		[]any{"leave", "Name", "FragmentSpread"},
+		[]any{"leave", "FragmentSpread", nil},
+		[]any{"leave", "SelectionSet", "Field"},
+		[]any{"leave", "Field", nil},
+		[]any{"leave", "SelectionSet", "Field"},
+		[]any{"leave", "Field", nil},
+		[]any{"leave", "SelectionSet", "InlineFragment"},
+		[]any{"leave", "InlineFragment", nil},
+		[]any{"leave", "SelectionSet", "Field"},
+		[]any{"leave", "Field", nil},
+		[]any{"leave", "SelectionSet", "OperationDefinition"},
+		[]any{"leave", "OperationDefinition", nil},
+		[]any{"enter", "OperationDefinition", nil},
+		[]any{"enter", "Name", "OperationDefinition"},
+		[]any{"leave", "Name", "OperationDefinition"},
+		[]any{"enter", "SelectionSet", "OperationDefinition"},
+		[]any{"enter", "Field", nil},
+		[]any{"enter", "Name", "Field"},
+		[]any{"leave", "Name", "Field"},
+		[]any{"enter", "Argument", nil},
+		[]any{"enter", "Name", "Argument"},
+		[]any{"leave", "Name", "Argument"},
+		[]any{"enter", "IntValue", "Argument"},
+		[]any{"leave", "IntValue", "Argument"},
+		[]any{"leave", "Argument", nil},
+		[]any{"enter", "Directive", nil},
+		[]any{"enter", "Name", "Directive"},
+		[]any{"leave", "Name", "Directive"},
+		[]any{"leave", "Directive", nil},
+		[]any{"enter", "SelectionSet", "Field"},
+		[]any{"enter", "Field", nil},
+		[]any{"enter", "Name", "Field"},
+		[]any{"leave", "Name", "Field"},
+		[]any{"enter", "SelectionSet", "Field"},
+		[]any{"enter", "Field", nil},
+		[]any{"enter", "Name", "Field"},
+		[]any{"leave", "Name", "Field"},
+		[]any{"leave", "Field", nil},
+		[]any{"leave", "SelectionSet", "Field"},
+		[]any{"leave", "Field", nil},
+		[]any{"leave", "SelectionSet", "Field"},
+		[]any{"leave", "Field", nil},
+		[]any{"leave", "SelectionSet", "OperationDefinition"},
+		[]any{"leave", "OperationDefinition", nil},
+		[]any{"enter", "FragmentDefinition", nil},
+		[]any{"enter", "Name", "FragmentDefinition"},
+		[]any{"leave", "Name", "FragmentDefinition"},
+		[]any{"enter", "Named", "FragmentDefinition"},
+		[]any{"enter", "Name", "Named"},
+		[]any{"leave", "Name", "Named"},
+		[]any{"leave", "Named", "FragmentDefinition"},
+		[]any{"enter", "SelectionSet", "FragmentDefinition"},
+		[]any{"enter", "Field", nil},
+		[]any{"enter", "Name", "Field"},
+		[]any{"leave", "Name", "Field"},
+		[]any{"enter", "Argument", nil},
+		[]any{"enter", "Name", "Argument"},
+		[]any{"leave", "Name", "Argument"},
+		[]any{"enter", "Variable", "Argument"},
+		[]any{"enter", "Name", "Variable"},
+		[]any{"leave", "Name", "Variable"},
+		[]any{"leave", "Variable", "Argument"},
+		[]any{"leave", "Argument", nil},
+		[]any{"enter", "Argument", nil},
+		[]any{"enter", "Name", "Argument"},
+		[]any{"leave", "Name", "Argument"},
+		[]any{"enter", "Variable", "Argument"},
+		[]any{"enter", "Name", "Variable"},
+		[]any{"leave", "Name", "Variable"},
+		[]any{"leave", "Variable", "Argument"},
+		[]any{"leave", "Argument", nil},
+		[]any{"enter", "Argument", nil},
+		[]any{"enter", "Name", "Argument"},
+		[]any{"leave", "Name", "Argument"},
+		[]any{"enter", "ObjectValue", "Argument"},
+		[]any{"enter", "ObjectField", nil},
+		[]any{"enter", "Name", "ObjectField"},
+		[]any{"leave", "Name", "ObjectField"},
+		[]any{"enter", "StringValue", "ObjectField"},
+		[]any{"leave", "StringValue", "ObjectField"},
+		[]any{"leave", "ObjectField", nil},
+		[]any{"leave", "ObjectValue", "Argument"},
+		[]any{"leave", "Argument", nil},
+		[]any{"leave", "Field", nil},
+		[]any{"leave", "SelectionSet", "FragmentDefinition"},
+		[]any{"leave", "FragmentDefinition", nil},
+		[]any{"enter", "OperationDefinition", nil},
+		[]any{"enter", "SelectionSet", "OperationDefinition"},
+		[]any{"enter", "Field", nil},
+		[]any{"enter", "Name", "Field"},
+		[]any{"leave", "Name", "Field"},
+		[]any{"enter", "Argument", nil},
+		[]any{"enter", "Name", "Argument"},
+		[]any{"leave", "Name", "Argument"},
+		[]any{"enter", "BooleanValue", "Argument"},
+		[]any{"leave", "BooleanValue", "Argument"},
+		[]any{"leave", "Argument", nil},
+		[]any{"enter", "Argument", nil},
+		[]any{"enter", "Name", "Argument"},
+		[]any{"leave", "Name", "Argument"},
+		[]any{"enter", "BooleanValue", "Argument"},
+		[]any{"leave", "BooleanValue", "Argument"},
+		[]any{"leave", "Argument", nil},
+		[]any{"leave", "Field", nil},
+		[]any{"enter", "Field", nil},
+		[]any{"enter", "Name", "Field"},
+		[]any{"leave", "Name", "Field"},
+		[]any{"leave", "Field", nil},
+		[]any{"leave", "SelectionSet", "OperationDefinition"},
+		[]any{"leave", "OperationDefinition", nil},
+		[]any{"leave", "Document", nil},
 	}
 
 	v := &visitor.VisitorOptions{
-		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
+		Enter: func(p visitor.VisitFuncParams) (string, any) {
 			switch node := p.Node.(type) {
 			case ast.Node:
 				if p.Parent != nil {
-					visited = append(visited, []interface{}{"enter", kind(node), kind(p.Parent)})
+					visited = append(visited, []any{"enter", kind(node), kind(p.Parent)})
 				} else {
-					visited = append(visited, []interface{}{"enter", kind(node), nil})
+					visited = append(visited, []any{"enter", kind(node), nil})
 				}
 			}
 			return visitor.ActionNoChange, nil
 		},
-		Leave: func(p visitor.VisitFuncParams) (string, interface{}) {
+		Leave: func(p visitor.VisitFuncParams) (string, any) {
 			switch node := p.Node.(type) {
 			case ast.Node:
 				if p.Parent != nil {
-					visited = append(visited, []interface{}{"leave", kind(node), kind(p.Parent)})
+					visited = append(visited, []any{"leave", kind(node), kind(p.Parent)})
 				} else {
-					visited = append(visited, []interface{}{"leave", kind(node), nil})
+					visited = append(visited, []any{"leave", kind(node), nil})
 				}
 			}
 			return visitor.ActionNoChange, nil
@@ -406,6 +406,6 @@ func TestVisitor_VisitsKitchenSink(t *testing.T) {
 	}
 }
 
-func kind(v interface{}) string {
+func kind(v any) string {
 	return reflect.TypeOf(v).String()[5:]
 }

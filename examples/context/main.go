@@ -1,12 +1,11 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
-
-	"context"
 
 	"github.com/sprucehealth/graphql"
 )
@@ -33,7 +32,7 @@ var queryType = graphql.NewObject(
 		Fields: graphql.Fields{
 			"me": &graphql.Field{
 				Type: userType,
-				Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
+				Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
 					return ctx.Value("currentUser"), nil
 				},
 			},

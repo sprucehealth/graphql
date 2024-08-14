@@ -15,10 +15,10 @@ import (
 
 type ExecuteParams struct {
 	Schema            Schema
-	Root              interface{}
+	Root              any
 	AST               *ast.Document
 	OperationName     string
-	Args              map[string]interface{}
+	Args              map[string]any
 	DeprecatedFieldFn func(ctx context.Context, parent *Object, fieldDef *FieldDefinition) error
 	// TODO: Abstract this to possibly handle more types
 	FieldDefinitionDirectiveHandler func(context.Context, *ast.Directive, *FieldDefinition) error
@@ -92,10 +92,10 @@ func Execute(ctx context.Context, p ExecuteParams) *Result {
 
 type BuildExecutionCtxParams struct {
 	Schema            Schema
-	Root              interface{}
+	Root              any
 	AST               *ast.Document
 	OperationName     string
-	Args              map[string]interface{}
+	Args              map[string]any
 	Errors            []gqlerrors.FormattedError
 	Result            *Result
 	DeprecatedFieldFn func(context.Context, *Object, *FieldDefinition) error
@@ -107,9 +107,9 @@ type BuildExecutionCtxParams struct {
 type ExecutionContext struct {
 	Schema            Schema
 	Fragments         map[string]*ast.FragmentDefinition
-	Root              interface{}
+	Root              any
 	Operation         ast.Definition
-	VariableValues    map[string]interface{}
+	VariableValues    map[string]any
 	Errors            []gqlerrors.FormattedError
 	DeprecatedFieldFn func(context.Context, *Object, *FieldDefinition) error
 	// TODO: Abstract this to possibly handle more types
@@ -171,7 +171,7 @@ func buildExecutionContext(p BuildExecutionCtxParams) (*ExecutionContext, error)
 
 type ExecuteOperationParams struct {
 	ExecutionContext *ExecutionContext
-	Root             interface{}
+	Root             any
 	Operation        ast.Definition
 }
 
@@ -252,20 +252,20 @@ func getOperationRootType(schema Schema, operation ast.Definition) (*Object, err
 type ExecuteFieldsParams struct {
 	ExecutionContext *ExecutionContext
 	ParentType       *Object
-	Source           interface{}
+	Source           any
 	Fields           map[string][]*ast.Field
 }
 
 // Implements the "Evaluating selection sets" section of the spec for "write" mode.
 func executeFieldsSerially(ctx context.Context, p ExecuteFieldsParams) *Result {
 	if p.Source == nil {
-		p.Source = make(map[string]interface{})
+		p.Source = make(map[string]any)
 	}
 	if p.Fields == nil {
 		p.Fields = make(map[string][]*ast.Field)
 	}
 
-	finalResults := make(map[string]interface{})
+	finalResults := make(map[string]any)
 	for responseName, fieldASTs := range p.Fields {
 		resolved, state := resolveField(ctx, p.ExecutionContext, p.ParentType, p.Source, fieldASTs)
 		if state.hasNoFieldDefs {
@@ -283,13 +283,13 @@ func executeFieldsSerially(ctx context.Context, p ExecuteFieldsParams) *Result {
 // Implements the "Evaluating selection sets" section of the spec for "read" mode.
 func executeFields(ctx context.Context, p ExecuteFieldsParams) *Result {
 	if p.Source == nil {
-		p.Source = make(map[string]interface{})
+		p.Source = make(map[string]any)
 	}
 	if p.Fields == nil {
 		p.Fields = make(map[string][]*ast.Field)
 	}
 
-	finalResults := make(map[string]interface{})
+	finalResults := make(map[string]any)
 	for responseName, fieldASTs := range p.Fields {
 		resolved, state := resolveField(ctx, p.ExecutionContext, p.ParentType, p.Source, fieldASTs)
 		if state.hasNoFieldDefs {
@@ -500,7 +500,7 @@ type resolveFieldResultState struct {
 // figures out the value that the field returns by calling its resolve function,
 // then calls completeValue to complete promises, serialize scalars, or execute
 // the sub-selection-set for objects.
-func resolveField(ctx context.Context, eCtx *ExecutionContext, parentType *Object, source interface{}, fieldASTs []*ast.Field) (result interface{}, resultState resolveFieldResultState) {
+func resolveField(ctx context.Context, eCtx *ExecutionContext, parentType *Object, source any, fieldASTs []*ast.Field) (result any, resultState resolveFieldResultState) {
 	if err := ctx.Err(); err != nil {
 		// Jump straight to the top-level recover to void anymore work.
 		panic(gqlerrors.FormatError(err))
@@ -508,7 +508,7 @@ func resolveField(ctx context.Context, eCtx *ExecutionContext, parentType *Objec
 
 	// catch panic from resolveFn
 	var returnType Output
-	defer func() (interface{}, resolveFieldResultState) {
+	defer func() (any, resolveFieldResultState) {
 		if r := recover(); r != nil {
 			var err error
 			if s, ok := r.(string); ok {
@@ -591,9 +591,9 @@ func resolveField(ctx context.Context, eCtx *ExecutionContext, parentType *Objec
 	return completed, resultState
 }
 
-func completeValueCatchingError(ctx context.Context, eCtx *ExecutionContext, returnType Type, fieldASTs []*ast.Field, info ResolveInfo, result interface{}) (completed interface{}) {
+func completeValueCatchingError(ctx context.Context, eCtx *ExecutionContext, returnType Type, fieldASTs []*ast.Field, info ResolveInfo, result any) (completed any) {
 	// catch panic
-	defer func() interface{} {
+	defer func() any {
 		if r := recover(); r != nil {
 			//send panic upstream
 			if _, ok := returnType.(*NonNull); ok {
@@ -615,17 +615,17 @@ func completeValueCatchingError(ctx context.Context, eCtx *ExecutionContext, ret
 	return completed
 }
 
-func completeValue(ctx context.Context, eCtx *ExecutionContext, returnType Type, fieldASTs []*ast.Field, info ResolveInfo, result interface{}) interface{} {
+func completeValue(ctx context.Context, eCtx *ExecutionContext, returnType Type, fieldASTs []*ast.Field, info ResolveInfo, result any) any {
 	if err := ctx.Err(); err != nil {
 		panic(gqlerrors.FormatError(err))
 	}
 
 	resultVal := reflect.ValueOf(result)
 	if resultVal.IsValid() && resultVal.Type().Kind() == reflect.Func {
-		if propertyFn, ok := result.(func() interface{}); ok {
+		if propertyFn, ok := result.(func() any); ok {
 			return propertyFn()
 		}
-		panic(gqlerrors.NewFormattedError("Error resolving func. Expected `func() interface{}` signature"))
+		panic(gqlerrors.NewFormattedError("Error resolving func. Expected `func() any` signature"))
 	}
 
 	// If field type is NonNull, complete for inner type, and throw field error
@@ -681,7 +681,7 @@ func completeValue(ctx context.Context, eCtx *ExecutionContext, returnType Type,
 
 // completeAbstractValue completes value of an Abstract type (Union / Interface) by determining the runtime type
 // of that value, then completing based on that type.
-func completeAbstractValue(ctx context.Context, eCtx *ExecutionContext, returnType Abstract, fieldASTs []*ast.Field, info ResolveInfo, result interface{}) interface{} {
+func completeAbstractValue(ctx context.Context, eCtx *ExecutionContext, returnType Abstract, fieldASTs []*ast.Field, info ResolveInfo, result any) any {
 	var runtimeType *Object
 
 	resolveTypeParams := ResolveTypeParams{
@@ -714,7 +714,7 @@ func completeAbstractValue(ctx context.Context, eCtx *ExecutionContext, returnTy
 }
 
 // completeObjectValue complete an Object value by executing all sub-selections.
-func completeObjectValue(ctx context.Context, eCtx *ExecutionContext, returnType *Object, fieldASTs []*ast.Field, info ResolveInfo, result interface{}) interface{} {
+func completeObjectValue(ctx context.Context, eCtx *ExecutionContext, returnType *Object, fieldASTs []*ast.Field, info ResolveInfo, result any) any {
 	// If there is an isTypeOf predicate function, call it with the
 	// current result. If isTypeOf returns false, then raise an error rather
 	// than continuing execution.
@@ -762,7 +762,7 @@ func completeObjectValue(ctx context.Context, eCtx *ExecutionContext, returnType
 }
 
 // completeLeafValue complete a leaf value (Scalar / Enum) by serializing to a valid value, returning nil if serialization is not possible.
-func completeLeafValue(returnType Leaf, result interface{}) interface{} {
+func completeLeafValue(returnType Leaf, result any) any {
 	serializedResult := returnType.Serialize(result)
 	if isNullish(serializedResult) {
 		return nil
@@ -771,7 +771,7 @@ func completeLeafValue(returnType Leaf, result interface{}) interface{} {
 }
 
 // completeListValue complete a list value by completing each item in the list with the inner type
-func completeListValue(ctx context.Context, eCtx *ExecutionContext, returnType *List, fieldASTs []*ast.Field, info ResolveInfo, result interface{}) interface{} {
+func completeListValue(ctx context.Context, eCtx *ExecutionContext, returnType *List, fieldASTs []*ast.Field, info ResolveInfo, result any) any {
 	resultVal := reflect.ValueOf(result)
 	parentTypeName := ""
 	if info.ParentType != nil {
@@ -782,7 +782,7 @@ func completeListValue(ctx context.Context, eCtx *ExecutionContext, returnType *
 	}
 
 	itemType := returnType.OfType
-	completedResults := make([]interface{}, 0, resultVal.Len())
+	completedResults := make([]any, 0, resultVal.Len())
 	for i := 0; i < resultVal.Len(); i++ {
 		val := resultVal.Index(i).Interface()
 		completedItem := completeValueCatchingError(ctx, eCtx, itemType, fieldASTs, info, val)
@@ -864,11 +864,11 @@ func defaultResolveTypeFn(p ResolveTypeParams, abstractType Abstract) *Object {
 // which takes the property of the source object of the same name as the field
 // and returns it as the result, or if it's a function, returns the result
 // of calling that function.
-func defaultResolveFn(ctx context.Context, p ResolveParams) (interface{}, error) {
+func defaultResolveFn(ctx context.Context, p ResolveParams) (any, error) {
 	// try p.Source as a map[string]interface
-	if sourceMap, ok := p.Source.(map[string]interface{}); ok {
+	if sourceMap, ok := p.Source.(map[string]any); ok {
 		property := sourceMap[p.Info.FieldName]
-		if fn, ok := property.(func() interface{}); ok {
+		if fn, ok := property.(func() any); ok {
 			return fn(), nil
 		}
 		return property, nil

@@ -14,12 +14,12 @@ const (
 )
 
 type VisitFuncParams struct {
-	Node      interface{}
+	Node      any
 	Parent    ast.Node
 	Ancestors []ast.Node
 }
 
-type VisitFunc func(p VisitFuncParams) (string, interface{})
+type VisitFunc func(p VisitFuncParams) (string, any)
 
 type VisitorOptions struct {
 	Enter VisitFunc

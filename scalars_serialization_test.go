@@ -9,21 +9,21 @@ import (
 )
 
 type intSerializationTest struct {
-	Value    interface{}
-	Expected interface{}
+	Value    any
+	Expected any
 }
 type float64SerializationTest struct {
-	Value    interface{}
-	Expected interface{}
+	Value    any
+	Expected any
 }
 
 type stringSerializationTest struct {
-	Value    interface{}
+	Value    any
 	Expected string
 }
 
 type boolSerializationTest struct {
-	Value    interface{}
+	Value    any
 	Expected bool
 }
 

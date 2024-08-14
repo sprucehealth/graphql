@@ -199,7 +199,7 @@ func init() {
 		Fields: Fields{
 			"kind": &Field{
 				Type: NewNonNull(TypeKindEnumType),
-				Resolve: func(ctx context.Context, p ResolveParams) (interface{}, error) {
+				Resolve: func(ctx context.Context, p ResolveParams) (any, error) {
 					switch p.Source.(type) {
 					case *Scalar:
 						return TypeKindScalar, nil
@@ -255,7 +255,7 @@ func init() {
 				Type: String,
 				Description: "A GraphQL-formatted string representing the default value for this " +
 					"input value.",
-				Resolve: func(ctx context.Context, p ResolveParams) (interface{}, error) {
+				Resolve: func(ctx context.Context, p ResolveParams) (any, error) {
 					if inputVal, ok := p.Source.(*Argument); ok {
 						if inputVal.DefaultValue == nil {
 							return nil, nil
@@ -292,7 +292,7 @@ func init() {
 			},
 			"args": &Field{
 				Type: NewNonNull(NewList(NewNonNull(InputValueType))),
-				Resolve: func(ctx context.Context, p ResolveParams) (interface{}, error) {
+				Resolve: func(ctx context.Context, p ResolveParams) (any, error) {
 					if field, ok := p.Source.(*FieldDefinition); ok {
 						args := append([]*Argument(nil), field.Args...)
 						sort.Slice(args, func(i, j int) bool {
@@ -300,7 +300,7 @@ func init() {
 						})
 						return args, nil
 					}
-					return []interface{}{}, nil
+					return []any{}, nil
 				},
 			},
 			"type": &Field{
@@ -308,7 +308,7 @@ func init() {
 			},
 			"isDeprecated": &Field{
 				Type: NewNonNull(Boolean),
-				Resolve: func(ctx context.Context, p ResolveParams) (interface{}, error) {
+				Resolve: func(ctx context.Context, p ResolveParams) (any, error) {
 					if field, ok := p.Source.(*FieldDefinition); ok {
 						return field.DeprecationReason != "", nil
 					}
@@ -351,7 +351,7 @@ func init() {
 			"onOperation": &Field{
 				DeprecationReason: "Use `locations`.",
 				Type:              NewNonNull(Boolean),
-				Resolve: func(ctx context.Context, p ResolveParams) (interface{}, error) {
+				Resolve: func(ctx context.Context, p ResolveParams) (any, error) {
 					if dir, ok := p.Source.(*Directive); ok {
 						res := false
 						for _, loc := range dir.Locations {
@@ -370,7 +370,7 @@ func init() {
 			"onFragment": &Field{
 				DeprecationReason: "Use `locations`.",
 				Type:              NewNonNull(Boolean),
-				Resolve: func(ctx context.Context, p ResolveParams) (interface{}, error) {
+				Resolve: func(ctx context.Context, p ResolveParams) (any, error) {
 					if dir, ok := p.Source.(*Directive); ok {
 						res := false
 						for _, loc := range dir.Locations {
@@ -389,7 +389,7 @@ func init() {
 			"onField": &Field{
 				DeprecationReason: "Use `locations`.",
 				Type:              NewNonNull(Boolean),
-				Resolve: func(ctx context.Context, p ResolveParams) (interface{}, error) {
+				Resolve: func(ctx context.Context, p ResolveParams) (any, error) {
 					if dir, ok := p.Source.(*Directive); ok {
 						res := false
 						for _, loc := range dir.Locations {
@@ -417,7 +417,7 @@ func init() {
 				Type: NewNonNull(NewList(
 					NewNonNull(TypeType),
 				)),
-				Resolve: func(ctx context.Context, p ResolveParams) (interface{}, error) {
+				Resolve: func(ctx context.Context, p ResolveParams) (any, error) {
 					if schema, ok := p.Source.(Schema); ok {
 						var results []Type
 						for _, ttype := range schema.TypeMap() {
@@ -434,7 +434,7 @@ func init() {
 			"queryType": &Field{
 				Description: "The type that query operations will be rooted at.",
 				Type:        NewNonNull(TypeType),
-				Resolve: func(ctx context.Context, p ResolveParams) (interface{}, error) {
+				Resolve: func(ctx context.Context, p ResolveParams) (any, error) {
 					if schema, ok := p.Source.(Schema); ok {
 						return schema.QueryType(), nil
 					}
@@ -445,7 +445,7 @@ func init() {
 				Description: `If this server supports mutation, the type that ` +
 					`mutation operations will be rooted at.`,
 				Type: TypeType,
-				Resolve: func(ctx context.Context, p ResolveParams) (interface{}, error) {
+				Resolve: func(ctx context.Context, p ResolveParams) (any, error) {
 					if schema, ok := p.Source.(Schema); ok {
 						if schema.MutationType() != nil {
 							return schema.MutationType(), nil
@@ -458,7 +458,7 @@ func init() {
 				Description: `If this server supports subscription, the type that ` +
 					`subscription operations will be rooted at.`,
 				Type: TypeType,
-				Resolve: func(ctx context.Context, p ResolveParams) (interface{}, error) {
+				Resolve: func(ctx context.Context, p ResolveParams) (any, error) {
 					if schema, ok := p.Source.(Schema); ok {
 						if schema.SubscriptionType() != nil {
 							return schema.SubscriptionType(), nil
@@ -472,7 +472,7 @@ func init() {
 				Type: NewNonNull(NewList(
 					NewNonNull(DirectiveType),
 				)),
-				Resolve: func(ctx context.Context, p ResolveParams) (interface{}, error) {
+				Resolve: func(ctx context.Context, p ResolveParams) (any, error) {
 					if schema, ok := p.Source.(Schema); ok {
 						return schema.Directives(), nil
 					}
@@ -496,7 +496,7 @@ func init() {
 			},
 			"isDeprecated": &Field{
 				Type: NewNonNull(Boolean),
-				Resolve: func(ctx context.Context, p ResolveParams) (interface{}, error) {
+				Resolve: func(ctx context.Context, p ResolveParams) (any, error) {
 					if field, ok := p.Source.(*EnumValueDefinition); ok {
 						return field.DeprecationReason != "", nil
 					}
@@ -519,7 +519,7 @@ func init() {
 				DefaultValue: false,
 			},
 		},
-		Resolve: func(ctx context.Context, p ResolveParams) (interface{}, error) {
+		Resolve: func(ctx context.Context, p ResolveParams) (any, error) {
 			includeDeprecated, _ := p.Args["includeDeprecated"].(bool)
 			switch ttype := p.Source.(type) {
 			case *Object:
@@ -558,7 +558,7 @@ func init() {
 	})
 	TypeType.AddFieldConfig("interfaces", &Field{
 		Type: NewList(NewNonNull(TypeType)),
-		Resolve: func(ctx context.Context, p ResolveParams) (interface{}, error) {
+		Resolve: func(ctx context.Context, p ResolveParams) (any, error) {
 			switch ttype := p.Source.(type) {
 			case *Object:
 				return ttype.Interfaces(), nil
@@ -568,7 +568,7 @@ func init() {
 	})
 	TypeType.AddFieldConfig("possibleTypes", &Field{
 		Type: NewList(NewNonNull(TypeType)),
-		Resolve: func(ctx context.Context, p ResolveParams) (interface{}, error) {
+		Resolve: func(ctx context.Context, p ResolveParams) (any, error) {
 			switch ttype := p.Source.(type) {
 			case *Interface:
 				return p.Info.Schema.PossibleTypes(ttype), nil
@@ -586,7 +586,7 @@ func init() {
 				DefaultValue: false,
 			},
 		},
-		Resolve: func(ctx context.Context, p ResolveParams) (interface{}, error) {
+		Resolve: func(ctx context.Context, p ResolveParams) (any, error) {
 			includeDeprecated, _ := p.Args["includeDeprecated"].(bool)
 			switch ttype := p.Source.(type) {
 			case *Enum:
@@ -610,7 +610,7 @@ func init() {
 	})
 	TypeType.AddFieldConfig("inputFields", &Field{
 		Type: NewList(NewNonNull(InputValueType)),
-		Resolve: func(ctx context.Context, p ResolveParams) (interface{}, error) {
+		Resolve: func(ctx context.Context, p ResolveParams) (any, error) {
 			switch ttype := p.Source.(type) {
 			case *InputObject:
 				fields := []*InputObjectField{}
@@ -636,7 +636,7 @@ func init() {
 		Type:        NewNonNull(SchemaType),
 		Description: "Access the current type schema of this server.",
 		Args:        []*Argument{},
-		Resolve: func(ctx context.Context, p ResolveParams) (interface{}, error) {
+		Resolve: func(ctx context.Context, p ResolveParams) (any, error) {
 			return p.Info.Schema, nil
 		},
 	}
@@ -650,7 +650,7 @@ func init() {
 				Type:        NewNonNull(String),
 			},
 		},
-		Resolve: func(ctx context.Context, p ResolveParams) (interface{}, error) {
+		Resolve: func(ctx context.Context, p ResolveParams) (any, error) {
 			name, ok := p.Args["name"].(string)
 			if !ok {
 				return nil, nil
@@ -664,7 +664,7 @@ func init() {
 		Type:        NewNonNull(String),
 		Description: "The name of the current Object type at runtime.",
 		Args:        []*Argument{},
-		Resolve: func(ctx context.Context, p ResolveParams) (interface{}, error) {
+		Resolve: func(ctx context.Context, p ResolveParams) (any, error) {
 			return p.Info.ParentType.Name(), nil
 		},
 	}
@@ -684,7 +684,7 @@ func init() {
 // | String        | String / Enum Value  |
 // | Number        | Int / Float          |
 
-func astFromValue(value interface{}, ttype Type) ast.Value {
+func astFromValue(value any, ttype Type) ast.Value {
 	if ttype, ok := ttype.(*NonNull); ok {
 		// Note: we're not checking that the result is non-null.
 		// This function is not responsible for validating the input value.

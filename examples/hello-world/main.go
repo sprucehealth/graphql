@@ -14,7 +14,7 @@ func main() {
 	fields := graphql.Fields{
 		"hello": &graphql.Field{
 			Type: graphql.String,
-			Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
+			Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
 				return "world", nil
 			},
 		},

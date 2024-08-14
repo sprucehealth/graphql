@@ -55,7 +55,7 @@ func VisitUsingRules(schema *Schema, typeInfo *TypeInfo, astDoc *ast.Document, r
 
 	visitInstance := func(astNode ast.Node, instance *ValidationRuleInstance) {
 		err := visitor.Visit(astNode, &visitor.VisitorOptions{
-			Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
+			Enter: func(p visitor.VisitFuncParams) (string, any) {
 				node, ok := p.Node.(ast.Node)
 				if !ok {
 					return visitor.ActionNoChange, nil
@@ -65,7 +65,7 @@ func VisitUsingRules(schema *Schema, typeInfo *TypeInfo, astDoc *ast.Document, r
 				typeInfo.Enter(node)
 
 				action := visitor.ActionNoChange
-				var result interface{}
+				var result any
 				if instance.Enter != nil {
 					action, result = instance.Enter(p)
 				}
@@ -78,14 +78,14 @@ func VisitUsingRules(schema *Schema, typeInfo *TypeInfo, astDoc *ast.Document, r
 
 				return action, result
 			},
-			Leave: func(p visitor.VisitFuncParams) (string, interface{}) {
+			Leave: func(p visitor.VisitFuncParams) (string, any) {
 				node, ok := p.Node.(ast.Node)
 				if !ok {
 					return visitor.ActionNoChange, nil
 				}
 
 				var action = visitor.ActionNoChange
-				var result interface{}
+				var result any
 				if instance.Leave != nil {
 					action, result = instance.Leave(p)
 				}
@@ -264,7 +264,7 @@ func (ctx *ValidationContext) VariableUsages(node HasSelectionSet) []*VariableUs
 
 	var usages []*VariableUsage
 	err := visitor.Visit(node, &visitor.VisitorOptions{
-		Enter: func(p visitor.VisitFuncParams) (string, interface{}) {
+		Enter: func(p visitor.VisitFuncParams) (string, any) {
 			if node, ok := p.Node.(ast.Node); ok {
 				typeInfo.Enter(node)
 				switch node := node.(type) {
@@ -280,7 +280,7 @@ func (ctx *ValidationContext) VariableUsages(node HasSelectionSet) []*VariableUs
 			}
 			return visitor.ActionNoChange, nil
 		},
-		Leave: func(p visitor.VisitFuncParams) (string, interface{}) {
+		Leave: func(p visitor.VisitFuncParams) (string, any) {
 			if node, ok := p.Node.(ast.Node); ok {
 				typeInfo.Leave(node)
 			}

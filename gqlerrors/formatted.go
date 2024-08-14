@@ -63,7 +63,7 @@ func FormatError(err error) FormattedError {
 	}
 }
 
-func FormatPanic(r interface{}) FormattedError {
+func FormatPanic(r any) FormattedError {
 	if e, ok := r.(FormattedError); ok {
 		return e
 	}

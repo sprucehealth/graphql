@@ -86,7 +86,7 @@ type Leaf interface {
 	Description() string
 	String() string
 	Error() error
-	Serialize(value interface{}) interface{}
+	Serialize(value any) any
 }
 
 var _ Leaf = (*Scalar)(nil)
@@ -133,7 +133,7 @@ var _ Composite = (*Interface)(nil)
 var _ Composite = (*Union)(nil)
 
 // IsCompositeType determines if given type is a GraphQLComposite type
-func IsCompositeType(ttype interface{}) bool {
+func IsCompositeType(ttype any) bool {
 	if _, ok := ttype.(*Object); ok {
 		return true
 	}
@@ -154,7 +154,7 @@ type Abstract interface {
 var _ Abstract = (*Interface)(nil)
 var _ Abstract = (*Union)(nil)
 
-func IsAbstractType(ttype interface{}) bool {
+func IsAbstractType(ttype any) bool {
 	if _, ok := ttype.(*Interface); ok {
 		return true
 	}
@@ -236,13 +236,13 @@ type Scalar struct {
 }
 
 // SerializeFn is a function type for serializing a GraphQLScalar type value
-type SerializeFn func(value interface{}) interface{}
+type SerializeFn func(value any) any
 
 // ParseValueFn is a function type for parsing the value of a GraphQLScalar type
-type ParseValueFn func(value interface{}) interface{}
+type ParseValueFn func(value any) any
 
 // ParseLiteralFn is a function type for parsing the literal value of a GraphQLScalar type
-type ParseLiteralFn func(valueAST ast.Value) interface{}
+type ParseLiteralFn func(valueAST ast.Value) any
 
 // ScalarConfig options for creating a new GraphQLScalar
 type ScalarConfig struct {
@@ -285,19 +285,19 @@ func NewScalar(config ScalarConfig) *Scalar {
 	st.scalarConfig = config
 	return st
 }
-func (st *Scalar) Serialize(value interface{}) interface{} {
+func (st *Scalar) Serialize(value any) any {
 	if st.scalarConfig.Serialize == nil {
 		return value
 	}
 	return st.scalarConfig.Serialize(value)
 }
-func (st *Scalar) ParseValue(value interface{}) interface{} {
+func (st *Scalar) ParseValue(value any) any {
 	if st.scalarConfig.ParseValue == nil {
 		return value
 	}
 	return st.scalarConfig.ParseValue(value)
 }
-func (st *Scalar) ParseLiteral(valueAST ast.Value) interface{} {
+func (st *Scalar) ParseLiteral(valueAST ast.Value) any {
 	if st.scalarConfig.ParseLiteral == nil {
 		return nil
 	}
@@ -369,7 +369,7 @@ type Object struct {
 type IsTypeOfParams struct {
 	// Value that needs to be resolve.
 	// Use this to decide which GraphQLObject this value maps to.
-	Value interface{}
+	Value any
 
 	// Info is a collection of information about the current execution state.
 	Info ResolveInfo
@@ -380,11 +380,11 @@ type IsTypeOfFn func(p IsTypeOfParams) bool
 type InterfacesThunk func() []*Interface
 
 type ObjectConfig struct {
-	Name        string      `json:"name"`
-	Interfaces  interface{} `json:"interfaces"`
-	Fields      interface{} `json:"fields"`
-	IsTypeOf    IsTypeOfFn  `json:"isTypeOf"`
-	Description string      `json:"description"`
+	Name        string     `json:"name"`
+	Interfaces  any        `json:"interfaces"`
+	Fields      any        `json:"fields"`
+	IsTypeOf    IsTypeOfFn `json:"isTypeOf"`
+	Description string     `json:"description"`
 }
 type FieldsThunk func() Fields
 
@@ -579,16 +579,16 @@ func defineFieldMap(ttype Named, fields Fields) (FieldDefinitionMap, error) {
 // ResolveParams Params for FieldResolveFn()
 type ResolveParams struct {
 	// Source is the source value
-	Source interface{}
+	Source any
 
 	// Args is a map of arguments for current GraphQL request
-	Args map[string]interface{}
+	Args map[string]any
 
 	// Info is a collection of information about the current execution state.
 	Info ResolveInfo
 }
 
-type FieldResolveFn func(ctx context.Context, p ResolveParams) (interface{}, error)
+type FieldResolveFn func(ctx context.Context, p ResolveParams) (any, error)
 
 type ResolveInfo struct {
 	FieldName      string
@@ -597,9 +597,9 @@ type ResolveInfo struct {
 	ParentType     Composite
 	Schema         Schema
 	Fragments      map[string]*ast.FragmentDefinition
-	RootValue      interface{}
+	RootValue      any
 	Operation      ast.Definition
-	VariableValues map[string]interface{}
+	VariableValues map[string]any
 }
 
 type Fields map[string]*Field
@@ -617,9 +617,9 @@ type Field struct {
 type FieldConfigArgument map[string]*ArgumentConfig
 
 type ArgumentConfig struct {
-	Type         Input       `json:"type"`
-	DefaultValue interface{} `json:"defaultValue"`
-	Description  string      `json:"description"`
+	Type         Input  `json:"type"`
+	DefaultValue any    `json:"defaultValue"`
+	Description  string `json:"description"`
 }
 
 type FieldDefinitionMap map[string]*FieldDefinition
@@ -634,17 +634,17 @@ type FieldDefinition struct {
 }
 
 type FieldArgument struct {
-	Name         string      `json:"name"`
-	Type         Type        `json:"type"`
-	DefaultValue interface{} `json:"defaultValue"`
-	Description  string      `json:"description"`
+	Name         string `json:"name"`
+	Type         Type   `json:"type"`
+	DefaultValue any    `json:"defaultValue"`
+	Description  string `json:"description"`
 }
 
 type Argument struct {
-	PrivateName        string      `json:"name"`
-	Type               Input       `json:"type"`
-	DefaultValue       interface{} `json:"defaultValue"`
-	PrivateDescription string      `json:"description"`
+	PrivateName        string `json:"name"`
+	Type               Input  `json:"type"`
+	DefaultValue       any    `json:"defaultValue"`
+	PrivateDescription string `json:"description"`
 }
 
 func (st *Argument) Name() string {
@@ -690,8 +690,8 @@ type Interface struct {
 }
 
 type InterfaceConfig struct {
-	Name        string      `json:"name"`
-	Fields      interface{} `json:"fields"`
+	Name        string `json:"name"`
+	Fields      any    `json:"fields"`
 	ResolveType ResolveTypeFn
 	Description string `json:"description"`
 }
@@ -700,7 +700,7 @@ type InterfaceConfig struct {
 type ResolveTypeParams struct {
 	// Value that needs to be resolve.
 	// Use this to decide which GraphQLObject this value maps to.
-	Value interface{}
+	Value any
 
 	// Info is a collection of information about the current execution state.
 	Info ResolveInfo
@@ -902,15 +902,15 @@ type Enum struct {
 	values     []*EnumValueDefinition
 
 	mu           sync.RWMutex
-	valuesLookup map[interface{}]*EnumValueDefinition
+	valuesLookup map[any]*EnumValueDefinition
 	nameLookup   map[string]*EnumValueDefinition
 	err          error
 }
 type EnumValueConfigMap map[string]*EnumValueConfig
 type EnumValueConfig struct {
-	Value             interface{} `json:"value"`
-	DeprecationReason string      `json:"deprecationReason,omitempty"`
-	Description       string      `json:"description"`
+	Value             any    `json:"value"`
+	DeprecationReason string `json:"deprecationReason,omitempty"`
+	Description       string `json:"description"`
 }
 type EnumConfig struct {
 	Name        string             `json:"name"`
@@ -918,10 +918,10 @@ type EnumConfig struct {
 	Description string             `json:"description"`
 }
 type EnumValueDefinition struct {
-	Name              string      `json:"name"`
-	Value             interface{} `json:"value"`
-	DeprecationReason string      `json:"deprecationReason,omitempty"`
-	Description       string      `json:"description"`
+	Name              string `json:"name"`
+	Value             any    `json:"value"`
+	DeprecationReason string `json:"deprecationReason,omitempty"`
+	Description       string `json:"description"`
 }
 
 func NewEnum(config EnumConfig) *Enum {
@@ -974,13 +974,13 @@ func (gt *Enum) defineEnumValues(valueMap EnumValueConfigMap) ([]*EnumValueDefin
 func (gt *Enum) Values() []*EnumValueDefinition {
 	return gt.values
 }
-func (gt *Enum) Serialize(value interface{}) interface{} {
+func (gt *Enum) Serialize(value any) any {
 	if enumValue, ok := gt.getValueLookup()[value]; ok {
 		return enumValue.Name
 	}
 	return nil
 }
-func (gt *Enum) ParseValue(value interface{}) interface{} {
+func (gt *Enum) ParseValue(value any) any {
 	valueStr, ok := value.(string)
 	if !ok {
 		return nil
@@ -990,7 +990,7 @@ func (gt *Enum) ParseValue(value interface{}) interface{} {
 	}
 	return nil
 }
-func (gt *Enum) ParseLiteral(valueAST ast.Value) interface{} {
+func (gt *Enum) ParseLiteral(valueAST ast.Value) any {
 	if valueAST, ok := valueAST.(*ast.EnumValue); ok {
 		if enumValue, ok := gt.getNameLookup()[valueAST.Value]; ok {
 			return enumValue.Value
@@ -1012,7 +1012,7 @@ func (gt *Enum) Error() error {
 	defer gt.mu.RUnlock()
 	return gt.err
 }
-func (gt *Enum) getValueLookup() map[interface{}]*EnumValueDefinition {
+func (gt *Enum) getValueLookup() map[any]*EnumValueDefinition {
 	gt.mu.RLock()
 	valuesLookup := gt.valuesLookup
 	gt.mu.RUnlock()
@@ -1025,7 +1025,7 @@ func (gt *Enum) getValueLookup() map[interface{}]*EnumValueDefinition {
 	if len(gt.valuesLookup) != 0 {
 		return gt.valuesLookup
 	}
-	valuesLookup = map[interface{}]*EnumValueDefinition{}
+	valuesLookup = map[any]*EnumValueDefinition{}
 	for _, value := range gt.Values() {
 		valuesLookup[value.Value] = value
 	}
@@ -1082,18 +1082,18 @@ type InputObject struct {
 	err error
 }
 type InputObjectFieldConfig struct {
-	Type         Input       `json:"type"`
-	DefaultValue interface{} `json:"defaultValue"`
-	Description  string      `json:"description"`
+	Type         Input  `json:"type"`
+	DefaultValue any    `json:"defaultValue"`
+	Description  string `json:"description"`
 }
 
 type InputObjectFields map[string]*InputObjectField
 
 type InputObjectField struct {
-	PrivateName        string      `json:"name"`
-	Type               Input       `json:"type"`
-	DefaultValue       interface{} `json:"defaultValue"`
-	PrivateDescription string      `json:"description"`
+	PrivateName        string `json:"name"`
+	Type               Input  `json:"type"`
+	DefaultValue       any    `json:"defaultValue"`
+	PrivateDescription string `json:"description"`
 }
 
 func (st *InputObjectField) Name() string {
@@ -1114,9 +1114,9 @@ type InputObjectConfigFieldMap map[string]*InputObjectFieldConfig
 type InputObjectFieldMap map[string]*InputObjectField
 type InputObjectConfigFieldMapThunk func() InputObjectConfigFieldMap
 type InputObjectConfig struct {
-	Name        string      `json:"name"`
-	Fields      interface{} `json:"fields"`
-	Description string      `json:"description"`
+	Name        string `json:"name"`
+	Fields      any    `json:"fields"`
+	Description string `json:"description"`
 }
 
 func NewInputObject(config InputObjectConfig) *InputObject {

@@ -9,7 +9,7 @@ import (
 	"github.com/sprucehealth/graphql/language/source"
 )
 
-type parseFn func() (interface{}, error)
+type parseFn func() (any, error)
 
 type ParseOptions struct {
 	NoSource     bool
@@ -17,7 +17,7 @@ type ParseOptions struct {
 }
 
 type ParseParams struct {
-	Source  interface{}
+	Source  any
 	Options ParseOptions
 }
 
@@ -261,7 +261,7 @@ func (p *Parser) parseVariableDefinitions() ([]*ast.VariableDefinition, error) {
 	return variableDefinitions, nil
 }
 
-func (p *Parser) parseVariableDefinition() (interface{}, error) {
+func (p *Parser) parseVariableDefinition() (any, error) {
 	start := p.tok.Start
 	variable, err := p.parseVariable()
 	if err != nil {
@@ -318,7 +318,7 @@ func (p *Parser) parseSelectionSet() (*ast.SelectionSet, error) {
 	selections := make([]ast.Selection, 0, len(iSelections))
 	for _, iSelection := range iSelections {
 		if iSelection != nil {
-			// type assert interface{} into Selection interface
+			// type assert any into Selection interface
 			selections = append(selections, iSelection.(ast.Selection))
 		}
 	}
@@ -329,7 +329,7 @@ func (p *Parser) parseSelectionSet() (*ast.SelectionSet, error) {
 	}, nil
 }
 
-func (p *Parser) parseSelection() (interface{}, error) {
+func (p *Parser) parseSelection() (any, error) {
 	if p.peek(lexer.SPREAD) {
 		r, err := p.parseFragment()
 		return r, err
@@ -402,7 +402,7 @@ func (p *Parser) parseArguments() ([]*ast.Argument, error) {
 	return arguments, nil
 }
 
-func (p *Parser) parseArgument() (interface{}, error) {
+func (p *Parser) parseArgument() (any, error) {
 	start := p.tok.Start
 	name, err := p.parseName()
 	if err != nil {
@@ -430,7 +430,7 @@ func (p *Parser) parseArgument() (interface{}, error) {
 // FragmentSpread : ... FragmentName Directives?
 //
 // InlineFragment : ... TypeCondition? Directives? SelectionSet
-func (p *Parser) parseFragment() (interface{}, error) {
+func (p *Parser) parseFragment() (any, error) {
 	start := p.tok.Start
 	if _, err := p.expect(lexer.SPREAD); err != nil {
 		return nil, err
@@ -579,11 +579,11 @@ func (p *Parser) parseValueLiteral(isConst bool) (ast.Value, error) {
 	return nil, p.unexpected(lexer.Token{})
 }
 
-func (p *Parser) parseConstValue() (interface{}, error) {
+func (p *Parser) parseConstValue() (any, error) {
 	return p.parseValueLiteral(true)
 }
 
-func (p *Parser) parseValueValue() (interface{}, error) {
+func (p *Parser) parseValueValue() (any, error) {
 	return p.parseValueLiteral(false)
 }
 
@@ -773,7 +773,7 @@ func (p *Parser) parseSchemaDefinition() (*ast.SchemaDefinition, error) {
 	}, nil
 }
 
-func (p *Parser) parseOperationTypeDefinition() (interface{}, error) {
+func (p *Parser) parseOperationTypeDefinition() (any, error) {
 	start := p.tok.Start
 	operation, err := p.parseOperationType()
 	if err != nil {
@@ -892,7 +892,7 @@ func (p *Parser) parseImplementsInterfaces() ([]*ast.Named, error) {
 }
 
 // FieldDefinition : Name ArgumentsDefinition? : Type Directives?
-func (p *Parser) parseFieldDefinition() (interface{}, error) {
+func (p *Parser) parseFieldDefinition() (any, error) {
 	docComment := p.leadComment
 
 	start := p.tok.Start
@@ -947,7 +947,7 @@ func (p *Parser) parseArgumentDefs() ([]*ast.InputValueDefinition, error) {
 /**
  * InputValueDefinition : Name : Type DefaultValue? Directives?
  */
-func (p *Parser) parseInputValueDef() (interface{}, error) {
+func (p *Parser) parseInputValueDef() (any, error) {
 	docComment := p.leadComment
 	start := p.tok.Start
 	name, err := p.parseName()
@@ -1108,7 +1108,7 @@ func (p *Parser) parseEnumTypeDefinition() (*ast.EnumDefinition, error) {
 	}, nil
 }
 
-func (p *Parser) parseEnumValueDefinition() (interface{}, error) {
+func (p *Parser) parseEnumValueDefinition() (any, error) {
 	docComment := p.leadComment
 	start := p.tok.Start
 	name, err := p.parseName()
@@ -1391,6 +1391,7 @@ func (p *Parser) expect(kind int) (lexer.Token, error) {
 
 // If the next token is a keyword with the given value, return that token after
 // advancing the parser. Otherwise, do not change the parser state and return false.
+//
 //nolint:unparam
 func (p *Parser) expectKeyWord(value string) (lexer.Token, error) {
 	token := p.tok
@@ -1416,11 +1417,11 @@ func (p *Parser) unexpected(atToken lexer.Token) error {
 // the parseFn. This list begins with a lex token of openKind
 // and ends with a lex token of closeKind. Advances the parser
 // to the next lex token after the closing token.
-func (p *Parser) any(openKind int, parseFn parseFn, closeKind int) ([]interface{}, error) {
+func (p *Parser) any(openKind int, parseFn parseFn, closeKind int) ([]any, error) {
 	if _, err := p.expect(openKind); err != nil {
 		return nil, err
 	}
-	var nodes []interface{}
+	var nodes []any
 	for {
 		if skp, err := p.skip(closeKind); err != nil {
 			return nil, err
@@ -1440,7 +1441,7 @@ func (p *Parser) any(openKind int, parseFn parseFn, closeKind int) ([]interface{
 // the parseFn. This list begins with a lex token of openKind
 // and ends with a lex token of closeKind. Advances the parser
 // to the next lex token after the closing token.
-func (p *Parser) many(openKind int, parseFn parseFn, closeKind int) ([]interface{}, error) {
+func (p *Parser) many(openKind int, parseFn parseFn, closeKind int) ([]any, error) {
 	_, err := p.expect(openKind)
 	if err != nil {
 		return nil, err
@@ -1449,7 +1450,7 @@ func (p *Parser) many(openKind int, parseFn parseFn, closeKind int) ([]interface
 	if err != nil {
 		return nil, err
 	}
-	var nodes []interface{}
+	var nodes []any
 	nodes = append(nodes, node)
 	for {
 		if skp, err := p.skip(closeKind); err != nil {

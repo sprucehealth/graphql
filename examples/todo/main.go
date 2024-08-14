@@ -71,7 +71,7 @@ var rootMutation = graphql.NewObject(graphql.ObjectConfig{
 					Type: graphql.NewNonNull(graphql.String),
 				},
 			},
-			Resolve: func(ctx context.Context, params graphql.ResolveParams) (interface{}, error) {
+			Resolve: func(ctx context.Context, params graphql.ResolveParams) (any, error) {
 				// marshall and cast the argument value
 				text, _ := params.Args["text"].(string)
 
@@ -112,7 +112,7 @@ var rootMutation = graphql.NewObject(graphql.ObjectConfig{
 					Type: graphql.Boolean,
 				},
 			},
-			Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
+			Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
 				if idQuery, ok := p.Args["id"].(string); ok {
 					for _, todo := range TodoList {
 						if todo.ID == idQuery {
@@ -149,7 +149,7 @@ var rootQuery = graphql.NewObject(graphql.ObjectConfig{
 					Type: graphql.String,
 				},
 			},
-			Resolve: func(ctx context.Context, params graphql.ResolveParams) (interface{}, error) {
+			Resolve: func(ctx context.Context, params graphql.ResolveParams) (any, error) {
 				idQuery, isOK := params.Args["id"].(string)
 				if isOK {
 					// Search for el with id
@@ -167,7 +167,7 @@ var rootQuery = graphql.NewObject(graphql.ObjectConfig{
 		"lastTodo": &graphql.Field{
 			Type:        todoType,
 			Description: "Last todo added",
-			Resolve: func(ctx context.Context, params graphql.ResolveParams) (interface{}, error) {
+			Resolve: func(ctx context.Context, params graphql.ResolveParams) (any, error) {
 				return TodoList[len(TodoList)-1], nil
 			},
 		},
@@ -178,7 +178,7 @@ var rootQuery = graphql.NewObject(graphql.ObjectConfig{
 		"todoList": &graphql.Field{
 			Type:        graphql.NewList(todoType),
 			Description: "List of todos",
-			Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
+			Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
 				return TodoList, nil
 			},
 		},

@@ -7,7 +7,7 @@ import (
 	"github.com/sprucehealth/graphql/language/ast"
 )
 
-func NewLocatedError(err interface{}, nodes []ast.Node) *gqlerrors.Error {
+func NewLocatedError(err any, nodes []ast.Node) *gqlerrors.Error {
 	message := "An unknown error occurred."
 	var origError error
 	switch err := err.(type) {

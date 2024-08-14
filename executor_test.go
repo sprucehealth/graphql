@@ -18,27 +18,27 @@ import (
 )
 
 func TestExecutesArbitraryCode(t *testing.T) {
-	deepData := map[string]interface{}{}
-	data := map[string]interface{}{
-		"a": func() interface{} { return "Apple" },
-		"b": func() interface{} { return "Banana" },
-		"c": func() interface{} { return "Cookie" },
-		"d": func() interface{} { return "Donut" },
-		"e": func() interface{} { return "Egg" },
+	deepData := map[string]any{}
+	data := map[string]any{
+		"a": func() any { return "Apple" },
+		"b": func() any { return "Banana" },
+		"c": func() any { return "Cookie" },
+		"d": func() any { return "Donut" },
+		"e": func() any { return "Egg" },
 		"f": "Fish",
 		"pic": func(size int) string {
 			return fmt.Sprintf("Pic of size: %v", size)
 		},
-		"deep": func() interface{} { return deepData },
+		"deep": func() any { return deepData },
 	}
-	data["promise"] = func() interface{} {
+	data["promise"] = func() any {
 		return data
 	}
-	deepData = map[string]interface{}{
-		"a":      func() interface{} { return "Already Been Done" },
-		"b":      func() interface{} { return "Boring" },
-		"c":      func() interface{} { return []string{"Contrived", "", "Confusing"} },
-		"deeper": func() interface{} { return []interface{}{data, nil, data} },
+	deepData = map[string]any{
+		"a":      func() any { return "Already Been Done" },
+		"b":      func() any { return "Boring" },
+		"c":      func() any { return []string{"Contrived", "", "Confusing"} },
+		"deeper": func() any { return []any{data, nil, data} },
 	}
 
 	query := `
@@ -72,30 +72,30 @@ func TestExecutesArbitraryCode(t *testing.T) {
     `
 
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"b": "Banana",
 			"x": "Cookie",
 			"d": "Donut",
 			"e": "Egg",
-			"promise": map[string]interface{}{
+			"promise": map[string]any{
 				"a": "Apple",
 			},
 			"a": "Apple",
-			"deep": map[string]interface{}{
+			"deep": map[string]any{
 				"a": "Already Been Done",
 				"b": "Boring",
-				"c": []interface{}{
+				"c": []any{
 					"Contrived",
 					"",
 					"Confusing",
 				},
-				"deeper": []interface{}{
-					map[string]interface{}{
+				"deeper": []any{
+					map[string]any{
 						"a": "Apple",
 						"b": "Banana",
 					},
 					nil,
-					map[string]interface{}{
+					map[string]any{
 						"a": "Apple",
 						"b": "Banana",
 					},
@@ -107,9 +107,9 @@ func TestExecutesArbitraryCode(t *testing.T) {
 	}
 
 	// Schema Definitions
-	picResolverFn := func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
+	picResolverFn := func(ctx context.Context, p graphql.ResolveParams) (any, error) {
 		// get and type assert ResolveFn for this field
-		picResolver, ok := p.Source.(map[string]interface{})["pic"].(func(size int) string)
+		picResolver, ok := p.Source.(map[string]any)["pic"].(func(size int) string)
 		if !ok {
 			return nil, nil
 		}
@@ -191,7 +191,7 @@ func TestExecutesArbitraryCode(t *testing.T) {
 	astDoc := testutil.TestParse(t, query)
 
 	// execute
-	args := map[string]interface{}{
+	args := map[string]any{
 		"size": 100,
 	}
 	operationName := "Example"
@@ -220,7 +220,7 @@ func TestAliasedString(t *testing.T) {
     `
 
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"foo": "bar",
 			"bar": "foo",
 		},
@@ -245,13 +245,13 @@ func TestAliasedString(t *testing.T) {
 			Fields: graphql.Fields{
 				"foo": &graphql.Field{
 					Type: graphql.NewNonNull(graphql.String),
-					Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
+					Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
 						return LikeAString("bar"), nil
 					},
 				},
 				"bar": &graphql.Field{
 					Type: graphql.NewNonNull(enumType),
-					Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
+					Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
 						return fooEnumValue, nil
 					},
 				},
@@ -295,13 +295,13 @@ func TestMergesParallelFragments(t *testing.T) {
     `
 
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"a": "Apple",
 			"b": "Banana",
-			"deep": map[string]interface{}{
+			"deep": map[string]any{
 				"c": "Cherry",
 				"b": "Banana",
-				"deeper": map[string]interface{}{
+				"deeper": map[string]any{
 					"b": "Banana",
 					"c": "Cherry",
 				},
@@ -315,19 +315,19 @@ func TestMergesParallelFragments(t *testing.T) {
 		Fields: graphql.Fields{
 			"a": &graphql.Field{
 				Type: graphql.String,
-				Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
+				Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
 					return "Apple", nil
 				},
 			},
 			"b": &graphql.Field{
 				Type: graphql.String,
-				Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
+				Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
 					return "Banana", nil
 				},
 			},
 			"c": &graphql.Field{
 				Type: graphql.String,
-				Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
+				Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
 					return "Cherry", nil
 				},
 			},
@@ -335,7 +335,7 @@ func TestMergesParallelFragments(t *testing.T) {
 	})
 	deepTypeFieldConfig := &graphql.Field{
 		Type: typeObjectType,
-		Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
+		Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
 			return p.Source, nil
 		},
 	}
@@ -370,11 +370,11 @@ func TestThreadsSourceCorrectly(t *testing.T) {
       query Example { a }
     `
 
-	data := map[string]interface{}{
+	data := map[string]any{
 		"key": "value",
 	}
 
-	var resolvedSource map[string]interface{}
+	var resolvedSource map[string]any
 
 	schema, err := graphql.NewSchema(graphql.SchemaConfig{
 		Query: graphql.NewObject(graphql.ObjectConfig{
@@ -382,8 +382,8 @@ func TestThreadsSourceCorrectly(t *testing.T) {
 			Fields: graphql.Fields{
 				"a": &graphql.Field{
 					Type: graphql.String,
-					Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
-						resolvedSource = p.Source.(map[string]interface{})
+					Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
+						resolvedSource = p.Source.(map[string]any)
 						return resolvedSource, nil
 					},
 				},
@@ -435,7 +435,7 @@ func TestOmitEmpty(t *testing.T) {
 			Fields: graphql.Fields{
 				"a": &graphql.Field{
 					Type: aType,
-					Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
+					Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
 						return &struct {
 							B string `json:"b"`
 							C string `json:"c,omitempty"`
@@ -460,8 +460,8 @@ func TestOmitEmpty(t *testing.T) {
 	}
 
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
-			"a": map[string]interface{}{
+		Data: map[string]any{
+			"a": map[string]any{
 				"b": "",
 				"c": nil,
 				"d": nil,
@@ -480,7 +480,7 @@ func TestCorrectlyThreadsArguments(t *testing.T) {
       }
     `
 
-	var resolvedArgs map[string]interface{}
+	var resolvedArgs map[string]any
 
 	schema, err := graphql.NewSchema(graphql.SchemaConfig{
 		Query: graphql.NewObject(graphql.ObjectConfig{
@@ -496,7 +496,7 @@ func TestCorrectlyThreadsArguments(t *testing.T) {
 						},
 					},
 					Type: graphql.String,
-					Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
+					Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
 						resolvedArgs = p.Args
 						return resolvedArgs, nil
 					},
@@ -543,8 +543,8 @@ func TestThreadsRootValueContextCorrectly(t *testing.T) {
 			Fields: graphql.Fields{
 				"a": &graphql.Field{
 					Type: graphql.String,
-					Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
-						val, _ := p.Info.RootValue.(map[string]interface{})["stringKey"].(string)
+					Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
+						val, _ := p.Info.RootValue.(map[string]any)["stringKey"].(string)
 						return val, nil
 					},
 				},
@@ -562,7 +562,7 @@ func TestThreadsRootValueContextCorrectly(t *testing.T) {
 	ep := graphql.ExecuteParams{
 		Schema: schema,
 		AST:    ast,
-		Root: map[string]interface{}{
+		Root: map[string]any{
 			"stringKey": "stringValue",
 		},
 	}
@@ -572,7 +572,7 @@ func TestThreadsRootValueContextCorrectly(t *testing.T) {
 	}
 
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"a": "stringValue",
 		},
 	}
@@ -593,7 +593,7 @@ func TestThreadsContextCorrectly(t *testing.T) {
 			Fields: graphql.Fields{
 				"a": &graphql.Field{
 					Type: graphql.String,
-					Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
+					Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
 						return ctx.Value("foo"), nil
 					},
 				},
@@ -619,7 +619,7 @@ func TestThreadsContextCorrectly(t *testing.T) {
 	}
 
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"a": "bar",
 		},
 	}
@@ -636,7 +636,7 @@ func TestNullsOutErrorSubtrees(t *testing.T) {
       syncError,
     }`
 
-	expectedData := map[string]interface{}{
+	expectedData := map[string]any{
 		"sync":      "sync",
 		"syncError": nil,
 	}
@@ -652,11 +652,11 @@ func TestNullsOutErrorSubtrees(t *testing.T) {
 		},
 	}
 
-	data := map[string]interface{}{
-		"sync": func() interface{} {
+	data := map[string]any{
+		"sync": func() any {
 			return "sync"
 		},
-		"syncError": func() interface{} {
+		"syncError": func() any {
 			panic("Error getting syncError")
 		},
 	}
@@ -702,12 +702,12 @@ func TestNullsOutErrorSubtrees(t *testing.T) {
 func TestUsesTheInlineOperationIfNoOperationNameIsProvided(t *testing.T) {
 
 	doc := `{ a }`
-	data := map[string]interface{}{
+	data := map[string]any{
 		"a": "b",
 	}
 
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"a": "b",
 		},
 	}
@@ -747,12 +747,12 @@ func TestUsesTheInlineOperationIfNoOperationNameIsProvided(t *testing.T) {
 func TestUsesTheOnlyOperationIfNoOperationNameIsProvided(t *testing.T) {
 
 	doc := `query Example { a }`
-	data := map[string]interface{}{
+	data := map[string]any{
 		"a": "b",
 	}
 
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"a": "b",
 		},
 	}
@@ -791,12 +791,12 @@ func TestUsesTheOnlyOperationIfNoOperationNameIsProvided(t *testing.T) {
 
 func TestUsesTheNamedOperationIfOperationNameIsProvided(t *testing.T) {
 	doc := `query Example { first: a } query OtherExample { second: a }`
-	data := map[string]interface{}{
+	data := map[string]any{
 		"a": "b",
 	}
 
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"second": "b",
 		},
 	}
@@ -835,7 +835,7 @@ func TestUsesTheNamedOperationIfOperationNameIsProvided(t *testing.T) {
 
 func TestThrowsIfNoOperationIsProvided(t *testing.T) {
 	doc := `fragment Example on Type { a }`
-	data := map[string]interface{}{
+	data := map[string]any{
 		"a": "b",
 	}
 
@@ -886,7 +886,7 @@ func TestThrowsIfNoOperationIsProvided(t *testing.T) {
 
 func TestThrowsIfNoOperationNameIsProvidedWithMultipleOperations(t *testing.T) {
 	doc := `query Example { a } query OtherExample { a }`
-	data := map[string]interface{}{
+	data := map[string]any{
 		"a": "b",
 	}
 
@@ -937,7 +937,7 @@ func TestThrowsIfNoOperationNameIsProvidedWithMultipleOperations(t *testing.T) {
 
 func TestThrowsIfUnknownOperationNameIsProvided(t *testing.T) {
 	doc := `query Example { a } query OtherExample { a }`
-	data := map[string]interface{}{
+	data := map[string]any{
 		"a": "b",
 	}
 
@@ -985,13 +985,13 @@ func TestThrowsIfUnknownOperationNameIsProvided(t *testing.T) {
 }
 func TestUsesTheQuerySchemaForQueries(t *testing.T) {
 	doc := `query Q { a } mutation M { c } subscription S { a }`
-	data := map[string]interface{}{
+	data := map[string]any{
 		"a": "b",
 		"c": "d",
 	}
 
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"a": "b",
 		},
 	}
@@ -1048,13 +1048,13 @@ func TestUsesTheQuerySchemaForQueries(t *testing.T) {
 func TestUsesTheMutationSchemaForMutations(t *testing.T) {
 
 	doc := `query Q { a } mutation M { c }`
-	data := map[string]interface{}{
+	data := map[string]any{
 		"a": "b",
 		"c": "d",
 	}
 
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"c": "d",
 		},
 	}
@@ -1103,13 +1103,13 @@ func TestUsesTheMutationSchemaForMutations(t *testing.T) {
 func TestUsesTheSubscriptionSchemaForSubscriptions(t *testing.T) {
 
 	doc := `query Q { a } subscription S { a }`
-	data := map[string]interface{}{
+	data := map[string]any{
 		"a": "b",
 		"c": "d",
 	}
 
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"a": "b",
 		},
 	}
@@ -1166,16 +1166,16 @@ func TestCorrectFieldOrderingDespiteExecutionOrder(t *testing.T) {
       e
     }
 	`
-	data := map[string]interface{}{
-		"a": func() interface{} { return "a" },
-		"b": func() interface{} { return "b" },
-		"c": func() interface{} { return "c" },
-		"d": func() interface{} { return "d" },
-		"e": func() interface{} { return "e" },
+	data := map[string]any{
+		"a": func() any { return "a" },
+		"b": func() any { return "b" },
+		"c": func() any { return "c" },
+		"d": func() any { return "d" },
+		"e": func() any { return "e" },
 	}
 
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"a": "a",
 			"b": "b",
 			"c": "c",
@@ -1252,12 +1252,12 @@ func TestAvoidsRecursion(t *testing.T) {
         ...Frag
       }
     `
-	data := map[string]interface{}{
+	data := map[string]any{
 		"a": "b",
 	}
 
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"a": "b",
 		},
 	}
@@ -1303,7 +1303,7 @@ func TestDoesNotIncludeIllegalFieldsInOutput(t *testing.T) {
     }`
 
 	expected := &graphql.Result{
-		Data: map[string]interface{}{},
+		Data: map[string]any{},
 	}
 
 	schema, err := graphql.NewSchema(graphql.SchemaConfig{
@@ -1350,7 +1350,7 @@ func TestDoesNotIncludeArgumentsThatWereNotSet(t *testing.T) {
 	doc := `{ field(a: true, c: false, e: 0) }`
 
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"field": `{"a":true,"c":false,"e":0}`,
 		},
 	}
@@ -1378,7 +1378,7 @@ func TestDoesNotIncludeArgumentsThatWereNotSet(t *testing.T) {
 							Type: graphql.Int,
 						},
 					},
-					Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
+					Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
 						args, _ := json.Marshal(p.Args)
 						return string(args), nil
 					},
@@ -1417,17 +1417,17 @@ type testNotSpecialType struct {
 func TestFailsWhenAnIsTypeOfCheckIsNotMet(t *testing.T) {
 	query := `{ specials { value } }`
 
-	data := map[string]interface{}{
-		"specials": []interface{}{
+	data := map[string]any{
+		"specials": []any{
 			testSpecialType{"foo"},
 			testNotSpecialType{"bar"},
 		},
 	}
 
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
-			"specials": []interface{}{
-				map[string]interface{}{
+		Data: map[string]any{
+			"specials": []any{
+				map[string]any{
 					"value": "foo",
 				},
 				nil,
@@ -1453,7 +1453,7 @@ func TestFailsWhenAnIsTypeOfCheckIsNotMet(t *testing.T) {
 		Fields: graphql.Fields{
 			"value": &graphql.Field{
 				Type: graphql.String,
-				Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
+				Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
 					return p.Source.(testSpecialType).Value, nil
 				},
 			},
@@ -1465,8 +1465,8 @@ func TestFailsWhenAnIsTypeOfCheckIsNotMet(t *testing.T) {
 			Fields: graphql.Fields{
 				"specials": &graphql.Field{
 					Type: graphql.NewList(specialType),
-					Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
-						return p.Source.(map[string]interface{})["specials"], nil
+					Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
+						return p.Source.(map[string]any)["specials"], nil
 					},
 				},
 			},
@@ -1553,13 +1553,13 @@ func TestQuery_ExecutionAddsErrorsFromFieldResolveFn(t *testing.T) {
 		Fields: graphql.Fields{
 			"a": &graphql.Field{
 				Type: graphql.String,
-				Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
+				Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
 					return nil, qError
 				},
 			},
 			"b": &graphql.Field{
 				Type: graphql.String,
-				Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
+				Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
 					return "ok", nil
 				},
 			},
@@ -1591,13 +1591,13 @@ func TestQuery_ExecutionDoesNotAddErrorsFromFieldResolveFn(t *testing.T) {
 		Fields: graphql.Fields{
 			"a": &graphql.Field{
 				Type: graphql.String,
-				Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
+				Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
 					return nil, qError
 				},
 			},
 			"b": &graphql.Field{
 				Type: graphql.String,
-				Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
+				Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
 					return "ok", nil
 				},
 			},
@@ -1639,7 +1639,7 @@ func TestMutation_ExecutionAddsErrorsFromFieldResolveFn(t *testing.T) {
 						Type: graphql.String,
 					},
 				},
-				Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
+				Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
 					return nil, mError
 				},
 			},
@@ -1650,7 +1650,7 @@ func TestMutation_ExecutionAddsErrorsFromFieldResolveFn(t *testing.T) {
 						Type: graphql.String,
 					},
 				},
-				Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
+				Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
 					return "ok", nil
 				},
 			},
@@ -1696,7 +1696,7 @@ func TestMutation_ExecutionDoesNotAddErrorsFromFieldResolveFn(t *testing.T) {
 						Type: graphql.String,
 					},
 				},
-				Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
+				Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
 					return nil, mError
 				},
 			},
@@ -1707,7 +1707,7 @@ func TestMutation_ExecutionDoesNotAddErrorsFromFieldResolveFn(t *testing.T) {
 						Type: graphql.String,
 					},
 				},
-				Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
+				Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
 					return "ok", nil
 				},
 			},
@@ -1756,7 +1756,7 @@ func TestMutation_NonNullSubField(t *testing.T) {
 		Fields: graphql.Fields{
 			"authenticate": &graphql.Field{
 				Type: graphql.NewNonNull(authenticatePayloadType),
-				Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
+				Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
 					return struct {
 						Account *struct{} `json:"account"`
 					}{
@@ -1793,7 +1793,7 @@ func TestGraphqlTag(t *testing.T) {
 	var baz = &graphql.Field{
 		Type:        typeObjectType,
 		Description: "typeObjectType",
-		Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
+		Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
 			t := struct {
 				FooBar string `graphql:"fooBar"`
 			}{"foo bar value"}
@@ -1820,8 +1820,8 @@ func TestGraphqlTag(t *testing.T) {
 	if len(result.Errors) != 0 {
 		t.Fatalf("wrong result, unexpected errors: %+v", result.Errors)
 	}
-	expectedData := map[string]interface{}{
-		"baz": map[string]interface{}{
+	expectedData := map[string]any{
+		"baz": map[string]any{
 			"fooBar": "foo bar value",
 		},
 	}
@@ -1848,7 +1848,7 @@ func TestContextDeadline(t *testing.T) {
 			Fields: graphql.Fields{
 				"hello": &graphql.Field{
 					Type: graphql.String,
-					Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
+					Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
 						time.Sleep(2 * time.Second)
 						return "world", nil
 					},
@@ -1903,7 +1903,7 @@ func TestContextDeadlineWait(t *testing.T) {
 			Fields: graphql.Fields{
 				"hello": &graphql.Field{
 					Type: graphql.String,
-					Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
+					Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
 						<-ctx.Done()
 						return nil, fmt.Errorf("Resolvers: %s", ctx.Err())
 					},
@@ -1989,7 +1989,7 @@ func TestContextCancel(t *testing.T) {
 			Fields: graphql.Fields{
 				"hello1": &graphql.Field{
 					Type: graphql.String,
-					Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
+					Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
 						resolveCount++
 						cancel()
 						return "hello1", nil
@@ -1997,7 +1997,7 @@ func TestContextCancel(t *testing.T) {
 				},
 				"hello2": &graphql.Field{
 					Type: graphql.String,
-					Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
+					Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
 						resolveCount++
 						cancel()
 						return "hello2", nil
@@ -2039,7 +2039,7 @@ func TestDeprecatedField(t *testing.T) {
     `
 
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"foo": "bar",
 			"bar": "foo",
 		},
@@ -2064,13 +2064,13 @@ func TestDeprecatedField(t *testing.T) {
 			Fields: graphql.Fields{
 				"foo": &graphql.Field{
 					Type: graphql.NewNonNull(graphql.String),
-					Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
+					Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
 						return LikeAString("bar"), nil
 					},
 				},
 				"bar": &graphql.Field{
 					Type: graphql.NewNonNull(enumType),
-					Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
+					Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
 						return fooEnumValue, nil
 					},
 					DeprecationReason: "Use subtitleMarkup and bodyMarkup",

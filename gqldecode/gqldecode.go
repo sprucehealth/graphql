@@ -29,12 +29,12 @@ func (e *ValidationFailedError) Error() string {
 
 // Decoder is the interface implemented by types that know how to decode themselves.
 type Decoder interface {
-	DecodeGQL(interface{}) error
+	DecodeGQL(any) error
 }
 
 // Decode parses a map of strings to interfaces, as provided by the graphql library,
 // into the provided out interface.
-func Decode(in map[string]interface{}, out interface{}) (err error) {
+func Decode(in map[string]any, out any) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			if e, ok := r.(error); ok {
@@ -52,7 +52,7 @@ func Decode(in map[string]interface{}, out interface{}) (err error) {
 	return nil
 }
 
-func decodeStruct(in map[string]interface{}, out reflect.Value) {
+func decodeStruct(in map[string]any, out reflect.Value) {
 	si := infoForStruct(out.Type())
 	for name, value := range in {
 		fieldInfo := si.fields[name]
@@ -64,7 +64,7 @@ func decodeStruct(in map[string]interface{}, out reflect.Value) {
 	}
 }
 
-func decodeValue(v interface{}, out reflect.Value, fi *structFieldInfo) {
+func decodeValue(v any, out reflect.Value, fi *structFieldInfo) {
 	if fi.hasDecoderMethod || fi.hasNonPtrDecoderMethod {
 		if out.Kind() == reflect.Ptr && out.IsNil() {
 			out.Set(reflect.New(out.Type().Elem()))
@@ -106,7 +106,7 @@ func decodeValue(v interface{}, out reflect.Value, fi *structFieldInfo) {
 	case reflect.Float64:
 		out.SetFloat(v.(float64))
 	case reflect.Slice:
-		inS := v.([]interface{})
+		inS := v.([]any)
 		outS := reflect.MakeSlice(out.Type(), len(inS), len(inS))
 		for i, v := range inS {
 			decodeValue(v, outS.Index(i), fi)
@@ -146,14 +146,14 @@ func decodeValue(v interface{}, out reflect.Value, fi *structFieldInfo) {
 		}
 
 		// in the event that the type is the same, or a pointer of the same type, set the value of
-		// out to the value of v instead of assuming that v is a map[string]interface{} that can be
+		// out to the value of v instead of assuming that v is a map[string]any that can be
 		// decoded into a struct.
 		if out.Type() == reflect.TypeOf(v) {
 			out.Set(reflect.ValueOf(v))
 		} else if reflect.ValueOf(v).Kind() == reflect.Ptr && out.Type() == reflect.TypeOf(v).Elem() {
 			out.Set(reflect.ValueOf(v).Elem())
 		} else {
-			decodeStruct(v.(map[string]interface{}), out)
+			decodeStruct(v.(map[string]any), out)
 		}
 	case reflect.Ptr:
 		if out.IsNil() {
@@ -165,7 +165,7 @@ func decodeValue(v interface{}, out reflect.Value, fi *structFieldInfo) {
 	}
 }
 
-func errf(msg string, v ...interface{}) {
+func errf(msg string, v ...any) {
 	panic(fmt.Errorf("gqldecode: "+msg, v...))
 }
 

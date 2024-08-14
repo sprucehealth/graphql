@@ -971,7 +971,7 @@ func TestParseCreatesAst(t *testing.T) {
 }
 
 type errorMessageTest struct {
-	source          interface{}
+	source          any
 	expectedMessage string
 	skipped         bool
 }

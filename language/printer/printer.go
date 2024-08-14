@@ -41,7 +41,7 @@ func indent(s string) string {
 type walker struct {
 }
 
-func (w *walker) walkASTSlice(sl interface{}) []string {
+func (w *walker) walkASTSlice(sl any) []string {
 	v := reflect.ValueOf(sl)
 	n := v.Len()
 	strs := make([]string, 0, n)
@@ -54,12 +54,12 @@ func (w *walker) walkASTSlice(sl interface{}) []string {
 	return strs
 }
 
-func (w *walker) walkASTSliceAndJoin(sl interface{}, sep string) string {
+func (w *walker) walkASTSliceAndJoin(sl any, sep string) string {
 	strs := w.walkASTSlice(sl)
 	return strings.Join(strs, sep)
 }
 
-func (w *walker) walkASTSliceAndBlock(sl interface{}) string {
+func (w *walker) walkASTSliceAndBlock(sl any) string {
 	strs := w.walkASTSlice(sl)
 	return block(strs)
 }

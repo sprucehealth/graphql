@@ -741,7 +741,7 @@ input Hello {
 	}
 }
 
-func jsonString(v interface{}) string {
+func jsonString(v any) string {
 	b, _ := json.MarshalIndent(v, "", "  ")
 	return string(b)
 }

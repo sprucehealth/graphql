@@ -8,7 +8,7 @@ import (
 	"github.com/sprucehealth/graphql/language/ast"
 )
 
-func coerceInt(value interface{}) interface{} {
+func coerceInt(value any) any {
 	switch v := value.(type) {
 	case bool:
 		if v {
@@ -74,7 +74,7 @@ var Int = NewScalar(ScalarConfig{
 		"values. Int can represent values between -(2^31) and 2^31 - 1. ",
 	Serialize:  coerceInt,
 	ParseValue: coerceInt,
-	ParseLiteral: func(valueAST ast.Value) interface{} {
+	ParseLiteral: func(valueAST ast.Value) any {
 		switch valueAST := valueAST.(type) {
 		case *ast.IntValue:
 			if intValue, err := strconv.Atoi(valueAST.Value); err == nil {
@@ -85,7 +85,7 @@ var Int = NewScalar(ScalarConfig{
 	},
 })
 
-func coerceFloat64(value interface{}) interface{} {
+func coerceFloat64(value any) any {
 	switch v := value.(type) {
 	case bool:
 		if v {
@@ -124,7 +124,7 @@ var Float = NewScalar(ScalarConfig{
 		"[IEEE 754](http://en.wikipedia.org/wiki/IEEE_floating_point). ",
 	Serialize:  coerceFloat64,
 	ParseValue: coerceFloat64,
-	ParseLiteral: func(valueAST ast.Value) interface{} {
+	ParseLiteral: func(valueAST ast.Value) any {
 		switch valueAST := valueAST.(type) {
 		case *ast.FloatValue:
 			if floatValue, err := strconv.ParseFloat(valueAST.Value, 64); err == nil {
@@ -139,7 +139,7 @@ var Float = NewScalar(ScalarConfig{
 	},
 })
 
-func coerceString(value interface{}) interface{} {
+func coerceString(value any) any {
 	switch v := value.(type) {
 	case string:
 		return value
@@ -169,7 +169,7 @@ var String = NewScalar(ScalarConfig{
 		"represent free-form human-readable text.",
 	Serialize:  coerceString,
 	ParseValue: coerceString,
-	ParseLiteral: func(valueAST ast.Value) interface{} {
+	ParseLiteral: func(valueAST ast.Value) any {
 		switch valueAST := valueAST.(type) {
 		case *ast.StringValue:
 			return valueAST.Value
@@ -178,7 +178,7 @@ var String = NewScalar(ScalarConfig{
 	},
 })
 
-func coerceBool(value interface{}) interface{} {
+func coerceBool(value any) any {
 	switch v := value.(type) {
 	case *bool:
 		if v == nil {
@@ -217,7 +217,7 @@ var Boolean = NewScalar(ScalarConfig{
 	Description: "The `Boolean` scalar type represents `true` or `false`.",
 	Serialize:   coerceBool,
 	ParseValue:  coerceBool,
-	ParseLiteral: func(valueAST ast.Value) interface{} {
+	ParseLiteral: func(valueAST ast.Value) any {
 		switch valueAST := valueAST.(type) {
 		case *ast.BooleanValue:
 			return valueAST.Value
@@ -236,7 +236,7 @@ var ID = NewScalar(ScalarConfig{
 		"(such as `4`) input value will be accepted as an ID.",
 	Serialize:  coerceString,
 	ParseValue: coerceString,
-	ParseLiteral: func(valueAST ast.Value) interface{} {
+	ParseLiteral: func(valueAST ast.Value) any {
 		switch valueAST := valueAST.(type) {
 		case *ast.IntValue:
 			return valueAST.Value

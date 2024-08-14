@@ -15,10 +15,10 @@ func Example() {
 		Age    int      `gql:"age"`
 		Albums []string `gql:"albums"`
 	}
-	args := map[string]interface{}{
+	args := map[string]any{
 		"name": "Jimi Hendrix",
 		"age":  75,
-		"albums": []interface{}{
+		"albums": []any{
 			"Are You Experienced",
 			"Axis: Bold as Love",
 			"Electric Ladyland",
@@ -35,11 +35,11 @@ func Example() {
 }
 
 func TestSimple(t *testing.T) {
-	input := map[string]interface{}{
+	input := map[string]any{
 		"name":         "Gob",
 		"age":          45,
 		"person":       true,
-		"keywords":     []interface{}{"blacklisted", "magician", " starfish "},
+		"keywords":     []any{"blacklisted", "magician", " starfish "},
 		"optStringSet": "foo",
 	}
 	type simpleStruct struct {
@@ -68,7 +68,7 @@ func TestSimple(t *testing.T) {
 	}
 }
 func TestSanitization(t *testing.T) {
-	input := map[string]interface{}{
+	input := map[string]any{
 		"name": "Go\uFEFFb",
 	}
 	type simpleStruct struct {
@@ -88,7 +88,7 @@ func TestSanitization(t *testing.T) {
 
 func TestAliasedString(t *testing.T) {
 	type enum string
-	input := map[string]interface{}{
+	input := map[string]any{
 		"type": "FOO",
 		"bar":  enum("BAR"),
 	}
@@ -110,11 +110,11 @@ func TestAliasedString(t *testing.T) {
 }
 
 func TestSubStruct(t *testing.T) {
-	input := map[string]interface{}{
-		"ptr":         map[string]interface{}{"foo": "bar"},
-		"nonptr":      map[string]interface{}{"foo": "123"},
-		"ptrslice":    []interface{}{map[string]interface{}{"foo": "aaa"}},
-		"nonptrslice": []interface{}{map[string]interface{}{"foo": "zzz"}},
+	input := map[string]any{
+		"ptr":         map[string]any{"foo": "bar"},
+		"nonptr":      map[string]any{"foo": "123"},
+		"ptrslice":    []any{map[string]any{"foo": "aaa"}},
+		"nonptrslice": []any{map[string]any{"foo": "zzz"}},
 	}
 	type subStruct struct {
 		Foo string `gql:"foo"`
@@ -143,7 +143,7 @@ func TestSubStruct(t *testing.T) {
 func TestPlane0Validation(t *testing.T) {
 	// Allow plane0
 
-	input := map[string]interface{}{
+	input := map[string]any{
 		"name": "Foo",
 	}
 	type plane0Struct struct {
@@ -162,7 +162,7 @@ func TestPlane0Validation(t *testing.T) {
 
 	// Non plane0 should fail
 
-	input = map[string]interface{}{
+	input = map[string]any{
 		"name": "Foo👀",
 	}
 	var validationError *ValidationFailedError
@@ -176,7 +176,7 @@ func TestPlane0Validation(t *testing.T) {
 
 type uppercaseString string
 
-func (s *uppercaseString) DecodeGQL(v interface{}) error {
+func (s *uppercaseString) DecodeGQL(v any) error {
 	*s = uppercaseString(strings.ToUpper(v.(string)))
 	return nil
 }
@@ -185,16 +185,16 @@ type timestamp struct {
 	Time time.Time
 }
 
-func (t *timestamp) DecodeGQL(v interface{}) error {
-	tm := v.(map[string]interface{})
+func (t *timestamp) DecodeGQL(v any) error {
+	tm := v.(map[string]any)
 	t.Time = time.Unix(tm["seconds"].(int64), tm["nanoseconds"].(int64))
 	return nil
 }
 
 func TestCustomDecoder(t *testing.T) {
-	input := map[string]interface{}{
+	input := map[string]any{
 		"name": "Foo",
-		"time": map[string]interface{}{
+		"time": map[string]any{
 			"seconds":     int64(7),
 			"nanoseconds": int64(13),
 		},
@@ -217,7 +217,7 @@ func TestCustomDecoder(t *testing.T) {
 }
 
 func TestTimestamp(t *testing.T) {
-	in := map[string]interface{}{
+	in := map[string]any{
 		"timestampFloat": 1000000010.5,
 		"timestampInt":   1000000000,
 	}
@@ -248,7 +248,7 @@ func TestEmbeddedStruct(t *testing.T) {
 		SubStruct outSubStruct `gql:"subStruct"`
 	}
 
-	in := map[string]interface{}{
+	in := map[string]any{
 		"subStruct": &outSubStruct{
 			A: "A1",
 			B: "B1",
@@ -272,11 +272,11 @@ func TestEmbeddedStruct(t *testing.T) {
 }
 
 func BenchmarkDecode(b *testing.B) {
-	input := map[string]interface{}{
+	input := map[string]any{
 		"string":     "vvvvv",
 		"int":        123123,
-		"stringList": []interface{}{"abc", "foo"},
-		"struct": map[string]interface{}{
+		"stringList": []any{"abc", "foo"},
+		"struct": map[string]any{
 			"field": "string",
 		},
 	}

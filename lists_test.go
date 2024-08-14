@@ -11,8 +11,8 @@ import (
 	"github.com/sprucehealth/graphql/testutil"
 )
 
-func checkList(t *testing.T, testType graphql.Type, testData interface{}, expected *graphql.Result) {
-	data := map[string]interface{}{
+func checkList(t *testing.T, testType graphql.Type, testData any, expected *graphql.Result) {
+	data := map[string]any{
 		"test": testData,
 	}
 
@@ -26,7 +26,7 @@ func checkList(t *testing.T, testType graphql.Type, testData interface{}, expect
 	})
 	dataType.AddFieldConfig("nest", &graphql.Field{
 		Type: dataType,
-		Resolve: func(ctx context.Context, p graphql.ResolveParams) (interface{}, error) {
+		Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
 			return data, nil
 		},
 	})
@@ -66,13 +66,13 @@ func checkList(t *testing.T, testType graphql.Type, testData interface{}, expect
 // Describe [T] Array<T>
 func TestLists_ListOfNullableObjects_ContainsValues(t *testing.T) {
 	ttype := graphql.NewList(graphql.Int)
-	data := []interface{}{
+	data := []any{
 		1, 2,
 	}
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
-			"nest": map[string]interface{}{
-				"test": []interface{}{
+		Data: map[string]any{
+			"nest": map[string]any{
+				"test": []any{
 					1, 2,
 				},
 			},
@@ -82,13 +82,13 @@ func TestLists_ListOfNullableObjects_ContainsValues(t *testing.T) {
 }
 func TestLists_ListOfNullableObjects_ContainsNull(t *testing.T) {
 	ttype := graphql.NewList(graphql.Int)
-	data := []interface{}{
+	data := []any{
 		1, nil, 2,
 	}
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
-			"nest": map[string]interface{}{
-				"test": []interface{}{
+		Data: map[string]any{
+			"nest": map[string]any{
+				"test": []any{
 					1, nil, 2,
 				},
 			},
@@ -99,8 +99,8 @@ func TestLists_ListOfNullableObjects_ContainsNull(t *testing.T) {
 func TestLists_ListOfNullableObjects_ReturnsNull(t *testing.T) {
 	ttype := graphql.NewList(graphql.Int)
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
-			"nest": map[string]interface{}{
+		Data: map[string]any{
+			"nest": map[string]any{
 				"test": nil,
 			},
 		},
@@ -113,16 +113,16 @@ func TestLists_ListOfNullableFunc_ContainsValues(t *testing.T) {
 	ttype := graphql.NewList(graphql.Int)
 
 	// `data` is a function that return values
-	// Note that its uses the expected signature `func() interface{} {...}`
-	data := func() interface{} {
-		return []interface{}{
+	// Note that its uses the expected signature `func() any {...}`
+	data := func() any {
+		return []any{
 			1, 2,
 		}
 	}
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
-			"nest": map[string]interface{}{
-				"test": []interface{}{
+		Data: map[string]any{
+			"nest": map[string]any{
+				"test": []any{
 					1, 2,
 				},
 			},
@@ -134,16 +134,16 @@ func TestLists_ListOfNullableFunc_ContainsNull(t *testing.T) {
 	ttype := graphql.NewList(graphql.Int)
 
 	// `data` is a function that return values
-	// Note that its uses the expected signature `func() interface{} {...}`
-	data := func() interface{} {
-		return []interface{}{
+	// Note that its uses the expected signature `func() any {...}`
+	data := func() any {
+		return []any{
 			1, nil, 2,
 		}
 	}
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
-			"nest": map[string]interface{}{
-				"test": []interface{}{
+		Data: map[string]any{
+			"nest": map[string]any{
+				"test": []any{
 					1, nil, 2,
 				},
 			},
@@ -155,13 +155,13 @@ func TestLists_ListOfNullableFunc_ReturnsNull(t *testing.T) {
 	ttype := graphql.NewList(graphql.Int)
 
 	// `data` is a function that return values
-	// Note that its uses the expected signature `func() interface{} {...}`
-	data := func() interface{} {
+	// Note that its uses the expected signature `func() any {...}`
+	data := func() any {
 		return nil
 	}
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
-			"nest": map[string]interface{}{
+		Data: map[string]any{
+			"nest": map[string]any{
 				"test": nil,
 			},
 		},
@@ -174,19 +174,19 @@ func TestLists_ListOfNullableArrayOfFuncContainsValues(t *testing.T) {
 	ttype := graphql.NewList(graphql.Int)
 
 	// `data` is a slice of functions that return values
-	// Note that its uses the expected signature `func() interface{} {...}`
-	data := []interface{}{
-		func() interface{} {
+	// Note that its uses the expected signature `func() any {...}`
+	data := []any{
+		func() any {
 			return 1
 		},
-		func() interface{} {
+		func() any {
 			return 2
 		},
 	}
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
-			"nest": map[string]interface{}{
-				"test": []interface{}{
+		Data: map[string]any{
+			"nest": map[string]any{
+				"test": []any{
 					1, 2,
 				},
 			},
@@ -198,22 +198,22 @@ func TestLists_ListOfNullableArrayOfFuncContainsNulls(t *testing.T) {
 	ttype := graphql.NewList(graphql.Int)
 
 	// `data` is a slice of functions that return values
-	// Note that its uses the expected signature `func() interface{} {...}`
-	data := []interface{}{
-		func() interface{} {
+	// Note that its uses the expected signature `func() any {...}`
+	data := []any{
+		func() any {
 			return 1
 		},
-		func() interface{} {
+		func() any {
 			return nil
 		},
-		func() interface{} {
+		func() any {
 			return 2
 		},
 	}
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
-			"nest": map[string]interface{}{
-				"test": []interface{}{
+		Data: map[string]any{
+			"nest": map[string]any{
+				"test": []any{
 					1, nil, 2,
 				},
 			},
@@ -225,13 +225,13 @@ func TestLists_ListOfNullableArrayOfFuncContainsNulls(t *testing.T) {
 // Describe [T]! Array<T>
 func TestLists_NonNullListOfNullableObjectsContainsValues(t *testing.T) {
 	ttype := graphql.NewNonNull(graphql.NewList(graphql.Int))
-	data := []interface{}{
+	data := []any{
 		1, 2,
 	}
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
-			"nest": map[string]interface{}{
-				"test": []interface{}{
+		Data: map[string]any{
+			"nest": map[string]any{
+				"test": []any{
 					1, 2,
 				},
 			},
@@ -241,13 +241,13 @@ func TestLists_NonNullListOfNullableObjectsContainsValues(t *testing.T) {
 }
 func TestLists_NonNullListOfNullableObjectsContainsNull(t *testing.T) {
 	ttype := graphql.NewNonNull(graphql.NewList(graphql.Int))
-	data := []interface{}{
+	data := []any{
 		1, nil, 2,
 	}
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
-			"nest": map[string]interface{}{
-				"test": []interface{}{
+		Data: map[string]any{
+			"nest": map[string]any{
+				"test": []any{
 					1, nil, 2,
 				},
 			},
@@ -258,7 +258,7 @@ func TestLists_NonNullListOfNullableObjectsContainsNull(t *testing.T) {
 func TestLists_NonNullListOfNullableObjectsReturnsNull(t *testing.T) {
 	ttype := graphql.NewNonNull(graphql.NewList(graphql.Int))
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"nest": nil,
 		},
 		Errors: []gqlerrors.FormattedError{
@@ -281,16 +281,16 @@ func TestLists_NonNullListOfNullableFunc_ContainsValues(t *testing.T) {
 	ttype := graphql.NewNonNull(graphql.NewList(graphql.Int))
 
 	// `data` is a function that return values
-	// Note that its uses the expected signature `func() interface{} {...}`
-	data := func() interface{} {
-		return []interface{}{
+	// Note that its uses the expected signature `func() any {...}`
+	data := func() any {
+		return []any{
 			1, 2,
 		}
 	}
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
-			"nest": map[string]interface{}{
-				"test": []interface{}{
+		Data: map[string]any{
+			"nest": map[string]any{
+				"test": []any{
 					1, 2,
 				},
 			},
@@ -302,16 +302,16 @@ func TestLists_NonNullListOfNullableFunc_ContainsNull(t *testing.T) {
 	ttype := graphql.NewNonNull(graphql.NewList(graphql.Int))
 
 	// `data` is a function that return values
-	// Note that its uses the expected signature `func() interface{} {...}`
-	data := func() interface{} {
-		return []interface{}{
+	// Note that its uses the expected signature `func() any {...}`
+	data := func() any {
+		return []any{
 			1, nil, 2,
 		}
 	}
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
-			"nest": map[string]interface{}{
-				"test": []interface{}{
+		Data: map[string]any{
+			"nest": map[string]any{
+				"test": []any{
 					1, nil, 2,
 				},
 			},
@@ -323,12 +323,12 @@ func TestLists_NonNullListOfNullableFunc_ReturnsNull(t *testing.T) {
 	ttype := graphql.NewNonNull(graphql.NewList(graphql.Int))
 
 	// `data` is a function that return values
-	// Note that its uses the expected signature `func() interface{} {...}`
-	data := func() interface{} {
+	// Note that its uses the expected signature `func() any {...}`
+	data := func() any {
 		return nil
 	}
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"nest": nil,
 		},
 		Errors: []gqlerrors.FormattedError{
@@ -351,19 +351,19 @@ func TestLists_NonNullListOfNullableArrayOfFunc_ContainsValues(t *testing.T) {
 	ttype := graphql.NewNonNull(graphql.NewList(graphql.Int))
 
 	// `data` is a slice of functions that return values
-	// Note that its uses the expected signature `func() interface{} {...}`
-	data := []interface{}{
-		func() interface{} {
+	// Note that its uses the expected signature `func() any {...}`
+	data := []any{
+		func() any {
 			return 1
 		},
-		func() interface{} {
+		func() any {
 			return 2
 		},
 	}
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
-			"nest": map[string]interface{}{
-				"test": []interface{}{
+		Data: map[string]any{
+			"nest": map[string]any{
+				"test": []any{
 					1, 2,
 				},
 			},
@@ -375,22 +375,22 @@ func TestLists_NonNullListOfNullableArrayOfFunc_ContainsNulls(t *testing.T) {
 	ttype := graphql.NewNonNull(graphql.NewList(graphql.Int))
 
 	// `data` is a slice of functions that return values
-	// Note that its uses the expected signature `func() interface{} {...}`
-	data := []interface{}{
-		func() interface{} {
+	// Note that its uses the expected signature `func() any {...}`
+	data := []any{
+		func() any {
 			return 1
 		},
-		func() interface{} {
+		func() any {
 			return nil
 		},
-		func() interface{} {
+		func() any {
 			return 2
 		},
 	}
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
-			"nest": map[string]interface{}{
-				"test": []interface{}{
+		Data: map[string]any{
+			"nest": map[string]any{
+				"test": []any{
 					1, nil, 2,
 				},
 			},
@@ -402,13 +402,13 @@ func TestLists_NonNullListOfNullableArrayOfFunc_ContainsNulls(t *testing.T) {
 // Describe [T!] Array<T>
 func TestLists_NullableListOfNonNullObjects_ContainsValues(t *testing.T) {
 	ttype := graphql.NewList(graphql.NewNonNull(graphql.Int))
-	data := []interface{}{
+	data := []any{
 		1, 2,
 	}
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
-			"nest": map[string]interface{}{
-				"test": []interface{}{
+		Data: map[string]any{
+			"nest": map[string]any{
+				"test": []any{
 					1, 2,
 				},
 			},
@@ -418,12 +418,12 @@ func TestLists_NullableListOfNonNullObjects_ContainsValues(t *testing.T) {
 }
 func TestLists_NullableListOfNonNullObjects_ContainsNull(t *testing.T) {
 	ttype := graphql.NewList(graphql.NewNonNull(graphql.Int))
-	data := []interface{}{
+	data := []any{
 		1, nil, 2,
 	}
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
-			"nest": map[string]interface{}{
+		Data: map[string]any{
+			"nest": map[string]any{
 				"test": nil,
 			},
 		},
@@ -445,8 +445,8 @@ func TestLists_NullableListOfNonNullObjects_ReturnsNull(t *testing.T) {
 	ttype := graphql.NewList(graphql.NewNonNull(graphql.Int))
 
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
-			"nest": map[string]interface{}{
+		Data: map[string]any{
+			"nest": map[string]any{
 				"test": nil,
 			},
 		},
@@ -459,16 +459,16 @@ func TestLists_NullableListOfNonNullFunc_ContainsValues(t *testing.T) {
 	ttype := graphql.NewList(graphql.NewNonNull(graphql.Int))
 
 	// `data` is a function that return values
-	// Note that its uses the expected signature `func() interface{} {...}`
-	data := func() interface{} {
-		return []interface{}{
+	// Note that its uses the expected signature `func() any {...}`
+	data := func() any {
+		return []any{
 			1, 2,
 		}
 	}
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
-			"nest": map[string]interface{}{
-				"test": []interface{}{
+		Data: map[string]any{
+			"nest": map[string]any{
+				"test": []any{
 					1, 2,
 				},
 			},
@@ -480,15 +480,15 @@ func TestLists_NullableListOfNonNullFunc_ContainsNull(t *testing.T) {
 	ttype := graphql.NewList(graphql.NewNonNull(graphql.Int))
 
 	// `data` is a function that return values
-	// Note that its uses the expected signature `func() interface{} {...}`
-	data := func() interface{} {
-		return []interface{}{
+	// Note that its uses the expected signature `func() any {...}`
+	data := func() any {
+		return []any{
 			1, nil, 2,
 		}
 	}
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
-			"nest": map[string]interface{}{
+		Data: map[string]any{
+			"nest": map[string]any{
 				"test": nil,
 			},
 		},
@@ -510,13 +510,13 @@ func TestLists_NullableListOfNonNullFunc_ReturnsNull(t *testing.T) {
 	ttype := graphql.NewList(graphql.NewNonNull(graphql.Int))
 
 	// `data` is a function that return values
-	// Note that its uses the expected signature `func() interface{} {...}`
-	data := func() interface{} {
+	// Note that its uses the expected signature `func() any {...}`
+	data := func() any {
 		return nil
 	}
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
-			"nest": map[string]interface{}{
+		Data: map[string]any{
+			"nest": map[string]any{
 				"test": nil,
 			},
 		},
@@ -529,19 +529,19 @@ func TestLists_NullableListOfNonNullArrayOfFunc_ContainsValues(t *testing.T) {
 	ttype := graphql.NewList(graphql.NewNonNull(graphql.Int))
 
 	// `data` is a slice of functions that return values
-	// Note that its uses the expected signature `func() interface{} {...}`
-	data := []interface{}{
-		func() interface{} {
+	// Note that its uses the expected signature `func() any {...}`
+	data := []any{
+		func() any {
 			return 1
 		},
-		func() interface{} {
+		func() any {
 			return 2
 		},
 	}
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
-			"nest": map[string]interface{}{
-				"test": []interface{}{
+		Data: map[string]any{
+			"nest": map[string]any{
+				"test": []any{
 					1, 2,
 				},
 			},
@@ -553,22 +553,22 @@ func TestLists_NullableListOfNonNullArrayOfFunc_ContainsNulls(t *testing.T) {
 	ttype := graphql.NewList(graphql.NewNonNull(graphql.Int))
 
 	// `data` is a slice of functions that return values
-	// Note that its uses the expected signature `func() interface{} {...}`
-	data := []interface{}{
-		func() interface{} {
+	// Note that its uses the expected signature `func() any {...}`
+	data := []any{
+		func() any {
 			return 1
 		},
-		func() interface{} {
+		func() any {
 			return nil
 		},
-		func() interface{} {
+		func() any {
 			return 2
 		},
 	}
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
-			"nest": map[string]interface{}{
-				"test": []interface{}{
+		Data: map[string]any{
+			"nest": map[string]any{
+				"test": []any{
 					1, nil, 2,
 				},
 			},
@@ -580,13 +580,13 @@ func TestLists_NullableListOfNonNullArrayOfFunc_ContainsNulls(t *testing.T) {
 // Describe [T!]! Array<T>
 func TestLists_NonNullListOfNonNullObjects_ContainsValues(t *testing.T) {
 	ttype := graphql.NewNonNull(graphql.NewList(graphql.NewNonNull(graphql.Int)))
-	data := []interface{}{
+	data := []any{
 		1, 2,
 	}
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
-			"nest": map[string]interface{}{
-				"test": []interface{}{
+		Data: map[string]any{
+			"nest": map[string]any{
+				"test": []any{
 					1, 2,
 				},
 			},
@@ -596,11 +596,11 @@ func TestLists_NonNullListOfNonNullObjects_ContainsValues(t *testing.T) {
 }
 func TestLists_NonNullListOfNonNullObjects_ContainsNull(t *testing.T) {
 	ttype := graphql.NewNonNull(graphql.NewList(graphql.NewNonNull(graphql.Int)))
-	data := []interface{}{
+	data := []any{
 		1, nil, 2,
 	}
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"nest": nil,
 		},
 		Errors: []gqlerrors.FormattedError{
@@ -621,7 +621,7 @@ func TestLists_NonNullListOfNonNullObjects_ReturnsNull(t *testing.T) {
 	ttype := graphql.NewNonNull(graphql.NewList(graphql.NewNonNull(graphql.Int)))
 
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"nest": nil,
 		},
 		Errors: []gqlerrors.FormattedError{
@@ -644,16 +644,16 @@ func TestLists_NonNullListOfNonNullFunc_ContainsValues(t *testing.T) {
 	ttype := graphql.NewNonNull(graphql.NewList(graphql.NewNonNull(graphql.Int)))
 
 	// `data` is a function that return values
-	// Note that its uses the expected signature `func() interface{} {...}`
-	data := func() interface{} {
-		return []interface{}{
+	// Note that its uses the expected signature `func() any {...}`
+	data := func() any {
+		return []any{
 			1, 2,
 		}
 	}
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
-			"nest": map[string]interface{}{
-				"test": []interface{}{
+		Data: map[string]any{
+			"nest": map[string]any{
+				"test": []any{
 					1, 2,
 				},
 			},
@@ -665,14 +665,14 @@ func TestLists_NonNullListOfNonNullFunc_ContainsNull(t *testing.T) {
 	ttype := graphql.NewNonNull(graphql.NewList(graphql.NewNonNull(graphql.Int)))
 
 	// `data` is a function that return values
-	// Note that its uses the expected signature `func() interface{} {...}`
-	data := func() interface{} {
-		return []interface{}{
+	// Note that its uses the expected signature `func() any {...}`
+	data := func() any {
+		return []any{
 			1, nil, 2,
 		}
 	}
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"nest": nil,
 		},
 		Errors: []gqlerrors.FormattedError{
@@ -693,12 +693,12 @@ func TestLists_NonNullListOfNonNullFunc_ReturnsNull(t *testing.T) {
 	ttype := graphql.NewNonNull(graphql.NewList(graphql.NewNonNull(graphql.Int)))
 
 	// `data` is a function that return values
-	// Note that its uses the expected signature `func() interface{} {...}`
-	data := func() interface{} {
+	// Note that its uses the expected signature `func() any {...}`
+	data := func() any {
 		return nil
 	}
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"nest": nil,
 		},
 		Errors: []gqlerrors.FormattedError{
@@ -721,19 +721,19 @@ func TestLists_NonNullListOfNonNullArrayOfFunc_ContainsValues(t *testing.T) {
 	ttype := graphql.NewNonNull(graphql.NewList(graphql.NewNonNull(graphql.Int)))
 
 	// `data` is a slice of functions that return values
-	// Note that its uses the expected signature `func() interface{} {...}`
-	data := []interface{}{
-		func() interface{} {
+	// Note that its uses the expected signature `func() any {...}`
+	data := []any{
+		func() any {
 			return 1
 		},
-		func() interface{} {
+		func() any {
 			return 2
 		},
 	}
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
-			"nest": map[string]interface{}{
-				"test": []interface{}{
+		Data: map[string]any{
+			"nest": map[string]any{
+				"test": []any{
 					1, 2,
 				},
 			},
@@ -745,22 +745,22 @@ func TestLists_NonNullListOfNonNullArrayOfFunc_ContainsNulls(t *testing.T) {
 	ttype := graphql.NewNonNull(graphql.NewList(graphql.NewNonNull(graphql.Int)))
 
 	// `data` is a slice of functions that return values
-	// Note that its uses the expected signature `func() interface{} {...}`
-	data := []interface{}{
-		func() interface{} {
+	// Note that its uses the expected signature `func() any {...}`
+	data := []any{
+		func() any {
 			return 1
 		},
-		func() interface{} {
+		func() any {
 			return nil
 		},
-		func() interface{} {
+		func() any {
 			return 2
 		},
 	}
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
-			"nest": map[string]interface{}{
-				"test": []interface{}{
+		Data: map[string]any{
+			"nest": map[string]any{
+				"test": []any{
 					1, nil, 2,
 				},
 			},
@@ -773,8 +773,8 @@ func TestLists_UserErrorExpectIterableButDidNotGetOne(t *testing.T) {
 	ttype := graphql.NewList(graphql.Int)
 	data := "Not an iterable"
 	expected := &graphql.Result{
-		Data: map[string]interface{}{
-			"nest": map[string]interface{}{
+		Data: map[string]any{
+			"nest": map[string]any{
 				"test": nil,
 			},
 		},

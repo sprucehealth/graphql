@@ -10,7 +10,7 @@ import (
 
 type Test struct {
 	Body     string
-	Expected interface{}
+	Expected any
 }
 
 func createSource(body string) *source.Source {
