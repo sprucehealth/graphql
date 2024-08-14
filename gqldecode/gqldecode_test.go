@@ -1,6 +1,7 @@
 package gqldecode
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -164,10 +165,12 @@ func TestPlane0Validation(t *testing.T) {
 	input = map[string]interface{}{
 		"name": "Foo👀",
 	}
-	if err, ok := Decode(input, st).(ErrValidationFailed); !ok {
-		t.Fatal("Expected ErrValidationFailed")
-	} else if err.Field != "name" {
-		t.Fatalf("Expected field 'name' got '%s'", err.Field)
+	var validationError *ValidationFailedError
+	err := Decode(input, st)
+	if !errors.As(err, &validationError) {
+		t.Fatalf("Expected *ValidationFailedError got %T", err)
+	} else if validationError.Field != "name" {
+		t.Fatalf("Expected field 'name' got %q", validationError.Field)
 	}
 }
 

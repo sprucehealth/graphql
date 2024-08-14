@@ -17,13 +17,13 @@ import (
 
 const tagName = "gql"
 
-// ErrValidationFailed is returned if the input doesn't match the expected output format.
-type ErrValidationFailed struct {
+// ValidationFailedError is returned if the input doesn't match the expected output format.
+type ValidationFailedError struct {
 	Field  string
 	Reason string
 }
 
-func (e ErrValidationFailed) Error() string {
+func (e *ValidationFailedError) Error() string {
 	return fmt.Sprintf("gqldecode: field %s failed validation: %s", e.Field, e.Reason)
 }
 
@@ -89,14 +89,14 @@ func decodeValue(v interface{}, out reflect.Value, fi *structFieldInfo) {
 			s = reflect.ValueOf(v).String()
 		}
 		if fi.nonEmpty && s == "" {
-			panic(ErrValidationFailed{Field: fi.name, Reason: "value may not be empty"})
+			panic(&ValidationFailedError{Field: fi.name, Reason: "value may not be empty"})
 		}
 		if !utf8.ValidString(s) {
-			panic(ErrValidationFailed{Field: fi.name, Reason: "value must be utf8 encoded"})
+			panic(&ValidationFailedError{Field: fi.name, Reason: "value must be utf8 encoded"})
 		}
 		s = sanitizeUnicode(s)
 		if fi.plane0Unicode && !IsValidPlane0Unicode(s) {
-			panic(ErrValidationFailed{Field: fi.name, Reason: "value must be plane0 unicode"})
+			panic(&ValidationFailedError{Field: fi.name, Reason: "value must be plane0 unicode"})
 		}
 		out.SetString(strings.TrimSpace(s))
 	case reflect.Int, reflect.Int64:
