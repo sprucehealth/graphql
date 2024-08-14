@@ -264,7 +264,7 @@ func genClientDo(g *generator) {
 			defer resp.Body.Close()
 			ball, err := io.ReadAll(resp.Body)
 			if err != nil {
-				return resp.StatusCode, fmt.Errorf("error reading body - in response from %w: %s", req.URL.String(), err)
+				return resp.StatusCode, fmt.Errorf("error reading body - in response from %w: %s", req.URL, err)
 			}
 			c.log.Debugf(ctx, "Response: %s - %s", resp.Status, ball)
 			gqlResp := &gqlResponse{}
