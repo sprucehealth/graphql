@@ -106,12 +106,23 @@ func decodeValue(v any, out reflect.Value, fi *structFieldInfo) {
 	case reflect.Float64:
 		out.SetFloat(v.(float64))
 	case reflect.Slice:
-		inS := v.([]any)
-		outS := reflect.MakeSlice(out.Type(), len(inS), len(inS))
-		for i, v := range inS {
-			decodeValue(v, outS.Index(i), fi)
+		// Check for the common case when no custom scalars are used.
+		inS, ok := v.([]any)
+		if ok {
+			outS := reflect.MakeSlice(out.Type(), len(inS), len(inS))
+			for i, v := range inS {
+				decodeValue(v, outS.Index(i), fi)
+			}
+			out.Set(outS)
+		} else {
+			// If the value has already been decoded then check that the types match exactly and set it.
+			vv := reflect.ValueOf(v)
+			vt := vv.Type()
+			if vt != out.Type() {
+				panic(&ValidationFailedError{Field: fi.name, Reason: fmt.Sprintf("expected type %T got %T", v, out.Interface())})
+			}
+			out.Set(vv)
 		}
-		out.Set(outS)
 	case reflect.Struct:
 		_, isTime := out.Interface().(time.Time)
 		_, isTimePtr := out.Interface().(*time.Time)

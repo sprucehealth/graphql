@@ -34,6 +34,8 @@ func Example() {
 	// {Name:Jimi Hendrix Age:75 Albums:[Are You Experienced Axis: Bold as Love Electric Ladyland]}
 }
 
+type stringList []string
+
 func TestSimple(t *testing.T) {
 	input := map[string]any{
 		"name":         "Gob",
@@ -41,14 +43,16 @@ func TestSimple(t *testing.T) {
 		"person":       true,
 		"keywords":     []any{"blacklisted", "magician", " starfish "},
 		"optStringSet": "foo",
+		"matchTypes":   stringList{"hello", "world"},
 	}
 	type simpleStruct struct {
-		Name            string   `gql:"name"`
-		Age             int      `gql:"age"`
-		Person          bool     `gql:"person"`
-		Keywords        []string `gql:"keywords"`
-		OptStringSet    *string  `gql:"optStringSet"`
-		OptStringNotSet *string  `gql:"optStringNotSet"`
+		Name            string     `gql:"name"`
+		Age             int        `gql:"age"`
+		Person          bool       `gql:"person"`
+		Keywords        []string   `gql:"keywords"`
+		OptStringSet    *string    `gql:"optStringSet"`
+		OptStringNotSet *string    `gql:"optStringNotSet"`
+		MatchTypes      stringList `gql:"matchTypes"`
 	}
 	var st simpleStruct
 	if err := Decode(input, &st); err != nil {
@@ -62,11 +66,13 @@ func TestSimple(t *testing.T) {
 		Keywords:        []string{"blacklisted", "magician", "starfish"},
 		OptStringSet:    &foo,
 		OptStringNotSet: nil,
+		MatchTypes:      stringList{"hello", "world"},
 	}
 	if !reflect.DeepEqual(exp, st) {
 		t.Fatalf("Expected %+v got %+v", exp, st)
 	}
 }
+
 func TestSanitization(t *testing.T) {
 	input := map[string]any{
 		"name": "Go\uFEFFb",
