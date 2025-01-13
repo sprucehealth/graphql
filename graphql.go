@@ -28,6 +28,9 @@ type Params struct {
 	// possible operations. Can be omitted if requestString contains only
 	// one operation.
 	OperationName string
+
+	// Tracer if set is called after each invocation of a custom resolver with the duration.
+	Tracer Tracer
 }
 
 func Do(ctx context.Context, p Params) *Result {
@@ -52,6 +55,7 @@ func Do(ctx context.Context, p Params) *Result {
 		AST:           ast,
 		OperationName: p.OperationName,
 		Args:          p.VariableValues,
+		Tracer:        p.Tracer,
 	})
 }
 
