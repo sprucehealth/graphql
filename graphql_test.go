@@ -306,7 +306,7 @@ func TestTracing(t *testing.T) {
 	query := "{ object { first { second }} }"
 
 	for range 10 {
-		tr := graphql.NewCountingTracer()
+		tr := graphql.NewCountingTracer(true)
 		result := graphql.Do(context.Background(), graphql.Params{
 			Schema:        schema,
 			RequestString: query,

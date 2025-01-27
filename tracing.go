@@ -18,9 +18,9 @@ type Tracer interface {
 }
 
 type CountingTracer struct {
-	// Unique if true aggregates traces for the same path. Otherwise, only
+	// unique if true aggregates traces for the same path. Otherwise, only
 	// consecutive traces for the same path are aggregated.
-	Unique bool
+	unique bool
 	mu     sync.Mutex
 	traces []*TracePathCount
 }
@@ -32,8 +32,12 @@ type TracePathCount struct {
 	MaxDuration   time.Duration
 }
 
-func NewCountingTracer() *CountingTracer {
-	return countingTracerPool.Get().(*CountingTracer)
+// NewCountingTracer returns a new counting tracer. Unique if true aggregates traces
+// for the same path. Otherwise, only consecutive traces for the same path are aggregated.
+func NewCountingTracer(unique bool) *CountingTracer {
+	ct := countingTracerPool.Get().(*CountingTracer)
+	ct.unique = unique
+	return ct
 }
 
 // Recycle returns the counting tracer and all traces to the pool.
@@ -69,7 +73,7 @@ func (t *CountingTracer) Trace(ctx context.Context, path []string, duration time
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if len(t.traces) != 0 {
-		if t.Unique {
+		if t.unique {
 			// Go in reverse order because it's most common that repeated traces happen consecutively.
 			for i := len(t.traces) - 1; i >= 0; i-- {
 				tr := t.traces[i]
