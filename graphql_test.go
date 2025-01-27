@@ -315,16 +315,18 @@ func TestTracing(t *testing.T) {
 		if len(result.Errors) > 0 {
 			t.Fatalf("wrong result, unexpected errors: %v", result.Errors)
 		}
-		for _, tr := range tr.Traces {
+		var traces []*graphql.TracePathCount
+		for _, tr := range tr.IterTraces() {
 			t.Logf("%s %d executions, %s total duration, %s max duration, %s average duration\n",
 				strings.Join(tr.Path, "."), tr.Count, tr.TotalDuration, tr.MaxDuration, tr.TotalDuration/time.Duration(tr.Count))
+			traces = append(traces, tr)
 		}
-		if len(tr.Traces) != 3 {
-			t.Logf("Expected 3 traces, got %d", len(tr.Traces))
+		if len(traces) != 3 {
+			t.Logf("Expected 3 traces, got %d", len(traces))
 		}
 		// Assume the order of execution which should always be consistent unless the executor changes.
 		for i, expCount := range []int{1, 1, 10} {
-			trace := tr.Traces[i]
+			trace := traces[i]
 			if trace.Count != expCount {
 				t.Logf("Expected count of %d for %v, got %d", expCount, trace.Path, trace.Count)
 			}

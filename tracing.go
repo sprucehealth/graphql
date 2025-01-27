@@ -2,6 +2,7 @@ package graphql
 
 import (
 	"context"
+	"iter"
 	"slices"
 	"sync"
 	"time"
@@ -17,7 +18,11 @@ type Tracer interface {
 }
 
 type CountingTracer struct {
-	Traces []*TracePathCount
+	// Unique if true aggregates traces for the same path. Otherwise, only
+	// consecutive traces for the same path are aggregated.
+	Unique bool
+	mu     sync.Mutex
+	traces []*TracePathCount
 }
 
 type TracePathCount struct {
@@ -33,21 +38,50 @@ func NewCountingTracer() *CountingTracer {
 
 // Recycle returns the counting tracer and all traces to the pool.
 func (t *CountingTracer) Recycle() {
-	for i, tr := range t.Traces {
-		t.Traces[i] = nil
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	for i, tr := range t.traces {
+		t.traces[i] = nil
 		tr.Path = tr.Path[:0]
 		tracePathCountPool.Put(tr)
 	}
-	t.Traces = t.Traces[:0]
+	t.traces = t.traces[:0]
 	countingTracerPool.Put(t)
 }
 
+// IterTraces returns an iterator of gathered traces. DO NOT retain
+// any of the traces at the time Recycle is called on the tracer.
+func (t *CountingTracer) IterTraces() iter.Seq2[int, *TracePathCount] {
+	return func(yield func(int, *TracePathCount) bool) {
+		t.mu.Lock()
+		defer t.mu.Unlock()
+		for i, tr := range t.traces {
+			if !yield(i, tr) {
+				return
+			}
+		}
+	}
+}
+
 func (t *CountingTracer) Trace(ctx context.Context, path []string, duration time.Duration) {
-	if len(t.Traces) != 0 {
-		// Because resolvers execute serially it's guaranteed that for repeated resolves on a field (i.e. a list)
-		// the traces will be executed in order. That is, the previous trace either matches the path or the resolves
-		// have moved on to another field.
-		if tr := t.Traces[len(t.Traces)-1]; slices.Equal(path, tr.Path) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if len(t.traces) != 0 {
+		if t.Unique {
+			// Go in reverse order because it's most common that repeated traces happen consecutively.
+			for i := len(t.traces) - 1; i >= 0; i-- {
+				tr := t.traces[i]
+				if slices.Equal(path, tr.Path) {
+					tr.Count += tr.Count
+					tr.MaxDuration = max(tr.MaxDuration, tr.MaxDuration)
+					tr.TotalDuration += tr.TotalDuration
+					return
+				}
+			}
+		} else if tr := t.traces[len(t.traces)-1]; slices.Equal(path, tr.Path) {
+			// Because resolvers execute serially it's guaranteed that for repeated resolves on a field (i.e. a list)
+			// the traces will be executed in order. That is, the previous trace either matches the path or the resolves
+			// have moved on to another field.
 			tr.Count++
 			tr.TotalDuration += duration
 			tr.MaxDuration = max(tr.MaxDuration, duration)
@@ -59,5 +93,5 @@ func (t *CountingTracer) Trace(ctx context.Context, path []string, duration time
 	tc.Count = 1
 	tc.TotalDuration = duration
 	tc.MaxDuration = duration
-	t.Traces = append(t.Traces, tc)
+	t.traces = append(t.traces, tc)
 }
