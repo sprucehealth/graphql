@@ -42,8 +42,10 @@ func (t *CountingTracer) Recycle() {
 	defer t.mu.Unlock()
 	for i, tr := range t.traces {
 		t.traces[i] = nil
-		tr.Path = tr.Path[:0]
-		tracePathCountPool.Put(tr)
+		if tr != nil {
+			tr.Path = tr.Path[:0]
+			tracePathCountPool.Put(tr)
+		}
 	}
 	t.traces = t.traces[:0]
 	countingTracerPool.Put(t)
