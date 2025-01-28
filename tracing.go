@@ -78,9 +78,9 @@ func (t *CountingTracer) Trace(ctx context.Context, path []string, duration time
 			for i := len(t.traces) - 1; i >= 0; i-- {
 				tr := t.traces[i]
 				if slices.Equal(path, tr.Path) {
-					tr.Count += tr.Count
-					tr.MaxDuration = max(tr.MaxDuration, tr.MaxDuration)
-					tr.TotalDuration += tr.TotalDuration
+					tr.Count++
+					tr.MaxDuration = max(tr.MaxDuration, duration)
+					tr.TotalDuration += duration
 					return
 				}
 			}
