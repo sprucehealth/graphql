@@ -29,7 +29,7 @@ const (
 // DefaultDeprecationReason Constant string used for default reason for a deprecation.
 const DefaultDeprecationReason = "No longer supported"
 
-// SpecifiedRules The full list of specified directives.
+// SpecifiedDirectives is the full list of specified directives.
 var SpecifiedDirectives = []*Directive{
 	IncludeDirective,
 	SkipDirective,

@@ -63,8 +63,7 @@ func Do(ctx context.Context, p Params) *Result {
 // in all selection sets.
 func RequestTypeNames(doc *ast.Document) {
 	for _, node := range doc.Definitions {
-		switch od := node.(type) {
-		case *ast.OperationDefinition:
+		if od, ok := node.(*ast.OperationDefinition); ok {
 			requestTypeNamesInSelectionSet(od.SelectionSet)
 		}
 	}

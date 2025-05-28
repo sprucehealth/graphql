@@ -334,7 +334,6 @@ func TestTypeSystem_DefinitionExample_IncludesNestedInputObjectsInTheMap(t *test
 }
 
 func TestTypeSystem_DefinitionExample_IncludesInterfacesSubTypesInTheTypeMap(t *testing.T) {
-
 	someInterface := graphql.NewInterface(graphql.InterfaceConfig{
 		Name: "SomeInterface",
 		Fields: graphql.Fields{
@@ -376,7 +375,6 @@ func TestTypeSystem_DefinitionExample_IncludesInterfacesSubTypesInTheTypeMap(t *
 }
 
 func TestTypeSystem_DefinitionExample_IncludesInterfacesThunkSubtypesInTheTypeMap(t *testing.T) {
-
 	someInterface := graphql.NewInterface(graphql.InterfaceConfig{
 		Name: "SomeInterface",
 		Fields: graphql.Fields{
@@ -420,7 +418,6 @@ func TestTypeSystem_DefinitionExample_IncludesInterfacesThunkSubtypesInTheTypeMa
 }
 
 func TestTypeSystem_DefinitionExample_StringifiesSimpleTypes(t *testing.T) {
-
 	type Test struct {
 		ttype    graphql.Type
 		expected string

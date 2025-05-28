@@ -345,6 +345,15 @@ func isEmptyValue(v reflect.Value) bool {
 		return v.Float() == 0
 	case reflect.Interface, reflect.Ptr:
 		return v.IsNil()
+	case reflect.Complex64, reflect.Complex128:
+		return v.Complex() == 0
+	case reflect.Chan, reflect.Func:
+		return v.IsNil()
+	case reflect.Struct:
+		return v.IsZero()
+	case reflect.UnsafePointer:
+		return v.Pointer() == 0
+	case reflect.Invalid:
 	}
 	return false
 }
@@ -418,7 +427,6 @@ func valueFromAST(valueAST ast.Value, ttype Input, variables map[string]any) any
 			}
 			fieldName := fieldAST.Name.Value
 			fieldASTs[fieldName] = fieldAST
-
 		}
 		obj := make(map[string]any)
 		for fieldName, field := range ttype.Fields() {

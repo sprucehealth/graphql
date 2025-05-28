@@ -187,10 +187,7 @@ func (ctx *ValidationContext) FragmentSpreads(node HasSelectionSet) []*ast.Fragm
 	spreads := []*ast.FragmentSpread{}
 	setsToVisit := []*ast.SelectionSet{node.GetSelectionSet()}
 
-	for {
-		if len(setsToVisit) == 0 {
-			break
-		}
+	for len(setsToVisit) != 0 {
 		var set *ast.SelectionSet
 		// pop
 		set, setsToVisit = setsToVisit[len(setsToVisit)-1], setsToVisit[:len(setsToVisit)-1]
@@ -224,11 +221,7 @@ func (ctx *ValidationContext) RecursivelyReferencedFragments(operation *ast.Oper
 	collectedNames := map[string]bool{}
 	nodesToVisit := []HasSelectionSet{operation}
 
-	for {
-		if len(nodesToVisit) == 0 {
-			break
-		}
-
+	for len(nodesToVisit) != 0 {
 		var node HasSelectionSet
 
 		node, nodesToVisit = nodesToVisit[len(nodesToVisit)-1], nodesToVisit[:len(nodesToVisit)-1]
@@ -246,7 +239,6 @@ func (ctx *ValidationContext) RecursivelyReferencedFragments(operation *ast.Oper
 					nodesToVisit = append(nodesToVisit, fragment)
 				}
 			}
-
 		}
 	}
 

@@ -586,7 +586,7 @@ func completeValueCatchingError(ctx context.Context, eCtx *ExecutionContext, ret
 	// catch panic
 	defer func() any {
 		if r := recover(); r != nil {
-			//send panic upstream
+			// send panic upstream
 			if _, ok := returnType.(*NonNull); ok {
 				panic(r)
 			}
@@ -749,7 +749,6 @@ func completeObjectValue(ctx context.Context, eCtx *ExecutionContext, returnType
 	results := executeFieldsSerially(ctx, executeFieldsParams, path)
 
 	return results.Data
-
 }
 
 // completeLeafValue complete a leaf value (Scalar / Enum) by serializing to a valid value, returning nil if serialization is not possible.

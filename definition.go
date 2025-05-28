@@ -308,7 +308,6 @@ func (st *Scalar) Name() string {
 }
 func (st *Scalar) Description() string {
 	return st.PrivateDescription
-
 }
 func (st *Scalar) String() string {
 	return st.PrivateName
@@ -419,9 +418,8 @@ func (gt *Object) AddFieldConfig(fieldName string, fieldConfig *Field) {
 	}
 	gt.mu.Lock()
 	defer gt.mu.Unlock()
-	switch gt.typeConfig.Fields.(type) {
-	case Fields:
-		gt.typeConfig.Fields.(Fields)[fieldName] = fieldConfig
+	if fields, ok := gt.typeConfig.Fields.(Fields); ok {
+		fields[fieldName] = fieldConfig
 		gt.fields = nil // invalidate the fields map cache
 	}
 }
@@ -451,11 +449,11 @@ func (gt *Object) Fields() FieldDefinitionMap {
 	}
 
 	var configureFields Fields
-	switch gt.typeConfig.Fields.(type) {
+	switch fields := gt.typeConfig.Fields.(type) {
 	case Fields:
-		configureFields = gt.typeConfig.Fields.(Fields)
+		configureFields = fields
 	case FieldsThunk:
-		configureFields = gt.typeConfig.Fields.(FieldsThunk)()
+		configureFields = fields()
 	}
 	fields, err := defineFieldMap(gt, configureFields)
 	gt.setErr(err)
@@ -480,11 +478,11 @@ func (gt *Object) Interfaces() []*Interface {
 	}
 
 	var configInterfaces []*Interface
-	switch gt.typeConfig.Interfaces.(type) {
+	switch ifs := gt.typeConfig.Interfaces.(type) {
 	case InterfacesThunk:
-		configInterfaces = gt.typeConfig.Interfaces.(InterfacesThunk)()
+		configInterfaces = ifs()
 	case []*Interface:
-		configInterfaces = gt.typeConfig.Interfaces.([]*Interface)
+		configInterfaces = ifs
 	case nil:
 	default:
 		gt.setErr(fmt.Errorf("Unknown Object.Interfaces type: %v", reflect.TypeOf(gt.typeConfig.Interfaces)))
@@ -652,7 +650,6 @@ func (st *Argument) Name() string {
 }
 func (st *Argument) Description() string {
 	return st.PrivateDescription
-
 }
 func (st *Argument) String() string {
 	return st.PrivateName
@@ -732,9 +729,8 @@ func (it *Interface) AddFieldConfig(fieldName string, fieldConfig *Field) {
 	}
 	it.mu.Lock()
 	defer it.mu.Unlock()
-	switch it.typeConfig.Fields.(type) {
-	case Fields:
-		it.typeConfig.Fields.(Fields)[fieldName] = fieldConfig
+	if fields, ok := it.typeConfig.Fields.(Fields); ok {
+		fields[fieldName] = fieldConfig
 		it.fields = nil
 	}
 }
@@ -759,11 +755,11 @@ func (it *Interface) Fields() FieldDefinitionMap {
 	defer it.mu.Unlock()
 
 	var configureFields Fields
-	switch it.typeConfig.Fields.(type) {
+	switch fields := it.typeConfig.Fields.(type) {
 	case Fields:
-		configureFields = it.typeConfig.Fields.(Fields)
+		configureFields = fields
 	case FieldsThunk:
-		configureFields = it.typeConfig.Fields.(FieldsThunk)()
+		configureFields = fields()
 	}
 	fields, err := defineFieldMap(it, configureFields)
 	it.fields = fields
@@ -1101,7 +1097,6 @@ func (st *InputObjectField) Name() string {
 }
 func (st *InputObjectField) Description() string {
 	return st.PrivateDescription
-
 }
 func (st *InputObjectField) String() string {
 	return st.PrivateName
@@ -1139,20 +1134,19 @@ func (gt *InputObject) AddInputField(fieldName string, fieldConfig *InputObjectF
 	}
 	gt.mu.Lock()
 	defer gt.mu.Unlock()
-	switch gt.typeConfig.Fields.(type) {
-	case InputObjectConfigFieldMap:
-		gt.typeConfig.Fields.(InputObjectConfigFieldMap)[fieldName] = fieldConfig
+	if fields, ok := gt.typeConfig.Fields.(InputObjectConfigFieldMap); ok {
+		fields[fieldName] = fieldConfig
 		gt.fields = nil // invalidate the fields map cache
 	}
 }
 
 func (gt *InputObject) defineFieldMap() InputObjectFieldMap {
 	var fieldMap InputObjectConfigFieldMap
-	switch gt.typeConfig.Fields.(type) {
+	switch fields := gt.typeConfig.Fields.(type) {
 	case InputObjectConfigFieldMap:
-		fieldMap = gt.typeConfig.Fields.(InputObjectConfigFieldMap)
+		fieldMap = fields
 	case InputObjectConfigFieldMapThunk:
-		fieldMap = gt.typeConfig.Fields.(InputObjectConfigFieldMapThunk)()
+		fieldMap = fields()
 	}
 	resultFieldMap := InputObjectFieldMap{}
 

@@ -27,7 +27,7 @@ var directivesTestSchema, _ = graphql.NewSchema(graphql.SchemaConfig{
 	}),
 })
 
-var directivesTestData map[string]any = map[string]any{
+var directivesTestData = map[string]any{
 	"a": func() any { return "a" },
 	"b": func() any { return "b" },
 }
@@ -65,7 +65,10 @@ func TestDirectives_DirectivesMustBeNamed(t *testing.T) {
 		Type:          "INTERNAL",
 		OriginalError: errors.New("Directive must be named."),
 	}
-	e := err.(gqlerrors.FormattedError)
+	var e gqlerrors.FormattedError
+	if !errors.As(err, &e) {
+		t.Fatalf("Expected gqlerrors.FormattedError got %T", err)
+	}
 	e.StackTrace = ""
 	if !reflect.DeepEqual(expectedErr, e) {
 		t.Fatalf("Expected error to be equal, got: %v", testutil.Diff(expectedErr, err))
@@ -96,7 +99,10 @@ func TestDirectives_DirectiveNameMustBeValid(t *testing.T) {
 		Type:          "INTERNAL",
 		OriginalError: errors.New("Names must match /^[_a-zA-Z][_a-zA-Z0-9]*$/ but \"123invalid name\" does not."),
 	}
-	e := err.(gqlerrors.FormattedError)
+	var e gqlerrors.FormattedError
+	if !errors.As(err, &e) {
+		t.Fatalf("Expected gqlerrors.FormattedError got %T", err)
+	}
 	e.StackTrace = ""
 	if !reflect.DeepEqual(expectedErr, e) {
 		t.Fatalf("Expected error to be equal, got: %v", testutil.Diff(expectedErr, err))
@@ -124,7 +130,10 @@ func TestDirectives_DirectiveNameMustProvideLocations(t *testing.T) {
 		Type:          "INTERNAL",
 		OriginalError: errors.New("Must provide locations for directive."),
 	}
-	e := err.(gqlerrors.FormattedError)
+	var e gqlerrors.FormattedError
+	if !errors.As(err, &e) {
+		t.Fatalf("Expected gqlerrors.FormattedError got %T", err)
+	}
 	e.StackTrace = ""
 	if !reflect.DeepEqual(expectedErr, e) {
 		t.Fatalf("Expected error to be equal, got: %v", testutil.Diff(expectedErr, err))
@@ -165,7 +174,10 @@ func TestDirectives_DirectiveArgNamesMustBeValid(t *testing.T) {
 		Type:          "INTERNAL",
 		OriginalError: errors.New("Names must match /^[_a-zA-Z][_a-zA-Z0-9]*$/ but \"123if\" does not."),
 	}
-	e := err.(gqlerrors.FormattedError)
+	var e gqlerrors.FormattedError
+	if !errors.As(err, &e) {
+		t.Fatalf("Expected gqlerrors.FormattedError got %T", err)
+	}
 	e.StackTrace = ""
 	if !reflect.DeepEqual(expectedErr, e) {
 		t.Fatalf("Expected error to be equal, got: %v", testutil.Diff(expectedErr, err))
@@ -641,7 +653,7 @@ var fieldDefinitionDirectivesTestSchema, _ = graphql.NewSchema(graphql.SchemaCon
 	}),
 })
 
-var fieldDefinitionDirectivesTestData map[string]any = map[string]any{
+var fieldDefinitionDirectivesTestData = map[string]any{
 	"a": func() any { return "a" },
 	"b": func() any { return "b" },
 }

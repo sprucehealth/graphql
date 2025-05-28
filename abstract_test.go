@@ -159,7 +159,6 @@ func TestIsTypeOfUsedToResolveRuntimeTypeForInterface(t *testing.T) {
 }
 
 func TestIsTypeOfUsedToResolveRuntimeTypeForUnion(t *testing.T) {
-
 	dogType := graphql.NewObject(graphql.ObjectConfig{
 		Name: "Dog",
 		IsTypeOf: func(p graphql.IsTypeOfParams) bool {
@@ -259,7 +258,6 @@ func TestIsTypeOfUsedToResolveRuntimeTypeForUnion(t *testing.T) {
 }
 
 func TestResolveTypeOnInterfaceYieldsUsefulError(t *testing.T) {
-
 	var dogType *graphql.Object
 	var catType *graphql.Object
 	var humanType *graphql.Object

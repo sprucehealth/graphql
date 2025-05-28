@@ -121,7 +121,6 @@ var mutationsTestSchema, _ = graphql.NewSchema(graphql.SchemaConfig{
 })
 
 func TestMutations_ExecutionOrdering_EvaluatesMutationsSerially(t *testing.T) {
-
 	root := newTestRoot(6)
 	doc := `mutation M {
       first: immediatelyChangeTheNumber(newNumber: 1) {
@@ -178,7 +177,6 @@ func TestMutations_ExecutionOrdering_EvaluatesMutationsSerially(t *testing.T) {
 	}
 }
 func TestMutations_EvaluatesMutationsCorrectlyInThePresenceOfAFailedMutation(t *testing.T) {
-
 	root := newTestRoot(6)
 	doc := `mutation M {
       first: immediatelyChangeTheNumber(newNumber: 1) {

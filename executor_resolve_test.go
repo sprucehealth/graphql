@@ -191,7 +191,6 @@ func TestExecutesResolveFunction_UsesProvidedResolveFunction_SourceIsStruct_With
 }
 
 func TestExecutesResolveFunction_UsesProvidedResolveFunction_SourceIsStruct_WithJSONTags(t *testing.T) {
-
 	// For structs without JSON tags, it will map to upper-cased exported field names
 	type SubObjectWithJSONTags struct {
 		OtherField string `json:""`

@@ -559,8 +559,7 @@ func init() {
 	TypeType.AddFieldConfig("interfaces", &Field{
 		Type: NewList(NewNonNull(TypeType)),
 		Resolve: func(ctx context.Context, p ResolveParams) (any, error) {
-			switch ttype := p.Source.(type) {
-			case *Object:
+			if ttype, ok := p.Source.(*Object); ok {
 				return ttype.Interfaces(), nil
 			}
 			return nil, nil
@@ -588,8 +587,7 @@ func init() {
 		},
 		Resolve: func(ctx context.Context, p ResolveParams) (any, error) {
 			includeDeprecated, _ := p.Args["includeDeprecated"].(bool)
-			switch ttype := p.Source.(type) {
-			case *Enum:
+			if ttype, ok := p.Source.(*Enum); ok {
 				if includeDeprecated {
 					return ttype.Values(), nil
 				}
@@ -611,8 +609,7 @@ func init() {
 	TypeType.AddFieldConfig("inputFields", &Field{
 		Type: NewList(NewNonNull(InputValueType)),
 		Resolve: func(ctx context.Context, p ResolveParams) (any, error) {
-			switch ttype := p.Source.(type) {
-			case *InputObject:
+			if ttype, ok := p.Source.(*InputObject); ok {
 				fields := []*InputObjectField{}
 				for _, field := range ttype.Fields() {
 					fields = append(fields, field)
@@ -668,7 +665,6 @@ func init() {
 			return p.Info.ParentType.Name(), nil
 		},
 	}
-
 }
 
 // Produces a GraphQL Value AST given a Golang value.
@@ -729,9 +725,9 @@ func astFromValue(value any, ttype Type) ast.Value {
 		return val
 	}
 
-	//if valueVal.Type().Kind() == reflect.Map {
+	// if valueVal.Type().Kind() == reflect.Map {
 	//	// TODO: implement astFromValue from Map to Value
-	//}
+	// }
 
 	if value, ok := value.(bool); ok {
 		return &ast.BooleanValue{

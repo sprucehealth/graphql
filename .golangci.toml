@@ -1,0 +1,48 @@
+version = '2'
+
+[run]
+go = '1.24'
+
+[linters]
+enable = [
+    'bodyclose',
+    'copyloopvar',
+    'errname',
+    'errorlint',
+    'exhaustive',
+    'exptostd',
+    'gocritic',
+    'gosec',
+    'importas',
+    'misspell',
+    'nakedret',
+    'noctx',
+    'perfsprint',
+    'revive',
+    'sqlclosecheck',
+    'unconvert',
+    'wastedassign',
+    'whitespace',
+]
+
+[linters.settings.staticcheck]
+checks = [
+    'all',
+    '-ST1000', # "at least one file in a package should have a package comment"
+    '-ST1005', # "Incorrectly formatted error string"
+]
+
+[[linters.exclusions.rules]]
+text = "ST1003: should not use underscores in Go names"
+path = "_test.go"
+
+[[linters.exclusions.rules]]
+linters = ["revive"]
+# unused-parameter -- not terribly useful, suggests removing unused params or using _ for the name
+# error-strings -- not very important - we have a lot of errors that don't conform to the expected standrd
+text = "(unused-parameter|error-strings|exported|package-comments)"
+
+[[linters.exclusions.rules]]
+linters = ["revive"]
+text = "(var-naming|context-as-argument|context-keys-type)"
+path = "_test.go"

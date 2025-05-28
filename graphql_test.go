@@ -132,7 +132,6 @@ func TestBasicGraphQLExample(t *testing.T) {
 	if !reflect.DeepEqual(result.Data, expected) {
 		t.Fatalf("wrong result, query: %v, graphql result diff: %v", query, testutil.Diff(expected, result))
 	}
-
 }
 
 func TestThreadsContextFromParamsThrough(t *testing.T) {
@@ -171,7 +170,6 @@ func TestThreadsContextFromParamsThrough(t *testing.T) {
 	if !reflect.DeepEqual(result.Data, expected) {
 		t.Fatalf("wrong result, query: %v, graphql result diff: %v", query, testutil.Diff(expected, result))
 	}
-
 }
 
 func TestEmptyStringIsNotNull(t *testing.T) {

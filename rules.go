@@ -228,7 +228,6 @@ func FieldsOnCorrectTypeRule(context *ValidationContext) *ValidationRuleInstance
 // suggest them, sorted by how often the type is referenced,  starting
 // with Interfaces.
 func getSuggestedTypeNames(schema *Schema, ttype Output, fieldName string) []string {
-
 	possibleTypes := schema.PossibleTypes(ttype)
 
 	var suggestedObjectTypes []string
@@ -267,7 +266,7 @@ func getSuggestedTypeNames(schema *Schema, ttype Output, fieldName string) []str
 			if index < len(suggestedInterfaces) {
 				s := suggestedInterfaces[index]
 				if s.name == possibleInterface.Name() {
-					s.count = s.count + 1
+					s.count++
 				}
 			}
 		}
@@ -284,7 +283,6 @@ func getSuggestedTypeNames(schema *Schema, ttype Output, fieldName string) []str
 	for _, s := range suggestedInterfaces {
 		if _, ok := suggestedObjectMap[s.name]; !ok {
 			results = append(results, s.name)
-
 		}
 	}
 	results = append(results, suggestedObjectTypes...)
@@ -458,7 +456,6 @@ func KnownArgumentNamesRule(context *ValidationContext) *ValidationRuleInstance 
 						)
 					}
 				}
-
 			}
 			return action, nil
 		},
@@ -669,7 +666,7 @@ func LoneAnonymousOperationRule(context *ValidationContext) *ValidationRuleInsta
 				operationCount = 0
 				for _, definition := range node.Definitions {
 					if _, ok := definition.(*ast.OperationDefinition); ok {
-						operationCount = operationCount + 1
+						operationCount++
 					}
 				}
 			case *ast.OperationDefinition:
@@ -761,10 +758,8 @@ func NoFragmentCyclesRule(context *ValidationContext) *ValidationRuleInstance {
 					CycleErrorMessage(spreadName, spreadNames),
 					nodes))
 			}
-
 		}
 		delete(spreadPathIndexByName, fragmentName)
-
 	}
 
 	return &ValidationRuleInstance{
@@ -815,8 +810,7 @@ func NoUndefinedVariablesRule(context *ValidationContext) *ValidationRuleInstanc
 			return visitor.ActionNoChange, nil
 		},
 		Leave: func(p visitor.VisitFuncParams) (string, any) {
-			switch node := p.Node.(type) {
-			case *ast.OperationDefinition:
+			if node, ok := p.Node.(*ast.OperationDefinition); ok {
 				usages := context.RecursiveVariableUsages(node)
 				for _, usage := range usages {
 					if usage == nil {
@@ -866,8 +860,7 @@ func NoUnusedFragmentsRule(context *ValidationContext) *ValidationRuleInstance {
 			return visitor.ActionNoChange, nil
 		},
 		Leave: func(p visitor.VisitFuncParams) (string, any) {
-			switch p.Node.(type) {
-			case *ast.Document:
+			if _, ok := p.Node.(*ast.Document); ok {
 				fragmentNameUsed := make(map[string]bool)
 				for _, operation := range operationDefs {
 					fragments := context.RecursivelyReferencedFragments(operation)
@@ -880,7 +873,7 @@ func NoUnusedFragmentsRule(context *ValidationContext) *ValidationRuleInstance {
 					}
 				}
 				for _, def := range fragmentDefs {
-					defName := ""
+					var defName string
 					if def.Name != nil {
 						defName = def.Name.Value
 					}
@@ -896,7 +889,6 @@ func NoUnusedFragmentsRule(context *ValidationContext) *ValidationRuleInstance {
 			return visitor.ActionNoChange, nil
 		},
 	}
-
 }
 
 func UnusedVariableMessage(varName string, opName string) string {
@@ -1214,7 +1206,6 @@ func subfieldConflicts(conflicts []*conflict, responseName string, ast1 *ast.Fie
 
 // findConflicts Find all Conflicts within a collection of fields.
 func findConflicts(context *ValidationContext, parentFieldsAreMutuallyExclusive bool, fieldMap map[string][]*fieldDefPair, comparedSet *pairSet) (conflicts []*conflict) {
-
 	// ensure field traversal
 	orderedName := sort.StringSlice{}
 	for responseName := range fieldMap {
@@ -1238,7 +1229,6 @@ func findConflicts(context *ValidationContext, parentFieldsAreMutuallyExclusive 
 
 // findConflict Determines if there is a conflict between two particular fields.
 func findConflict(context *ValidationContext, parentFieldsAreMutuallyExclusive bool, responseName string, field *fieldDefPair, field2 *fieldDefPair, comparedSet *pairSet) *conflict {
-
 	parentType1 := field.ParentType
 	ast1 := field.Field
 	def1 := field.FieldDef
@@ -1714,8 +1704,7 @@ func UniqueInputFieldNamesRule(context *ValidationContext) *ValidationRuleInstan
 			return visitor.ActionNoChange, nil
 		},
 		Leave: func(p visitor.VisitFuncParams) (string, any) {
-			switch p.Node.(type) {
-			case *ast.ObjectValue:
+			if _, ok := p.Node.(*ast.ObjectValue); ok {
 				knownNames, knownNameStack = knownNameStack[len(knownNameStack)-1], knownNameStack[:len(knownNameStack)-1]
 			}
 			return visitor.ActionNoChange, nil
@@ -1842,8 +1831,7 @@ func VariablesInAllowedPositionRule(context *ValidationContext) *ValidationRuleI
 			return visitor.ActionNoChange, nil
 		},
 		Leave: func(p visitor.VisitFuncParams) (string, any) {
-			switch operation := p.Node.(type) {
-			case *ast.OperationDefinition:
+			if operation, ok := p.Node.(*ast.OperationDefinition); ok {
 				usages := context.RecursiveVariableUsages(operation)
 				for _, usage := range usages {
 					var varName string
@@ -1911,7 +1899,6 @@ func isValidLiteralValue(ttype Input, valueAST ast.Value) (bool, []string) {
 			return len(messagesReduce) == 0, messagesReduce
 		}
 		return isValidLiteralValue(itemType, valueAST)
-
 	}
 
 	// Input objects check each defined field and look for undefined fields.
@@ -2001,7 +1988,7 @@ func suggestionList(input string, options []string) []string {
 			dists = append(dists, dist)
 		}
 	}
-	//sort results
+	// sort results
 	suggested := suggestionListResult{filteredOpts, dists}
 	sort.Sort(suggested)
 	return suggested.Options

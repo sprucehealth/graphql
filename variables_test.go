@@ -289,7 +289,6 @@ func testVariables_ObjectsAndNullability_UsingVariables_GetAST(t *testing.T) *as
 	return testutil.TestParse(t, doc)
 }
 func TestVariables_ObjectsAndNullability_UsingVariables_ExecutesWithComplexInput(t *testing.T) {
-
 	params := map[string]any{
 		"input": map[string]any{
 			"a": "foo",
@@ -321,7 +320,6 @@ func TestVariables_ObjectsAndNullability_UsingVariables_ExecutesWithComplexInput
 }
 
 func TestVariables_ObjectsAndNullability_UsingVariables_UsesDefaultValueWhenNotProvided(t *testing.T) {
-
 	doc := `
 	  query q($input: TestInputObject = {a: "foo", b: ["bar"], c: "baz"}) {
 		fieldWithObjectInput(input: $input)
@@ -781,7 +779,6 @@ func TestVariables_NullableScalars_AllowsNullableInputsToBeSetToAValueDirectly(t
 }
 
 func TestVariables_NonNullableScalars_DoesNotAllowNonNullableInputsToBeOmittedInAVariable(t *testing.T) {
-
 	doc := `
         query SetsNonNullable($value: String!) {
           fieldWithNonNullableStringInput(input: $value)

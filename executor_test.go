@@ -279,7 +279,6 @@ func TestAliasedString(t *testing.T) {
 }
 
 func TestMergesParallelFragments(t *testing.T) {
-
 	query := `
       { a, ...FragOne, ...FragTwo }
 
@@ -532,7 +531,6 @@ func TestCorrectlyThreadsArguments(t *testing.T) {
 }
 
 func TestThreadsRootValueContextCorrectly(t *testing.T) {
-
 	query := `
       query Example { a }
     `
@@ -582,7 +580,6 @@ func TestThreadsRootValueContextCorrectly(t *testing.T) {
 }
 
 func TestThreadsContextCorrectly(t *testing.T) {
-
 	query := `
       query Example { a }
     `
@@ -629,7 +626,6 @@ func TestThreadsContextCorrectly(t *testing.T) {
 }
 
 func TestNullsOutErrorSubtrees(t *testing.T) {
-
 	// TODO: TestNullsOutErrorSubtrees test for go-routines if implemented
 	query := `{
       sync,
@@ -700,7 +696,6 @@ func TestNullsOutErrorSubtrees(t *testing.T) {
 }
 
 func TestUsesTheInlineOperationIfNoOperationNameIsProvided(t *testing.T) {
-
 	doc := `{ a }`
 	data := map[string]any{
 		"a": "b",
@@ -745,7 +740,6 @@ func TestUsesTheInlineOperationIfNoOperationNameIsProvided(t *testing.T) {
 }
 
 func TestUsesTheOnlyOperationIfNoOperationNameIsProvided(t *testing.T) {
-
 	doc := `query Example { a }`
 	data := map[string]any{
 		"a": "b",
@@ -1046,7 +1040,6 @@ func TestUsesTheQuerySchemaForQueries(t *testing.T) {
 }
 
 func TestUsesTheMutationSchemaForMutations(t *testing.T) {
-
 	doc := `query Q { a } mutation M { c }`
 	data := map[string]any{
 		"a": "b",
@@ -1101,7 +1094,6 @@ func TestUsesTheMutationSchemaForMutations(t *testing.T) {
 }
 
 func TestUsesTheSubscriptionSchemaForSubscriptions(t *testing.T) {
-
 	doc := `query Q { a } subscription S { a }`
 	data := map[string]any{
 		"a": "b",
@@ -1156,7 +1148,6 @@ func TestUsesTheSubscriptionSchemaForSubscriptions(t *testing.T) {
 }
 
 func TestCorrectFieldOrderingDespiteExecutionOrder(t *testing.T) {
-
 	doc := `
 	{
       b,
@@ -1239,7 +1230,6 @@ func TestCorrectFieldOrderingDespiteExecutionOrder(t *testing.T) {
 }
 
 func TestAvoidsRecursion(t *testing.T) {
-
 	doc := `
       query Q {
         a
@@ -1293,11 +1283,9 @@ func TestAvoidsRecursion(t *testing.T) {
 	if !reflect.DeepEqual(expected, result) {
 		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expected, result))
 	}
-
 }
 
 func TestDoesNotIncludeIllegalFieldsInOutput(t *testing.T) {
-
 	doc := `mutation M {
       thisIsIllegalDontIncludeMe
     }`
@@ -1346,7 +1334,6 @@ func TestDoesNotIncludeIllegalFieldsInOutput(t *testing.T) {
 }
 
 func TestDoesNotIncludeArgumentsThatWereNotSet(t *testing.T) {
-
 	doc := `{ field(a: true, c: false, e: 0) }`
 
 	expected := &graphql.Result{
@@ -1905,7 +1892,7 @@ func TestContextDeadlineWait(t *testing.T) {
 					Type: graphql.String,
 					Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
 						<-ctx.Done()
-						return nil, fmt.Errorf("Resolvers: %s", ctx.Err())
+						return nil, fmt.Errorf("Resolvers: %w", ctx.Err())
 					},
 				},
 			},

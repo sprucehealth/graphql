@@ -29,6 +29,7 @@ func coerceInt(value any) any {
 		}
 		return int(v)
 	case uint:
+		//nolint:gosec
 		return int(v)
 	case uint8:
 		return int(v)

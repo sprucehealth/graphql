@@ -899,7 +899,6 @@ func TestIntrospection_ExecutesAnInputObject(t *testing.T) {
 }
 
 func TestIntrospection_SupportsThe__TypeRootField(t *testing.T) {
-
 	testType := graphql.NewObject(graphql.ObjectConfig{
 		Name: "TestType",
 		Fields: graphql.Fields{

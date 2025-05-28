@@ -16,7 +16,7 @@ import (
 // - tests that create internal tests structs, we might not want to pollute the package with too many test structs
 
 type testPic struct {
-	Url    string `json:"url"`
+	URL    string `json:"url"`
 	Width  string `json:"width"`
 	Height string `json:"height"`
 }
@@ -24,13 +24,13 @@ type testPic struct {
 type testPicFn func(width, height string) *testPic
 
 type testAuthor struct {
-	Id            int          `json:"id"`
+	ID            int          `json:"id"`
 	Name          string       `json:"name"`
 	Pic           testPicFn    `json:"pic"`
 	RecentArticle *testArticle `json:"recentArticle"`
 }
 type testArticle struct {
-	Id          string      `json:"id"`
+	ID          string      `json:"id"`
 	IsPublished string      `json:"isPublished"`
 	Author      *testAuthor `json:"author"`
 	Title       string      `json:"title"`
@@ -41,7 +41,7 @@ type testArticle struct {
 
 func getPic(id int, width, height string) *testPic {
 	return &testPic{
-		Url:    fmt.Sprintf("cdn://%v", id),
+		URL:    fmt.Sprintf("cdn://%v", id),
 		Width:  width,
 		Height: height,
 	}
@@ -51,7 +51,7 @@ var johnSmith *testAuthor
 
 func article(id any) *testArticle {
 	return &testArticle{
-		Id:          fmt.Sprintf("%v", id),
+		ID:          fmt.Sprintf("%v", id),
 		IsPublished: "true",
 		Author:      johnSmith,
 		Title:       fmt.Sprintf("My Article %v", id),
@@ -64,9 +64,8 @@ func article(id any) *testArticle {
 }
 
 func TestExecutesUsingAComplexSchema(t *testing.T) {
-
 	johnSmith = &testAuthor{
-		Id:   123,
+		ID:   123,
 		Name: "John Smith",
 		Pic: func(width string, height string) *testPic {
 			return getPic(123, width, height)

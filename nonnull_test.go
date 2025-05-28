@@ -639,8 +639,8 @@ func TestNonNull_NullsTheFirstNullableObjectAfterAFieldThrowsInALongChainOfField
 	if !reflect.DeepEqual(expected.Errors, result.Errors) {
 		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
-
 }
+
 func TestNonNull_NullsANullableFieldThatSynchronouslyReturnsNull(t *testing.T) {
 	doc := `
       query Q {

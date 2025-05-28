@@ -316,7 +316,6 @@ func TestUnionIntersectionTypes_ExecutesUnionTypesWithInlineFragments(t *testing
 	}
 }
 func TestUnionIntersectionTypes_ExecutesUsingInterfaceTypes(t *testing.T) {
-
 	// NOTE: This is an *invalid* query, but it should be an *executable* query.
 	doc := `
       {
@@ -365,7 +364,6 @@ func TestUnionIntersectionTypes_ExecutesUsingInterfaceTypes(t *testing.T) {
 	}
 }
 func TestUnionIntersectionTypes_ExecutesInterfaceTypesWithInlineFragments(t *testing.T) {
-
 	// This is the valid version of the query in the above test.
 	doc := `
       {
@@ -419,7 +417,6 @@ func TestUnionIntersectionTypes_ExecutesInterfaceTypesWithInlineFragments(t *tes
 }
 
 func TestUnionIntersectionTypes_AllowsFragmentConditionsToBeAbstractTypes(t *testing.T) {
-
 	doc := `
       {
         __typename
@@ -498,7 +495,6 @@ func TestUnionIntersectionTypes_AllowsFragmentConditionsToBeAbstractTypes(t *tes
 	}
 }
 func TestUnionIntersectionTypes_GetsExecutionInfoInResolver(t *testing.T) {
-
 	var encounteredContextValue string
 	var encounteredSchema graphql.Schema
 	var encounteredRootValue string
