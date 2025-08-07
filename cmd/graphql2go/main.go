@@ -199,7 +199,7 @@ func generateServer(g *generator) {
 	for _, r := range resolvers {
 		typeName := r.typeName
 		fields := r.fields
-		assertionType := fmt.Sprintf("*%s", exportedName(typeName))
+		assertionType := "*" + exportedName(typeName)
 		if isTopLevelObject(exportedName(typeName)) {
 			assertionType = "map[string]any"
 		}
@@ -233,8 +233,7 @@ func generateServer(g *generator) {
 	}
 	g.printf("var Directives = []*graphql.Directive{\n")
 	for _, def := range g.doc.Definitions {
-		switch def := def.(type) {
-		case *ast.DirectiveDefinition:
+		if def, ok := def.(*ast.DirectiveDefinition); ok {
 			g.printf("\t%s,\n", goDirectiveDefName(def.Name.Value))
 		}
 	}
@@ -361,8 +360,7 @@ func newGenerator(outWriter io.Writer, root *ast.Document) *generator {
 
 	// Look for top level types to enforce resolvers
 	for _, def := range root.Definitions {
-		switch def := def.(type) {
-		case *ast.ObjectDefinition:
+		if def, ok := def.(*ast.ObjectDefinition); ok {
 			if isTopLevelObject(def.Name.Value) {
 				fieldNames := make([]string, len(def.Fields))
 				for i, f := range def.Fields {
@@ -377,8 +375,7 @@ func newGenerator(outWriter io.Writer, root *ast.Document) *generator {
 
 func (g *generator) assertAllowIdentityAssumptionConditions(root *ast.Document) {
 	for _, def := range root.Definitions {
-		switch d := def.(type) {
-		case *ast.ObjectDefinition:
+		if d, ok := def.(*ast.ObjectDefinition); ok {
 			if isTopLevelObject(d.Name.Value) {
 				g.assertAllowIdentityAssumptionConditionsOnFields(d.Name.Value, d.Fields, make(map[string]struct{}), true)
 			}
@@ -1052,7 +1049,7 @@ func (g *generator) renderFieldDefinition(objName string, def *ast.FieldDefiniti
 	if customResolve {
 		goFieldName := exportedName(def.Name.Value)
 		goObjName := exportedName(objName)
-		assertionType := fmt.Sprintf("*%s", goObjName)
+		assertionType := "*" + goObjName
 		if isTopLevelObject(goObjName) {
 			assertionType = "map[string]any"
 		}
@@ -1405,14 +1402,14 @@ func renderQuotedComments(cg *ast.CommentGroup) string {
 	}
 	text := strings.Join(lines, "\n")
 	if strings.ContainsRune(text, '\n') {
-		return "`" + strings.Replace(text, "`", "'", -1) + "`"
+		return "`" + strings.ReplaceAll(text, "`", "'") + "`"
 	}
 	return strconv.Quote(text)
 }
 
 func renderDeprecationReason(reason string) string {
 	if strings.ContainsRune(reason, '\n') {
-		return "`" + strings.Replace(reason, "`", "'", -1) + "`"
+		return "`" + strings.ReplaceAll(reason, "`", "'") + "`"
 	}
 	return strconv.Quote(reason)
 }
@@ -1524,9 +1521,7 @@ var reCamelCase = regexp.MustCompile(`[A-Z][^A-Z]+`)
 
 // camelCaseInitialisms takes a camel case string and convert any initialisms to uppercase (e.g. ObjectId -> ObjectID)
 func camelCaseInitialisms(s string) string {
-	return reCamelCase.ReplaceAllStringFunc(s, func(s string) string {
-		return upperInitialisms(s)
-	})
+	return reCamelCase.ReplaceAllStringFunc(s, upperInitialisms)
 }
 
 // upperInitialisms takes a word and convert any initialisms to uppercase (e.g. Url -> URL)

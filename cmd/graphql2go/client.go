@@ -166,8 +166,7 @@ func genDecoderHook(g *generator) {
 func genDecoderTypeMap(g *generator) {
 	g.printf("var objectTypesByTypename = map[string]reflect.Type{\n")
 	for _, def := range g.doc.Definitions {
-		switch def := def.(type) {
-		case *ast.ObjectDefinition:
+		if def, ok := def.(*ast.ObjectDefinition); ok {
 			g.printf("\"%s\": reflect.TypeOf(%s{}),\n", def.Name.Value, def.Name.Value)
 		}
 	}

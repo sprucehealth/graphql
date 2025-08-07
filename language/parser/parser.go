@@ -350,7 +350,8 @@ func (p *Parser) parseField() (*ast.Field, error) {
 	skp, err := p.skip(lexer.COLON)
 	if err != nil {
 		return nil, err
-	} else if skp {
+	}
+	if skp {
 		alias = nameOrAlias
 		name, err = p.parseName()
 		if err != nil {
@@ -460,7 +461,6 @@ func (p *Parser) parseFragment() (any, error) {
 			return nil, err
 		}
 		typeCondition = name
-
 	}
 	directives, err := p.parseDirectives()
 	if err != nil {
@@ -659,10 +659,7 @@ func (p *Parser) parseObjectField(isConst bool) (*ast.ObjectField, error) {
 
 func (p *Parser) parseDirectives() ([]*ast.Directive, error) {
 	var directives []*ast.Directive
-	for {
-		if !p.peek(lexer.AT) {
-			break
-		}
+	for p.peek(lexer.AT) {
 		directive, err := p.parseDirective()
 		if err != nil {
 			return directives, err
@@ -1365,14 +1362,14 @@ func (p *Parser) consumeCommentGroup(n int) (comments *ast.CommentGroup, endline
 }
 
 // Determines if the next token is of a given kind
-func (p *Parser) peek(Kind int) bool {
-	return p.tok.Kind == Kind
+func (p *Parser) peek(kind int) bool {
+	return p.tok.Kind == kind
 }
 
 // If the next token is of the given kind, return true after advancing
 // the parser. Otherwise, do not change the parser state and return false.
-func (p *Parser) skip(Kind int) (bool, error) {
-	if p.tok.Kind == Kind {
+func (p *Parser) skip(kind int) (bool, error) {
+	if p.tok.Kind == kind {
 		return true, p.advance()
 	}
 	return false, nil

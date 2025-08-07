@@ -368,10 +368,7 @@ func (l *Lexer) readToken() (Token, error) {
 		case '}':
 			return makeToken(BRACE_R, startOffset, l.offset, ""), nil
 		case '#':
-			for {
-				if l.ch == '\n' || l.ch == '\r' || l.ch == 0 {
-					break
-				}
+			for l.ch != '\n' && l.ch != '\r' && l.ch != 0 {
 				l.nextRune()
 			}
 			return makeToken(COMMENT, startOffset, l.offset, strings.TrimSpace(l.sliceBody(startOffset, l.offset))), nil

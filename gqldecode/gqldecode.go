@@ -6,6 +6,7 @@
 package gqldecode
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"reflect"
@@ -46,7 +47,7 @@ func Decode(in map[string]any, out any) (err error) {
 	}()
 	outV := reflect.ValueOf(out)
 	if outV.Kind() != reflect.Ptr || outV.Type().Elem().Kind() != reflect.Struct {
-		return fmt.Errorf("gqldecode: Decode requires a pointer to a struct")
+		return errors.New("gqldecode: Decode requires a pointer to a struct")
 	}
 	decodeStruct(in, outV.Elem())
 	return nil
@@ -159,11 +160,12 @@ func decodeValue(v any, out reflect.Value, fi *structFieldInfo) {
 		// in the event that the type is the same, or a pointer of the same type, set the value of
 		// out to the value of v instead of assuming that v is a map[string]any that can be
 		// decoded into a struct.
-		if out.Type() == reflect.TypeOf(v) {
+		switch {
+		case out.Type() == reflect.TypeOf(v):
 			out.Set(reflect.ValueOf(v))
-		} else if reflect.ValueOf(v).Kind() == reflect.Ptr && out.Type() == reflect.TypeOf(v).Elem() {
+		case reflect.ValueOf(v).Kind() == reflect.Ptr && out.Type() == reflect.TypeOf(v).Elem():
 			out.Set(reflect.ValueOf(v).Elem())
-		} else {
+		default:
 			decodeStruct(v.(map[string]any), out)
 		}
 	case reflect.Ptr:

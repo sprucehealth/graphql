@@ -15,7 +15,6 @@ import (
 var TestSchema *graphql.Schema
 
 func init() {
-
 	var beingInterface = graphql.NewInterface(graphql.InterfaceConfig{
 		Name: "Being",
 		Fields: graphql.Fields{
@@ -542,7 +541,6 @@ func init() {
 		panic(err)
 	}
 	TestSchema = &schema
-
 }
 func expectValidRule(t *testing.T, schema *graphql.Schema, rules []graphql.ValidationRuleFn, queryString string) {
 	source := source.New("", queryString)
@@ -557,7 +555,6 @@ func expectValidRule(t *testing.T, schema *graphql.Schema, rules []graphql.Valid
 	if !result.IsValid {
 		t.Fatalf("IsValid should be true, got %t", result.IsValid)
 	}
-
 }
 func expectInvalidRule(t *testing.T, schema *graphql.Schema, rules []graphql.ValidationRuleFn, queryString string, expectedErrors []gqlerrors.FormattedError) {
 	t.Helper()
@@ -590,7 +587,6 @@ func expectInvalidRule(t *testing.T, schema *graphql.Schema, rules []graphql.Val
 			t.Fatalf("Unexpected result, Diff: %v", Diff(expectedErrors, result.Errors))
 		}
 	}
-
 }
 func ExpectPassesRule(t *testing.T, rule graphql.ValidationRuleFn, queryString string) {
 	expectValidRule(t, TestSchema, []graphql.ValidationRuleFn{rule}, queryString)
@@ -606,7 +602,7 @@ func ExpectPassesRuleWithSchema(t *testing.T, schema *graphql.Schema, rule graph
 }
 func RuleError(message string, locs ...int) gqlerrors.FormattedError {
 	locations := []location.SourceLocation{}
-	for i := 0; i < len(locs); i = i + 2 {
+	for i := 0; i < len(locs); i += 2 {
 		line := locs[i]
 		col := 0
 		if i+1 < len(locs) {

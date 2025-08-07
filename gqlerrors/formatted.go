@@ -26,40 +26,42 @@ func NewFormattedError(message string) FormattedError {
 }
 
 func FormatError(err error) FormattedError {
-	switch err := err.(type) {
-	case runtime.Error:
+	if e, ok := asType[FormattedError](err); ok {
+		return e
+	}
+	if e, ok := asType[*FormattedError](err); ok {
+		return *e
+	}
+	if e, ok := asType[runtime.Error](err); ok {
 		return FormattedError{
-			Message:       err.Error(),
+			Message:       e.Error(),
 			Type:          ErrorTypeInternal,
 			StackTrace:    stackTrace(),
-			OriginalError: err,
+			OriginalError: e,
 		}
-	case FormattedError:
-		return err
-	case *FormattedError:
-		return *err
-	case *Error:
+	}
+	if e, ok := asType[*Error](err); ok {
 		return FormattedError{
-			Type:          err.Type,
-			Message:       err.Error(),
-			Locations:     err.Locations,
-			OriginalError: err.OriginalError,
+			Type:          e.Type,
+			Message:       e.Error(),
+			Locations:     e.Locations,
+			OriginalError: e.OriginalError,
 		}
-	case Error:
+	}
+	if e, ok := asType[Error](err); ok {
 		return FormattedError{
-			Type:          err.Type,
-			Message:       err.Error(),
-			Locations:     err.Locations,
-			OriginalError: err.OriginalError,
+			Type:          e.Type,
+			Message:       e.Error(),
+			Locations:     e.Locations,
+			OriginalError: e.OriginalError,
 		}
-	default:
-		return FormattedError{
-			Type:          ErrorTypeInternal,
-			Message:       err.Error(),
-			Locations:     []location.SourceLocation{},
-			StackTrace:    stackTrace(),
-			OriginalError: err,
-		}
+	}
+	return FormattedError{
+		Type:          ErrorTypeInternal,
+		Message:       err.Error(),
+		Locations:     []location.SourceLocation{},
+		StackTrace:    stackTrace(),
+		OriginalError: err,
 	}
 }
 

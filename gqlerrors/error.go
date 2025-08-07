@@ -1,7 +1,7 @@
 package gqlerrors
 
 import (
-	"fmt"
+	"errors"
 
 	"github.com/sprucehealth/graphql/language/ast"
 	"github.com/sprucehealth/graphql/language/location"
@@ -33,7 +33,7 @@ type Error struct {
 
 // Error implements Golang's built-in `error` interface
 func (g Error) Error() string {
-	return fmt.Sprintf("%v", g.Message)
+	return g.Message
 }
 
 // NewError returns a new structured error.
@@ -70,4 +70,10 @@ func NewError(typ ErrorType, message string, nodes []ast.Node, stack string, sou
 		Locations:     locations,
 		OriginalError: origError,
 	}
+}
+
+func asType[T error](err error) (T, bool) {
+	var tp T
+	ok := errors.As(err, &tp)
+	return tp, ok
 }

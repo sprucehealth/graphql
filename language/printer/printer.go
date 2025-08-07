@@ -35,7 +35,7 @@ func block(sl []string) string {
 }
 
 func indent(s string) string {
-	return strings.Replace(s, "\n", "\n  ", -1)
+	return strings.ReplaceAll(s, "\n", "\n  ")
 }
 
 type walker struct {
@@ -130,9 +130,8 @@ func (w *walker) walkAST(root ast.Node) string {
 		selectionSet := w.walkAST(node.SelectionSet)
 		if typeCondition == "" {
 			return "... " + wrap("", directives, " ") + selectionSet
-		} else {
-			return "... on " + typeCondition + " " + wrap("", directives, " ") + selectionSet
 		}
+		return "... on " + typeCondition + " " + wrap("", directives, " ") + selectionSet
 	case *ast.FragmentDefinition:
 		name := w.walkAST(node.Name)
 		typeCondition := w.walkAST(node.TypeCondition)

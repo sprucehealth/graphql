@@ -3,6 +3,7 @@ package gqlerrors
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/sprucehealth/graphql/language/ast"
@@ -43,9 +44,9 @@ func NewSyntaxError(s *source.Source, position int, description string) *Error {
 
 func highlightSourceAtLocation(s *source.Source, l location.SourceLocation) string {
 	line := l.Line
-	prevLineNum := fmt.Sprintf("%d", (line - 1))
-	lineNum := fmt.Sprintf("%d", line)
-	nextLineNum := fmt.Sprintf("%d", (line + 1))
+	prevLineNum := strconv.Itoa(line - 1)
+	lineNum := strconv.Itoa(line)
+	nextLineNum := strconv.Itoa(line + 1)
 	padLen := len(nextLineNum)
 	lines := regexp.MustCompile("\r\n|[\n\r]").Split(s.Body(), -1)
 	var highlight string

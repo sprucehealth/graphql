@@ -49,7 +49,7 @@ func (def *SchemaDefinition) GetOperation() string {
 	return ""
 }
 
-// ScalarDefinition implements Node, Definition
+// OperationTypeDefinition implements Node, Definition
 type OperationTypeDefinition struct {
 	Loc       Location
 	Operation string

@@ -391,25 +391,20 @@ func ContainSubsetSlice(super, sub []any) bool {
 					if ContainSubset(superVal, subVal) {
 						found = true
 						break
-					} else {
-						continue
 					}
-				} else {
-					return false
+					continue
 				}
-
+				return false
 			}
 			if subVal, ok := subVal.([]any); ok {
 				if superVal, ok := superVal.([]any); ok {
 					if ContainSubsetSlice(superVal, subVal) {
 						found = true
 						break
-					} else {
-						continue
 					}
-				} else {
-					return false
+					continue
 				}
+				return false
 			}
 			if reflect.DeepEqual(superVal, subVal) {
 				found = true

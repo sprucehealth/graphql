@@ -21,10 +21,7 @@ func parseDirectives(s string) (string, directives, error) {
 	scn := &directiveScanner{s: ds}
 	keyTok, key, keyPos := scn.nextToken()
 parser:
-	for {
-		if keyTok == tokEOF {
-			break
-		}
+	for keyTok != tokEOF {
 		if keyTok != tokString {
 			return "", nil, fmt.Errorf("bad token at %d in %q", keyPos, ds)
 		}

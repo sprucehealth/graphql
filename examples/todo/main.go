@@ -5,9 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"net/http"
-	"time"
 
 	"github.com/sprucehealth/graphql"
 )
@@ -24,7 +23,7 @@ var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 func RandStringRunes(n int) string {
 	b := make([]rune, n)
 	for i := range b {
-		b[i] = letterRunes[rand.Intn(len(letterRunes))]
+		b[i] = letterRunes[rand.IntN(len(letterRunes))]
 	}
 	return string(b)
 }
@@ -34,8 +33,6 @@ func init() {
 	todo2 := Todo{ID: "b", Text: "This is the most important", Done: false}
 	todo3 := Todo{ID: "c", Text: "Please do this or else", Done: false}
 	TodoList = append(TodoList, todo1, todo2, todo3)
-
-	rand.Seed(time.Now().UnixNano())
 }
 
 // define custom GraphQL ObjectType `todoType` for our Golang struct `Todo`

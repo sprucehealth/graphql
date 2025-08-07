@@ -7,7 +7,6 @@ import (
 )
 
 func TestSubsetSlice_Simple(t *testing.T) {
-
 	super := []any{
 		"1", "2", "3",
 	}
@@ -19,7 +18,6 @@ func TestSubsetSlice_Simple(t *testing.T) {
 	}
 }
 func TestSubsetSlice_Simple_Fail(t *testing.T) {
-
 	super := []any{
 		"1", "2", "3",
 	}
@@ -31,7 +29,6 @@ func TestSubsetSlice_Simple_Fail(t *testing.T) {
 	}
 }
 func TestSubsetSlice_NestedSlice(t *testing.T) {
-
 	super := []any{
 		[]any{
 			"1", "2", "3",
@@ -59,7 +56,6 @@ func TestSubsetSlice_NestedSlice(t *testing.T) {
 	}
 }
 func TestSubsetSlice_NestedSlice_DifferentLength(t *testing.T) {
-
 	super := []any{
 		[]any{
 			"1", "2", "3",
@@ -84,7 +80,6 @@ func TestSubsetSlice_NestedSlice_DifferentLength(t *testing.T) {
 	}
 }
 func TestSubsetSlice_NestedSlice_Fail(t *testing.T) {
-
 	super := []any{
 		[]any{
 			"1", "2", "3",
@@ -113,7 +108,6 @@ func TestSubsetSlice_NestedSlice_Fail(t *testing.T) {
 }
 
 func TestSubset_Simple(t *testing.T) {
-
 	super := map[string]any{
 		"a": "1",
 		"b": "2",
@@ -125,10 +119,8 @@ func TestSubset_Simple(t *testing.T) {
 	if !testutil.ContainSubset(super, sub) {
 		t.Fatalf("expected map to be subset of super, got false")
 	}
-
 }
 func TestSubset_Simple_Fail(t *testing.T) {
-
 	super := map[string]any{
 		"a": "1",
 		"b": "2",
@@ -140,10 +132,8 @@ func TestSubset_Simple_Fail(t *testing.T) {
 	if testutil.ContainSubset(super, sub) {
 		t.Fatalf("expected map to not be subset of super, got true")
 	}
-
 }
 func TestSubset_NestedMap(t *testing.T) {
-
 	super := map[string]any{
 		"a": "1",
 		"b": "2",
@@ -165,7 +155,6 @@ func TestSubset_NestedMap(t *testing.T) {
 	}
 }
 func TestSubset_NestedMap_Fail(t *testing.T) {
-
 	super := map[string]any{
 		"a": "1",
 		"b": "2",
@@ -187,7 +176,6 @@ func TestSubset_NestedMap_Fail(t *testing.T) {
 	}
 }
 func TestSubset_NestedSlice(t *testing.T) {
-
 	super := map[string]any{
 		"a": "1",
 		"b": "2",
@@ -207,7 +195,6 @@ func TestSubset_NestedSlice(t *testing.T) {
 	}
 }
 func TestSubset_ComplexMixed(t *testing.T) {
-
 	super := map[string]any{
 		"a": "1",
 		"b": "2",
@@ -256,7 +243,6 @@ func TestSubset_ComplexMixed(t *testing.T) {
 	}
 }
 func TestSubset_ComplexMixed_Fail(t *testing.T) {
-
 	super := map[string]any{
 		"a": "1",
 		"b": "2",
