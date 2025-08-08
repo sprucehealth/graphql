@@ -1,6 +1,9 @@
 package main
 
-import "testing"
+import (
+	"slices"
+	"testing"
+)
 
 func TestUnexportedName(t *testing.T) {
 	cases := []struct {
@@ -93,5 +96,46 @@ func TestUpperInitialisms(t *testing.T) {
 				t.Errorf("camelCaseInitialisms(%q) = %q, expected %q", c.s, v, c.e)
 			}
 		})
+	}
+}
+
+func TestUnindentAndTrim(t *testing.T) {
+	cases := []struct {
+		input  string
+		output []string
+	}{
+		{input: "", output: nil},
+		{input: "  ", output: nil},
+		{input: "simple", output: []string{"simple"}},
+		{input: "  beginning", output: []string{"beginning"}},
+		{input: "end\t ", output: []string{"end"}},
+		{input: "\nempty\n\nlines\n", output: []string{"empty", "", "lines"}},
+		{
+			input:  "two\nlines",
+			output: []string{"two", "lines"},
+		},
+		{
+			input:  "  two indented\n  lines",
+			output: []string{"two indented", "lines"},
+		},
+		{
+			input:  "\ttwo indented\n\tlines with space at end  ",
+			output: []string{"two indented", "lines with space at end"},
+		},
+		{
+			input:  "\ttwo indented\n\t\tlines with different indentation",
+			output: []string{"two indented", "\tlines with different indentation"},
+		},
+		{
+			input:  "\n  indented empty\n\n  lines\n",
+			output: []string{"indented empty", "", "lines"},
+		},
+	}
+	for _, c := range cases {
+		o := unindentAndTrim(c.input)
+		if !slices.Equal(o, c.output) {
+			t.Fatalf("unindentAndTrim(%q) = %v\nexpected %v",
+				c.input, o, c.output)
+		}
 	}
 }

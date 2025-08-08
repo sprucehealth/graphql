@@ -30,6 +30,109 @@ func testLoc(start int, end int) ast.Location {
 	}
 }
 
+func TestSchemaParser_Descriptions(t *testing.T) {
+	body := `
+"""Type Description"""
+type Hello {
+  "Field Description"
+  world(
+    """
+	   Argument "aka" Description
+	"""
+    arg: Int
+  ): String
+}
+"""Enum Type Description"""
+enum SomeEnum {
+  "Enum Value Description"
+  VALUE
+}`
+	astDoc := parse(t, body)
+	expected := &ast.Document{
+		Loc: testLoc(1, 219),
+		Definitions: []ast.Node{
+			&ast.ObjectDefinition{
+				Loc: testLoc(24, 138),
+				Description: &ast.Description{
+					Loc:  testLoc(1, 23),
+					Text: "Type Description",
+				},
+				Name: &ast.Name{
+					Value: "Hello",
+					Loc:   testLoc(29, 34),
+				},
+				Fields: []*ast.FieldDefinition{
+					{
+						Loc: testLoc(39, 136),
+						Description: &ast.Description{
+							Loc:  testLoc(39, 58),
+							Text: "Field Description",
+						},
+						Name: &ast.Name{
+							Value: "world",
+							Loc:   testLoc(61, 66),
+						},
+						Type: &ast.Named{
+							Loc: testLoc(130, 136),
+							Name: &ast.Name{
+								Value: "String",
+								Loc:   testLoc(130, 136),
+							},
+						},
+						Arguments: []*ast.InputValueDefinition{
+							{
+								Loc: testLoc(72, 124),
+								Description: &ast.Description{
+									Loc:  testLoc(72, 111),
+									Text: "\n\t   Argument \"aka\" Description\n\t",
+								},
+								Name: &ast.Name{
+									Value: "arg",
+									Loc:   testLoc(116, 119),
+								},
+								Type: &ast.Named{
+									Loc: testLoc(121, 124),
+									Name: &ast.Name{
+										Value: "Int",
+										Loc:   testLoc(121, 124),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			&ast.EnumDefinition{
+				Loc: testLoc(167, 219),
+				Description: &ast.Description{
+					Loc:  testLoc(139, 166),
+					Text: "Enum Type Description",
+				},
+				Name: &ast.Name{
+					Value: "SomeEnum",
+					Loc:   testLoc(172, 180),
+				},
+				Values: []*ast.EnumValueDefinition{
+					{
+						Loc: testLoc(185, 217),
+						Description: &ast.Description{
+							Loc:  testLoc(185, 209),
+							Text: "Enum Value Description",
+						},
+						Name: &ast.Name{
+							Value: "VALUE",
+							Loc:   testLoc(212, 217),
+						},
+					},
+				},
+			},
+		},
+	}
+	if !reflect.DeepEqual(astDoc, expected) {
+		t.Fatalf("unexpected document, expected:\n%s\ngot:\n%s", jsonString(expected), jsonString(astDoc))
+	}
+}
+
 func TestSchemaParser_SimpleType(t *testing.T) {
 	body := `
 type Hello {

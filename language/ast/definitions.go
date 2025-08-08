@@ -62,6 +62,8 @@ type FragmentDefinition struct {
 	TypeCondition       *Named
 	Directives          []*Directive
 	SelectionSet        *SelectionSet
+	Doc                 *CommentGroup
+	Description         *Description
 }
 
 func (fd *FragmentDefinition) GetLoc() Location {
@@ -98,8 +100,10 @@ func (vd *VariableDefinition) GetLoc() Location {
 
 // TypeExtensionDefinition implements Node, Definition
 type TypeExtensionDefinition struct {
-	Loc        Location
-	Definition *ObjectDefinition
+	Loc         Location
+	Definition  *ObjectDefinition
+	Doc         *CommentGroup
+	Description *Description
 }
 
 func (def *TypeExtensionDefinition) GetLoc() Location {
@@ -120,10 +124,12 @@ func (def *TypeExtensionDefinition) GetOperation() string {
 
 // DirectiveDefinition implements Node, Definition
 type DirectiveDefinition struct {
-	Loc       Location
-	Name      *Name
-	Arguments []*InputValueDefinition
-	Locations []*Name
+	Loc         Location
+	Name        *Name
+	Arguments   []*InputValueDefinition
+	Locations   []*Name
+	Doc         *CommentGroup
+	Description *Description
 }
 
 func (def *DirectiveDefinition) GetLoc() Location {

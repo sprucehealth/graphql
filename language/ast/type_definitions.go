@@ -62,9 +62,11 @@ func (def *OperationTypeDefinition) GetLoc() Location {
 
 // ScalarDefinition implements Node, Definition
 type ScalarDefinition struct {
-	Loc        Location
-	Name       *Name
-	Directives []*Directive
+	Loc         Location
+	Name        *Name
+	Directives  []*Directive
+	Doc         *CommentGroup
+	Description *Description
 }
 
 func (def *ScalarDefinition) GetLoc() Location {
@@ -89,12 +91,13 @@ func (def *ScalarDefinition) GetOperation() string {
 
 // ObjectDefinition implements Node, Definition
 type ObjectDefinition struct {
-	Loc        Location
-	Name       *Name
-	Interfaces []*Named
-	Directives []*Directive
-	Fields     []*FieldDefinition
-	Doc        *CommentGroup
+	Loc         Location
+	Name        *Name
+	Interfaces  []*Named
+	Directives  []*Directive
+	Fields      []*FieldDefinition
+	Doc         *CommentGroup
+	Description *Description
 }
 
 func (def *ObjectDefinition) GetLoc() Location {
@@ -119,13 +122,14 @@ func (def *ObjectDefinition) GetOperation() string {
 
 // FieldDefinition implements Node
 type FieldDefinition struct {
-	Loc        Location
-	Name       *Name
-	Arguments  []*InputValueDefinition
-	Type       Type
-	Doc        *CommentGroup
-	Comment    *CommentGroup
-	Directives []*Directive
+	Loc         Location
+	Name        *Name
+	Arguments   []*InputValueDefinition
+	Type        Type
+	Doc         *CommentGroup
+	Comment     *CommentGroup
+	Directives  []*Directive
+	Description *Description
 }
 
 func (def *FieldDefinition) GetLoc() Location {
@@ -141,6 +145,7 @@ type InputValueDefinition struct {
 	Doc          *CommentGroup
 	Comment      *CommentGroup
 	Directives   []*Directive
+	Description  *Description
 }
 
 func (def *InputValueDefinition) GetLoc() Location {
@@ -156,11 +161,12 @@ func (def *InputValueDefinition) String() string {
 
 // InterfaceDefinition implements Node, Definition
 type InterfaceDefinition struct {
-	Loc        Location
-	Name       *Name
-	Fields     []*FieldDefinition
-	Directives []*Directive
-	Doc        *CommentGroup
+	Loc         Location
+	Name        *Name
+	Fields      []*FieldDefinition
+	Directives  []*Directive
+	Doc         *CommentGroup
+	Description *Description
 }
 
 func (def *InterfaceDefinition) GetLoc() Location {
@@ -185,12 +191,13 @@ func (def *InterfaceDefinition) GetOperation() string {
 
 // UnionDefinition implements Node, Definition
 type UnionDefinition struct {
-	Loc        Location
-	Name       *Name
-	Directives []*Directive
-	Types      []*Named
-	Doc        *CommentGroup
-	Comment    *CommentGroup
+	Loc         Location
+	Name        *Name
+	Directives  []*Directive
+	Types       []*Named
+	Doc         *CommentGroup
+	Comment     *CommentGroup
+	Description *Description
 }
 
 func (def *UnionDefinition) GetLoc() Location {
@@ -215,11 +222,12 @@ func (def *UnionDefinition) GetOperation() string {
 
 // EnumDefinition implements Node, Definition
 type EnumDefinition struct {
-	Loc        Location
-	Name       *Name
-	Directives []*Directive
-	Values     []*EnumValueDefinition
-	Doc        *CommentGroup
+	Loc         Location
+	Name        *Name
+	Directives  []*Directive
+	Values      []*EnumValueDefinition
+	Doc         *CommentGroup
+	Description *Description
 }
 
 func (def *EnumDefinition) GetLoc() Location {
@@ -244,11 +252,12 @@ func (def *EnumDefinition) GetOperation() string {
 
 // EnumValueDefinition implements Node, Definition
 type EnumValueDefinition struct {
-	Loc        Location
-	Name       *Name
-	Directives []*Directive
-	Doc        *CommentGroup
-	Comment    *CommentGroup
+	Loc         Location
+	Name        *Name
+	Directives  []*Directive
+	Doc         *CommentGroup
+	Comment     *CommentGroup
+	Description *Description
 }
 
 func (def *EnumValueDefinition) GetLoc() Location {
@@ -257,11 +266,12 @@ func (def *EnumValueDefinition) GetLoc() Location {
 
 // InputObjectDefinition implements Node, Definition
 type InputObjectDefinition struct {
-	Loc        Location
-	Name       *Name
-	Directives []*Directive
-	Fields     []*InputValueDefinition
-	Doc        *CommentGroup
+	Loc         Location
+	Name        *Name
+	Directives  []*Directive
+	Fields      []*InputValueDefinition
+	Doc         *CommentGroup
+	Description *Description
 }
 
 func (def *InputObjectDefinition) GetLoc() Location {

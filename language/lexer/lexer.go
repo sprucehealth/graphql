@@ -267,6 +267,32 @@ func (l *Lexer) readString() (Token, error) {
 		value = append(value, l.sliceBody(chunkStart, l.offset))
 	}
 	l.nextRune()
+	// Check if this is a block string.
+	if len(value) == 0 && l.ch == '"' {
+		l.nextRune()
+		blockStart := l.offset
+		blockEnd := l.offset
+	blockStringLoop:
+		for {
+			// TODO: handle embedded double quotes
+			for {
+				l.nextRune()
+				if l.ch == '"' {
+					break
+				}
+			}
+			blockEnd = l.offset
+			for range 3 {
+				if l.ch != '"' {
+					continue blockStringLoop
+				}
+				l.nextRune()
+			}
+			break
+		}
+		return makeToken(STRING, start, l.offset, l.sliceBody(blockStart, blockEnd)), nil
+
+	}
 	return makeToken(STRING, start, l.offset, strings.Join(value, "")), nil
 }
 

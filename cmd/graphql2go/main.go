@@ -64,7 +64,7 @@ type config struct {
 }
 
 func main() {
-	log.SetFlags(0)
+	log.SetFlags(log.Lshortfile)
 	flag.Parse()
 
 	var schema []byte
@@ -659,8 +659,8 @@ func (g *generator) genInterfaceDefinition(def *ast.InterfaceDefinition) {
 	goName := goInterfaceDefName(def.Name.Value)
 	g.printf("var %s = graphql.NewInterface(graphql.InterfaceConfig{\n", goName)
 	g.printf("\tName: %q,\n", def.Name.Value)
-	if def.Doc != nil {
-		g.printf("\tDescription: %s,\n", renderQuotedComments(def.Doc))
+	if def.Description != nil {
+		g.printf("\tDescription: %s,\n", renderQuotedDescription(def.Description))
 	}
 	g.printf("\tFields: graphql.Fields{\n")
 	for _, f := range def.Fields {
@@ -698,7 +698,9 @@ func (g *generator) genInterfaceDefinition(def *ast.InterfaceDefinition) {
 }
 
 func (g *generator) genInterfaceModel(def *ast.InterfaceDefinition) {
-	if def.Doc != nil {
+	if def.Description != nil {
+		g.printf("%s\n", renderDescriptionAsComment(def.Description, ""))
+	} else if def.Doc != nil {
 		g.printf("%s\n", renderLineComments(def.Doc, ""))
 	}
 	// TODO: do we want anything here to make guarantees of match?
@@ -714,8 +716,8 @@ func (g *generator) genUnionDefinition(def *ast.UnionDefinition) {
 	}
 	g.printf("var %s = graphql.NewUnion(graphql.UnionConfig{\n", goUnionDefName(def.Name.Value))
 	g.printf("\tName: %q,\n", def.Name.Value)
-	if def.Doc != nil {
-		g.printf("\tDescription: %s,\n", renderQuotedComments(def.Doc))
+	if def.Description != nil {
+		g.printf("\tDescription: %s,\n", renderQuotedDescription(def.Description))
 	}
 	g.printf("\tTypes: []*graphql.Object{\n")
 	for _, f := range def.Types {
@@ -726,7 +728,9 @@ func (g *generator) genUnionDefinition(def *ast.UnionDefinition) {
 }
 
 func (g *generator) genUnionModel(def *ast.UnionDefinition) {
-	if def.Doc != nil {
+	if def.Description != nil {
+		g.printf("%s\n", renderDescriptionAsComment(def.Description, ""))
+	} else if def.Doc != nil {
 		g.printf("%s\n", renderLineComments(def.Doc, ""))
 	}
 	// TODO: do we want anything here to make guarantees of match?
@@ -745,7 +749,7 @@ func (g *generator) genDirectiveDefinition(def *ast.DirectiveDefinition) {
 	if len(def.Arguments) != 0 {
 		g.printf("\tArgs: graphql.FieldConfigArgument{")
 		for _, a := range def.Arguments {
-			g.printf(g.renderArgumentConfig(a, "\t\t") + ",")
+			g.printf("%s,", g.renderArgumentConfig(a, "\t\t"))
 		}
 		g.printf("\t},\n")
 	}
@@ -753,17 +757,14 @@ func (g *generator) genDirectiveDefinition(def *ast.DirectiveDefinition) {
 }
 
 func (g *generator) genScalarDefinition(def *ast.ScalarDefinition) {
-	// TODO
-	// if def.Doc != nil {
-	// 	g.printf("%s\n", renderLineComments(def.Doc, ""))
-	// }
-
+	if def.Doc != nil {
+		g.printf("%s\n", renderLineComments(def.Doc, ""))
+	}
 	g.printf("var %s = graphql.NewScalar(graphql.ScalarConfig{\n", goScalarDefName(def.Name.Value))
 	g.printf("\tName: %q,\n", def.Name.Value)
-	// TODO
-	// if def.Doc != nil {
-	// 	g.printf("\tDescription: %s,\n", renderQuotedComments(def.Doc))
-	// }
+	if def.Description != nil {
+		g.printf("\tDescription: %s,\n", renderQuotedDescription(def.Description))
+	}
 	g.printf("\tSerialize: serializeScalar%s,\n", exportedName(def.Name.Value))
 	g.printf("\tParseValue: parseScalar%s,\n", exportedName(def.Name.Value))
 	g.printf("\tParseLiteral: parseLiteralScalar%s,\n", exportedName(def.Name.Value))
@@ -779,23 +780,16 @@ func (g *generator) genEnumDefinition(def *ast.EnumDefinition) {
 	}
 	g.printf("var %s = graphql.NewEnum(graphql.EnumConfig{\n", goDefName)
 	g.printf("\tName: %q,\n", def.Name.Value)
-	if def.Doc != nil {
-		g.printf("\tDescription: %s,\n", renderQuotedComments(def.Doc))
+	if def.Description != nil {
+		g.printf("\tDescription: %s,\n", renderQuotedDescription(def.Description))
 	}
 	g.printf("\tValues: graphql.EnumValueConfigMap{\n")
 	for _, v := range def.Values {
 		goConstName := goName + exportedCamelCase(v.Name.Value)
 		g.printf("\t\tstring(%s): &graphql.EnumValueConfig{\n", goConstName)
 		g.printf("\t\t\tValue: %s,\n", goConstName)
-		var comments []*ast.Comment
-		if v.Doc != nil {
-			comments = append(comments, v.Doc.List...)
-		}
-		if v.Comment != nil {
-			comments = append(comments, v.Comment.List...)
-		}
-		if len(comments) != 0 {
-			g.printf("\t\t\tDescription: %s,\n", renderQuotedComments(&ast.CommentGroup{List: comments}))
+		if v.Description != nil {
+			g.printf("\t\t\tDescription: %s,\n", renderQuotedDescription(v.Description))
 		}
 		if deprecationReason := g.deprecationReasonFromDirectives(v.Directives, fmt.Sprintf("%s.%s", derefName(def.Name, "Enum"), derefName(v.Name, ""))); deprecationReason != "" {
 			g.printf("\t\t\tDeprecationReason: %s,\n", renderDeprecationReason(deprecationReason))
@@ -815,7 +809,9 @@ func (g *generator) genEnumConstants(def *ast.EnumDefinition) {
 	g.printf("\n// Possible values for the %s enum.\n", goDefName)
 	g.printf("const (\n")
 	for _, v := range def.Values {
-		if v.Doc != nil {
+		if v.Description != nil {
+			g.printf("%s\n", renderDescriptionAsComment(v.Description, "\t"))
+		} else if v.Doc != nil {
 			g.printf("%s\n", renderLineComments(v.Doc, "\t"))
 		}
 		var comm string
@@ -856,8 +852,8 @@ func (g *generator) genObjectDefinition(def *ast.ObjectDefinition) {
 	}
 	g.printf("var %s = graphql.NewObject(graphql.ObjectConfig{\n", goName)
 	g.printf("\tName: %q,\n", def.Name.Value)
-	if def.Doc != nil {
-		g.printf("\tDescription: %s,\n", renderQuotedComments(def.Doc))
+	if def.Description != nil {
+		g.printf("\tDescription: %s,\n", renderQuotedDescription(def.Description))
 	}
 	if len(def.Interfaces) != 0 {
 		g.printf("\tInterfaces: []*graphql.Interface{\n")
@@ -980,8 +976,6 @@ func (g *generator) deprecationReasonFromDirectives(dirs []*ast.Directive, paren
 
 //nolint:unparam
 func (g *generator) renderFieldDefinition(objName string, def *ast.FieldDefinition, indent string, noName bool) string {
-	comments := def.Doc
-	comment := renderLineComments(def.Comment, indent)
 	deprecationReason := g.deprecationReasonFromDirectives(def.Directives, fmt.Sprintf("%s.%s", objName, derefName(def.Name, "")))
 	customResolve := g.hasCustomResolver(objName, def.Name.Value)
 	nonDeprecatedDirectives := make([]*ast.Directive, 0, len(def.Directives))
@@ -1003,23 +997,12 @@ func (g *generator) renderFieldDefinition(objName string, def *ast.FieldDefiniti
 		directivesDef = strings.Join(directiveLines, "\n")
 	}
 
-	var lines []string
-	if comments == nil && len(def.Arguments) == 0 && deprecationReason == "" && !customResolve {
-		if comment != "" {
-			comment += "\n"
-		}
-		if noName {
-			lines = append(lines, "&graphql.Field{")
-		} else {
-			lines = append(lines, fmt.Sprintf("%s%s%q: &graphql.Field{", comment, indent, def.Name.Value))
-		}
-		lines = append(lines, fmt.Sprintf(indent+"\tType: %s,", g.renderType(def.Type, false)))
-		if directivesDef != "" {
-			lines = append(lines, directivesDef)
-		}
-		lines = append(lines, "}")
-		return strings.Join(lines, "\n")
+	comment := renderLineComments(def.Doc, indent)
+	if comment == "" {
+		comment = renderLineComments(def.Comment, indent)
 	}
+
+	var lines []string
 	if !noName && comment != "" && deprecationReason == "" {
 		lines = append(lines, comment)
 	}
@@ -1037,8 +1020,8 @@ func (g *generator) renderFieldDefinition(objName string, def *ast.FieldDefiniti
 		}
 		lines = append(lines, indent+"\t},")
 	}
-	if def.Doc != nil {
-		lines = append(lines, fmt.Sprintf("%s\tDescription: %s,", indent, renderQuotedComments(def.Doc)))
+	if def.Description != nil {
+		lines = append(lines, fmt.Sprintf("%s\tDescription: %s,", indent, renderQuotedDescription(def.Description)))
 	}
 	if deprecationReason != "" {
 		lines = append(lines, fmt.Sprintf("%s\tDeprecationReason: %s,", indent, renderDeprecationReason(deprecationReason)))
@@ -1091,8 +1074,8 @@ func (g *generator) genInputObjectDefinition(def *ast.InputObjectDefinition) {
 	cycleTypes := g.cycleBreaks[def.Name.Value]
 	g.printf("var %s = graphql.NewInputObject(graphql.InputObjectConfig{\n", goDefName)
 	g.printf("\tName: %s,\n", strconv.Quote(def.Name.Value))
-	if def.Doc != nil {
-		g.printf("\tDescription: %s,\n", renderQuotedComments(def.Doc))
+	if def.Description != nil {
+		g.printf("\tDescription: %s,\n", renderQuotedDescription(def.Description))
 	}
 	g.printf("\tFields: graphql.InputObjectConfigFieldMap{\n")
 	var stubFields []*ast.InputValueDefinition
@@ -1143,7 +1126,8 @@ func (g *generator) genInputModel(def *ast.InputObjectDefinition) {
 
 func (g *generator) renderInputValueDefinition(objDef *ast.InputObjectDefinition, def *ast.InputValueDefinition, indent string, noName bool) string {
 	comment := renderLineComments(def.Comment, indent)
-	if def.Doc == nil && def.DefaultValue == nil {
+	deprecationReason := g.deprecationReasonFromDirectives(def.Directives, fmt.Sprintf("%s.%s", objDef.Name.Value, derefName(def.Name, "")))
+	if comment == "" && def.DefaultValue == nil && def.Description == nil && deprecationReason == "" {
 		if comment != "" {
 			comment += "\n"
 		}
@@ -1163,8 +1147,11 @@ func (g *generator) renderInputValueDefinition(objDef *ast.InputObjectDefinition
 	lines = append(lines,
 		firstLine,
 		fmt.Sprintf("%s\tType: %s,", indent, g.renderType(def.Type, true)))
-	if def.Doc != nil {
-		lines = append(lines, fmt.Sprintf("%s\tDescription: %s,", indent, renderQuotedComments(def.Doc)))
+	if def.Description != nil {
+		lines = append(lines, fmt.Sprintf("%s\tDescription: %s,", indent, renderQuotedDescription(def.Description)))
+	}
+	if deprecationReason != "" {
+		lines = append(lines, fmt.Sprintf("%s\tDeprecationReason: %s,\n", renderDeprecationReason(deprecationReason)))
 	}
 	if def.DefaultValue != nil {
 		lines = append(lines, fmt.Sprintf("%s\tDefaultValue: %s,", indent, g.renderValue(objDef.Name.Value+"."+def.Name.Value, def.Type, def.DefaultValue)))
@@ -1204,7 +1191,7 @@ func (g *generator) renderASTArgument(def *ast.Argument, indent string, inSliceL
 
 func (g *generator) renderArgumentConfig(def *ast.InputValueDefinition, indent string) string {
 	comment := renderLineComments(def.Comment, indent)
-	if def.Doc == nil && def.DefaultValue == nil {
+	if comment == "" && def.DefaultValue == nil && def.Description == nil {
 		if comment != "" {
 			comment += "\n"
 		}
@@ -1217,8 +1204,8 @@ func (g *generator) renderArgumentConfig(def *ast.InputValueDefinition, indent s
 	lines = append(lines,
 		fmt.Sprintf("%s%q: &graphql.ArgumentConfig{", indent, def.Name.Value),
 		fmt.Sprintf("%s\tType: %s,", indent, g.renderType(def.Type, true)))
-	if def.Doc != nil {
-		lines = append(lines, fmt.Sprintf("%s\tDescription: %s,", indent, renderQuotedComments(def.Doc)))
+	if def.Description != nil {
+		lines = append(lines, fmt.Sprintf("%s\tDescription: %s,", indent, renderQuotedDescription(def.Description)))
 	}
 	if def.DefaultValue != nil {
 		lines = append(lines, fmt.Sprintf("%s\tDefaultValue: %s,", indent, g.renderValue("", def.Type, def.DefaultValue)))
@@ -1385,7 +1372,7 @@ func (g *generator) goType(t ast.Type, fieldName string) string {
 }
 
 func renderLineComments(cg *ast.CommentGroup, indent string) string {
-	if cg == nil {
+	if cg == nil || len(cg.List) == 0 {
 		return ""
 	}
 	lines := make([]string, len(cg.List))
@@ -1395,13 +1382,66 @@ func renderLineComments(cg *ast.CommentGroup, indent string) string {
 	return strings.Join(lines, "\n")
 }
 
-func renderQuotedComments(cg *ast.CommentGroup) string {
-	lines := make([]string, len(cg.List))
-	for i, c := range cg.List {
-		lines[i] = strings.TrimLeft(c.Text, "# ")
+// unindentAndTrim removes an equal number of spaces from the beginning of each
+// line when 's' is split by newlines. Any empty lines at the beginnign and end
+// are removed.
+func unindentAndTrim(s string) []string {
+	if s == "" {
+		return nil
+	}
+	lines := strings.Split(s, "\n")
+	// Find the shortest run of spaces at the beginning of all lines.
+	minSpaces := len(s)
+	for _, l := range lines {
+		for i, r := range l {
+			if !unicode.IsSpace(r) {
+				minSpaces = min(minSpaces, i)
+				break
+			}
+		}
+	}
+	if minSpaces != 0 {
+		for i, l := range lines {
+			if len(l) >= minSpaces {
+				lines[i] = strings.TrimRight(l[minSpaces:], " \t")
+			}
+		}
+	} else {
+		for i, l := range lines {
+			lines[i] = strings.TrimRight(l, " \t")
+		}
+	}
+	for len(lines) != 0 && lines[0] == "" {
+		lines = lines[1:]
+	}
+	for len(lines) != 0 && lines[len(lines)-1] == "" {
+		lines = lines[:len(lines)-1]
+	}
+	return lines
+}
+
+func renderDescriptionAsComment(d *ast.Description, indent string) string {
+	if d == nil {
+		return ""
+	}
+	descLines := unindentAndTrim(d.Text)
+	lines := make([]string, len(descLines))
+	for i, l := range descLines {
+		lines[i] = indent + "// " + strings.TrimRight(l, " ")
+	}
+	return strings.Join(lines, "\n")
+}
+
+func renderQuotedDescription(d *ast.Description) string {
+	if d == nil {
+		return "null"
+	}
+	lines := unindentAndTrim(d.Text)
+	if len(lines) == 0 {
+		return `""`
 	}
 	text := strings.Join(lines, "\n")
-	if strings.ContainsRune(text, '\n') {
+	if len(lines) > 1 {
 		return "`" + strings.ReplaceAll(text, "`", "'") + "`"
 	}
 	return strconv.Quote(text)

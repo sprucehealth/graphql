@@ -75,7 +75,7 @@ func generateClient(g *generator) {
 	sort.Strings(sigs)
 	g.printf("type Client interface {\n")
 	for _, sig := range sigs {
-		g.printf(sig + "\n")
+		g.printf("%s\n", sig)
 	}
 	g.printf("}\n")
 	g.print(`
