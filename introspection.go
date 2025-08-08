@@ -611,8 +611,11 @@ func init() {
 		Resolve: func(ctx context.Context, p ResolveParams) (any, error) {
 			if ttype, ok := p.Source.(*InputObject); ok {
 				fields := []*InputObjectField{}
+				includeDeprecated, _ := p.Args["includeDeprecated"].(bool)
 				for _, field := range ttype.Fields() {
-					fields = append(fields, field)
+					if !includeDeprecated || field.DeprecationReason == "" {
+						fields = append(fields, field)
+					}
 				}
 				sort.Slice(fields, func(i, j int) bool {
 					return fields[i].Name() < fields[j].Name()

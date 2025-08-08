@@ -1078,9 +1078,10 @@ type InputObject struct {
 	err error
 }
 type InputObjectFieldConfig struct {
-	Type         Input  `json:"type"`
-	DefaultValue any    `json:"defaultValue"`
-	Description  string `json:"description"`
+	Type              Input  `json:"type"`
+	DefaultValue      any    `json:"defaultValue"`
+	DeprecationReason string `json:"deprecationReason,omitempty"`
+	Description       string `json:"description"`
 }
 
 type InputObjectFields map[string]*InputObjectField
@@ -1090,6 +1091,7 @@ type InputObjectField struct {
 	Type               Input  `json:"type"`
 	DefaultValue       any    `json:"defaultValue"`
 	PrivateDescription string `json:"description"`
+	DeprecationReason  string `json:"deprecationReason,omitempty"`
 }
 
 func (st *InputObjectField) Name() string {
@@ -1171,6 +1173,7 @@ func (gt *InputObject) defineFieldMap() InputObjectFieldMap {
 			Type:               fieldConfig.Type,
 			PrivateDescription: fieldConfig.Description,
 			DefaultValue:       fieldConfig.DefaultValue,
+			DeprecationReason:  fieldConfig.DeprecationReason,
 		}
 	}
 	return resultFieldMap
