@@ -1151,7 +1151,7 @@ func (g *generator) renderInputValueDefinition(objDef *ast.InputObjectDefinition
 		lines = append(lines, fmt.Sprintf("%s\tDescription: %s,", indent, renderQuotedDescription(def.Description)))
 	}
 	if deprecationReason != "" {
-		lines = append(lines, fmt.Sprintf("%s\tDeprecationReason: %s,\n", renderDeprecationReason(deprecationReason)))
+		lines = append(lines, fmt.Sprintf("%s\tDeprecationReason: %s,\n", indent, renderDeprecationReason(deprecationReason)))
 	}
 	if def.DefaultValue != nil {
 		lines = append(lines, fmt.Sprintf("%s\tDefaultValue: %s,", indent, g.renderValue(objDef.Name.Value+"."+def.Name.Value, def.Type, def.DefaultValue)))
