@@ -77,6 +77,8 @@ func Execute(ctx context.Context, p ExecuteParams) *Result {
 		result = r
 	case <-ctx.Done():
 		err := ctx.Err()
+		// Give the executor some extra time to complete. Hopefully, we can
+		// get a better error showing where the execution timed out.
 		if errors.Is(err, context.DeadlineExceeded) && p.TimeoutWait != 0 {
 			select {
 			case r := <-resultChannel:
@@ -85,8 +87,9 @@ func Execute(ctx context.Context, p ExecuteParams) *Result {
 			}
 		}
 		if result == nil {
-			result = &Result{}
-			result.Errors = append(result.Errors, gqlerrors.FormatError(err))
+			result = &Result{
+				Errors: []gqlerrors.FormattedError{gqlerrors.FormatError(err)},
+			}
 		}
 	}
 	return result
@@ -205,7 +208,7 @@ func executeOperation(ctx context.Context, p ExecuteOperationParams) *Result {
 // Extracts the root type of the operation from the schema.
 func getOperationRootType(schema Schema, operation ast.Definition) (*Object, error) {
 	if operation == nil {
-		return nil, errors.New("Can only execute queries and mutations")
+		return nil, errors.New("graphql: can only execute queries and mutations")
 	}
 
 	switch operation.GetOperation() {
@@ -256,6 +259,12 @@ type ExecuteFieldsParams struct {
 	ParentType       *Object
 	Source           any
 	Fields           map[string][]*ast.Field
+}
+
+type deferredResolve struct {
+	resultMap map[string]any
+	resultKey string
+	resultFn  func()
 }
 
 func executeFieldsSerially(ctx context.Context, p ExecuteFieldsParams, path []string) *Result {
@@ -508,13 +517,15 @@ func resolveField(ctx context.Context, eCtx *ExecutionContext, parentType *Objec
 	}()
 
 	fieldAST := fieldASTs[0]
-	fieldName := ""
+
+	var fieldName string
 	if fieldAST.Name != nil {
 		fieldName = fieldAST.Name.Value
 	}
 
 	fieldDef := getFieldDef(eCtx.Schema, parentType, fieldName, eCtx.DisallowIntrospection)
 	if fieldDef == nil {
+		// A field not defined in the schema was selected.
 		resultState.hasNoFieldDefs = true
 		return nil, resultState
 	}
@@ -561,17 +572,25 @@ func resolveField(ctx context.Context, eCtx *ExecutionContext, parentType *Objec
 
 	var resolveFnError error
 
-	var st time.Time
-	if customResolver && eCtx.Tracer != nil {
-		st = time.Now()
-	}
-	result, resolveFnError = resolveFn(ctx, ResolveParams{
-		Source: source,
-		Args:   args,
-		Info:   info,
-	})
-	if !st.IsZero() {
-		eCtx.Tracer.Trace(ctx, path, time.Since(st))
+	if customResolver {
+		var st time.Time
+		if eCtx.Tracer != nil {
+			st = time.Now()
+		}
+		result, resolveFnError = resolveFn(ctx, ResolveParams{
+			Source: source,
+			Args:   args,
+			Info:   info,
+		})
+		if eCtx.Tracer != nil {
+			eCtx.Tracer.Trace(ctx, path, time.Since(st))
+		}
+	} else {
+		result, resolveFnError = resolveFn(ctx, ResolveParams{
+			Source: source,
+			Args:   args,
+			Info:   info,
+		})
 	}
 
 	if resolveFnError != nil {
@@ -583,27 +602,21 @@ func resolveField(ctx context.Context, eCtx *ExecutionContext, parentType *Objec
 }
 
 func completeValueCatchingError(ctx context.Context, eCtx *ExecutionContext, returnType Type, fieldASTs []*ast.Field, info ResolveInfo, result any, path []string) (completed any) {
-	// catch panic
 	defer func() any {
 		if r := recover(); r != nil {
-			// send panic upstream
 			if _, ok := returnType.(*NonNull); ok {
 				panic(r)
 			}
 			if err, ok := r.(gqlerrors.FormattedError); ok {
 				eCtx.Errors = append(eCtx.Errors, err)
+				return completed
 			}
-			return completed
+			panic(r)
 		}
 		return completed
 	}()
 
-	if returnType, ok := returnType.(*NonNull); ok {
-		completed := completeValue(ctx, eCtx, returnType, fieldASTs, info, result, path)
-		return completed
-	}
-	completed = completeValue(ctx, eCtx, returnType, fieldASTs, info, result, path)
-	return completed
+	return completeValue(ctx, eCtx, returnType, fieldASTs, info, result, path)
 }
 
 func completeValue(ctx context.Context, eCtx *ExecutionContext, returnType Type, fieldASTs []*ast.Field, info ResolveInfo, result any, path []string) any {
@@ -742,7 +755,6 @@ func completeObjectValue(ctx context.Context, eCtx *ExecutionContext, returnType
 		Fields:           subFieldASTs,
 	}
 	results := executeFieldsSerially(ctx, executeFieldsParams, path)
-
 	return results.Data
 }
 
