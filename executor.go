@@ -610,13 +610,8 @@ func completeValue(ctx context.Context, eCtx *ExecutionContext, returnType Type,
 	if err := ctx.Err(); err != nil {
 		panic(gqlerrors.FormatError(err))
 	}
-
-	resultVal := reflect.ValueOf(result)
-	if resultVal.IsValid() && resultVal.Type().Kind() == reflect.Func {
-		if propertyFn, ok := result.(func() any); ok {
-			return propertyFn()
-		}
-		panic(gqlerrors.NewFormattedError("Error resolving func. Expected `func() any` signature"))
+	if propertyFn, ok := result.(func() any); ok {
+		return propertyFn()
 	}
 
 	// If field type is NonNull, complete for inner type, and throw field error
