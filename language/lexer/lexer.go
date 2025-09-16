@@ -291,7 +291,6 @@ func (l *Lexer) readString() (Token, error) {
 			break
 		}
 		return makeToken(STRING, start, l.offset, l.sliceBody(blockStart, blockEnd)), nil
-
 	}
 	return makeToken(STRING, start, l.offset, strings.Join(value, "")), nil
 }

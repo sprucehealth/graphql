@@ -2109,3 +2109,70 @@ func TestDeprecatedField(t *testing.T) {
 		t.Fatalf("Expected \"deprecated field\" error got %+#v", result.Errors[0])
 	}
 }
+
+func TestCoroutines(t *testing.T) {
+	query := `
+		query _ {
+			foo
+			bar
+		}
+    `
+
+	expected := &graphql.Result{
+		Data: map[string]any{
+			"foo": "bar",
+			"bar": "foo",
+		},
+	}
+
+	const fooEnumValue = "foo"
+
+	enumType := graphql.NewEnum(graphql.EnumConfig{
+		Name: "Bar",
+		Values: graphql.EnumValueConfigMap{
+			string(fooEnumValue): &graphql.EnumValueConfig{
+				Value: fooEnumValue,
+			},
+		},
+	})
+
+	schema, err := graphql.NewSchema(graphql.SchemaConfig{
+		Query: graphql.NewObject(graphql.ObjectConfig{
+			Name: "Query",
+			Fields: graphql.Fields{
+				"foo": &graphql.Field{
+					Type: graphql.NewNonNull(graphql.String),
+					Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
+						graphql.PauseCoroutine(ctx)
+						return "bar", nil
+					},
+				},
+				"bar": &graphql.Field{
+					Type: graphql.NewNonNull(enumType),
+					Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
+						return fooEnumValue, nil
+					},
+				},
+			},
+		}),
+	})
+	if err != nil {
+		t.Fatalf("Error in schema %s", err)
+	}
+
+	// parse query
+	astDoc := testutil.TestParse(t, query)
+
+	ep := graphql.ExecuteParams{
+		Schema:           schema,
+		AST:              astDoc,
+		EnableCoroutines: true,
+	}
+	result := testutil.TestExecute(t, context.Background(), ep)
+	if len(result.Errors) > 0 {
+		t.Fatalf("wrong result, unexpected errors: %v", result.Errors)
+	}
+	if !reflect.DeepEqual(expected, result) {
+		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expected, result))
+	}
+}

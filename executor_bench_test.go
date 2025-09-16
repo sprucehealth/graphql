@@ -93,7 +93,7 @@ func BenchmarkDefaultResolveFnStruct(b *testing.B) {
 
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if _, err := defaultResolveFn(context.Background(), p); err != nil {
 			b.Fatal(err)
 		}
@@ -119,14 +119,14 @@ func BenchmarkDefaultResolveFnMap(b *testing.B) {
 
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if _, err := defaultResolveFn(context.Background(), p); err != nil {
 			b.Fatal(err)
 		}
 	}
 }
 
-func BenchmarkQuery(b *testing.B) {
+func benchmarkQuery(b *testing.B, coroutines bool) {
 	type enumValueType string
 
 	const enumValue enumValueType = "foo"
@@ -205,16 +205,25 @@ func BenchmarkQuery(b *testing.B) {
 	}
 
 	ep := ExecuteParams{
-		Schema: schema,
-		AST:    astDoc,
+		Schema:           schema,
+		AST:              astDoc,
+		EnableCoroutines: coroutines,
 	}
 
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		result := Execute(context.Background(), ep)
 		if len(result.Errors) > 0 {
 			b.Fatalf("wrong result, unexpected errors: %v", result.Errors)
 		}
 	}
+}
+
+func BenchmarkQuery(b *testing.B) {
+	benchmarkQuery(b, false)
+}
+
+func BenchmarkQueryCoroutines(b *testing.B) {
+	benchmarkQuery(b, true)
 }

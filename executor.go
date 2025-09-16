@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -23,6 +24,7 @@ type ExecuteParams struct {
 	// TODO: Abstract this to possibly handle more types
 	FieldDefinitionDirectiveHandler func(context.Context, *ast.Directive, *FieldDefinition) error
 	DisallowIntrospection           bool
+	EnableCoroutines                bool
 	// TimeoutWait is the amount of time to allow for resolvers to handle
 	// a context deadline error before the executor does.
 	TimeoutWait time.Duration
@@ -47,6 +49,7 @@ func Execute(ctx context.Context, p ExecuteParams) *Result {
 			FieldDefinitionDirectiveHandler: p.FieldDefinitionDirectiveHandler,
 			DisallowIntrospection:           p.DisallowIntrospection,
 			Tracer:                          p.Tracer,
+			EnableCoroutines:                p.EnableCoroutines,
 		})
 
 		if err != nil {
@@ -77,6 +80,8 @@ func Execute(ctx context.Context, p ExecuteParams) *Result {
 		result = r
 	case <-ctx.Done():
 		err := ctx.Err()
+		// Give the executor some extra time to complete. Hopefully, we can
+		// get a better error showing where the execution timed out.
 		if errors.Is(err, context.DeadlineExceeded) && p.TimeoutWait != 0 {
 			select {
 			case r := <-resultChannel:
@@ -85,8 +90,9 @@ func Execute(ctx context.Context, p ExecuteParams) *Result {
 			}
 		}
 		if result == nil {
-			result = &Result{}
-			result.Errors = append(result.Errors, gqlerrors.FormatError(err))
+			result = &Result{
+				Errors: []gqlerrors.FormattedError{gqlerrors.FormatError(err)},
+			}
 		}
 	}
 	return result
@@ -105,6 +111,7 @@ type BuildExecutionCtxParams struct {
 	FieldDefinitionDirectiveHandler func(context.Context, *ast.Directive, *FieldDefinition) error
 	DisallowIntrospection           bool
 	Tracer                          Tracer
+	EnableCoroutines                bool
 }
 
 type ExecutionContext struct {
@@ -119,6 +126,20 @@ type ExecutionContext struct {
 	FieldDefinitionDirectiveHandler func(context.Context, *ast.Directive, *FieldDefinition) error
 	DisallowIntrospection           bool
 	Tracer                          Tracer
+	EnableCoroutines                bool
+
+	pendingCoroutines queue[*pendingCoroutine]
+}
+
+type pendingCoroutine struct {
+	resMap     map[string]any
+	resKey     string
+	path       []string
+	runtime    time.Duration
+	returnType Type
+	fieldASTs  []*ast.Field
+	info       ResolveInfo
+	co         *coroutine
 }
 
 func safeNodeType(n ast.Node) string {
@@ -171,6 +192,7 @@ func buildExecutionContext(p BuildExecutionCtxParams) (*ExecutionContext, error)
 		FieldDefinitionDirectiveHandler: p.FieldDefinitionDirectiveHandler,
 		DisallowIntrospection:           p.DisallowIntrospection,
 		Tracer:                          p.Tracer,
+		EnableCoroutines:                p.EnableCoroutines,
 	}, nil
 }
 
@@ -199,13 +221,43 @@ func executeOperation(ctx context.Context, p ExecuteOperationParams) *Result {
 		Fields:           fields,
 	}
 
-	return executeFieldsSerially(ctx, executeFieldsParams, nil)
+	res := executeFieldsSerially(ctx, executeFieldsParams, nil)
+	eCtx := executeFieldsParams.ExecutionContext
+	// Continue any pending coroutines in the order they were paused. The same
+	// coroutine may pause again or there may be other coroutines added. This continues
+	// until all coroutines complete or the context ends.
+	for pend := range eCtx.pendingCoroutines.all() {
+		if err := ctx.Err(); err != nil {
+			pend.co.stop()
+			// Continue looping through all the coroutines to stop them. Each iteration checks
+			// the context but that's fine.
+			continue
+		}
+		st := time.Now()
+		coSt := pend.co.run()
+		pend.runtime += time.Since(st)
+		if coSt.done {
+			if coSt.err != nil {
+				panic(gqlerrors.FormatError(coSt.err))
+			}
+
+			completed := completeValueCatchingError(ctx, eCtx, pend.returnType, pend.fieldASTs, pend.info, coSt.res, pend.path)
+			pend.resMap[pend.resKey] = completed
+
+			if p.ExecutionContext.Tracer != nil {
+				eCtx.Tracer.Trace(ctx, pend.path, time.Since(st))
+			}
+		} else {
+			eCtx.pendingCoroutines.push(pend)
+		}
+	}
+	return res
 }
 
 // Extracts the root type of the operation from the schema.
 func getOperationRootType(schema Schema, operation ast.Definition) (*Object, error) {
 	if operation == nil {
-		return nil, errors.New("Can only execute queries and mutations")
+		return nil, errors.New("graphql: can only execute queries and mutations")
 	}
 
 	switch operation.GetOperation() {
@@ -275,6 +327,11 @@ func executeFieldsSerially(ctx context.Context, p ExecuteFieldsParams, path []st
 		resolved, state := resolveField(ctx, p.ExecutionContext, p.ParentType, p.Source, fieldASTs, append(path, name))
 		if state.hasNoFieldDefs {
 			continue
+		}
+		if pend, ok := resolved.(*pendingCoroutine); ok {
+			pend.resMap = finalResults
+			pend.resKey = responseName
+			p.ExecutionContext.pendingCoroutines.push(pend)
 		}
 		finalResults[responseName] = resolved
 	}
@@ -508,13 +565,15 @@ func resolveField(ctx context.Context, eCtx *ExecutionContext, parentType *Objec
 	}()
 
 	fieldAST := fieldASTs[0]
-	fieldName := ""
+
+	var fieldName string
 	if fieldAST.Name != nil {
 		fieldName = fieldAST.Name.Value
 	}
 
 	fieldDef := getFieldDef(eCtx.Schema, parentType, fieldName, eCtx.DisallowIntrospection)
 	if fieldDef == nil {
+		// A field not defined in the schema was selected.
 		resultState.hasNoFieldDefs = true
 		return nil, resultState
 	}
@@ -561,17 +620,58 @@ func resolveField(ctx context.Context, eCtx *ExecutionContext, parentType *Objec
 
 	var resolveFnError error
 
-	var st time.Time
-	if customResolver && eCtx.Tracer != nil {
-		st = time.Now()
-	}
-	result, resolveFnError = resolveFn(ctx, ResolveParams{
-		Source: source,
-		Args:   args,
-		Info:   info,
-	})
-	if !st.IsZero() {
-		eCtx.Tracer.Trace(ctx, path, time.Since(st))
+	if customResolver {
+		var st time.Time
+		if eCtx.Tracer != nil {
+			st = time.Now()
+		}
+		if eCtx.EnableCoroutines {
+			co := startCoroutine(ctx, func(ctx context.Context) (res any, err error) {
+				defer func() {
+					if r := recover(); r != nil {
+						err = gqlerrors.FormatPanic(r)
+					}
+				}()
+				return resolveFn(ctx, ResolveParams{
+					Source: source,
+					Args:   args,
+					Info:   info,
+				})
+			})
+			coSt := co.run()
+			if !coSt.done {
+				pendCo := &pendingCoroutine{
+					co:         co,
+					path:       slices.Clone(path),
+					returnType: returnType,
+					fieldASTs:  fieldASTs,
+					info:       info,
+				}
+				if eCtx.Tracer != nil {
+					pendCo.runtime = time.Since(st)
+				}
+				return pendCo, resultState
+			} else if eCtx.Tracer != nil {
+				eCtx.Tracer.Trace(ctx, path, time.Since(st))
+			}
+			result = coSt.res
+			resolveFnError = coSt.err
+		} else {
+			result, resolveFnError = resolveFn(ctx, ResolveParams{
+				Source: source,
+				Args:   args,
+				Info:   info,
+			})
+			if eCtx.Tracer != nil {
+				eCtx.Tracer.Trace(ctx, path, time.Since(st))
+			}
+		}
+	} else {
+		result, resolveFnError = resolveFn(ctx, ResolveParams{
+			Source: source,
+			Args:   args,
+			Info:   info,
+		})
 	}
 
 	if resolveFnError != nil {
@@ -583,40 +683,29 @@ func resolveField(ctx context.Context, eCtx *ExecutionContext, parentType *Objec
 }
 
 func completeValueCatchingError(ctx context.Context, eCtx *ExecutionContext, returnType Type, fieldASTs []*ast.Field, info ResolveInfo, result any, path []string) (completed any) {
-	// catch panic
 	defer func() any {
 		if r := recover(); r != nil {
-			// send panic upstream
 			if _, ok := returnType.(*NonNull); ok {
 				panic(r)
 			}
 			if err, ok := r.(gqlerrors.FormattedError); ok {
 				eCtx.Errors = append(eCtx.Errors, err)
+				return completed
 			}
-			return completed
+			panic(r)
 		}
 		return completed
 	}()
 
-	if returnType, ok := returnType.(*NonNull); ok {
-		completed := completeValue(ctx, eCtx, returnType, fieldASTs, info, result, path)
-		return completed
-	}
-	completed = completeValue(ctx, eCtx, returnType, fieldASTs, info, result, path)
-	return completed
+	return completeValue(ctx, eCtx, returnType, fieldASTs, info, result, path)
 }
 
 func completeValue(ctx context.Context, eCtx *ExecutionContext, returnType Type, fieldASTs []*ast.Field, info ResolveInfo, result any, path []string) any {
 	if err := ctx.Err(); err != nil {
 		panic(gqlerrors.FormatError(err))
 	}
-
-	resultVal := reflect.ValueOf(result)
-	if resultVal.IsValid() && resultVal.Type().Kind() == reflect.Func {
-		if propertyFn, ok := result.(func() any); ok {
-			return propertyFn()
-		}
-		panic(gqlerrors.NewFormattedError("Error resolving func. Expected `func() any` signature"))
+	if propertyFn, ok := result.(func() any); ok {
+		return propertyFn()
 	}
 
 	// If field type is NonNull, complete for inner type, and throw field error
@@ -747,7 +836,6 @@ func completeObjectValue(ctx context.Context, eCtx *ExecutionContext, returnType
 		Fields:           subFieldASTs,
 	}
 	results := executeFieldsSerially(ctx, executeFieldsParams, path)
-
 	return results.Data
 }
 
