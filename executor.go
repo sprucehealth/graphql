@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -23,6 +24,7 @@ type ExecuteParams struct {
 	// TODO: Abstract this to possibly handle more types
 	FieldDefinitionDirectiveHandler func(context.Context, *ast.Directive, *FieldDefinition) error
 	DisallowIntrospection           bool
+	EnableCoroutines                bool
 	// TimeoutWait is the amount of time to allow for resolvers to handle
 	// a context deadline error before the executor does.
 	TimeoutWait time.Duration
@@ -47,6 +49,7 @@ func Execute(ctx context.Context, p ExecuteParams) *Result {
 			FieldDefinitionDirectiveHandler: p.FieldDefinitionDirectiveHandler,
 			DisallowIntrospection:           p.DisallowIntrospection,
 			Tracer:                          p.Tracer,
+			EnableCoroutines:                p.EnableCoroutines,
 		})
 
 		if err != nil {
@@ -108,6 +111,7 @@ type BuildExecutionCtxParams struct {
 	FieldDefinitionDirectiveHandler func(context.Context, *ast.Directive, *FieldDefinition) error
 	DisallowIntrospection           bool
 	Tracer                          Tracer
+	EnableCoroutines                bool
 }
 
 type ExecutionContext struct {
@@ -122,6 +126,20 @@ type ExecutionContext struct {
 	FieldDefinitionDirectiveHandler func(context.Context, *ast.Directive, *FieldDefinition) error
 	DisallowIntrospection           bool
 	Tracer                          Tracer
+	EnableCoroutines                bool
+
+	pendingCoroutines queue[*pendingCoroutine]
+}
+
+type pendingCoroutine struct {
+	resMap     map[string]any
+	resKey     string
+	path       []string
+	runtime    time.Duration
+	returnType Type
+	fieldASTs  []*ast.Field
+	info       ResolveInfo
+	co         *coroutine
 }
 
 func safeNodeType(n ast.Node) string {
@@ -174,6 +192,7 @@ func buildExecutionContext(p BuildExecutionCtxParams) (*ExecutionContext, error)
 		FieldDefinitionDirectiveHandler: p.FieldDefinitionDirectiveHandler,
 		DisallowIntrospection:           p.DisallowIntrospection,
 		Tracer:                          p.Tracer,
+		EnableCoroutines:                p.EnableCoroutines,
 	}, nil
 }
 
@@ -202,7 +221,37 @@ func executeOperation(ctx context.Context, p ExecuteOperationParams) *Result {
 		Fields:           fields,
 	}
 
-	return executeFieldsSerially(ctx, executeFieldsParams, nil)
+	res := executeFieldsSerially(ctx, executeFieldsParams, nil)
+	eCtx := executeFieldsParams.ExecutionContext
+	// Continue any pending coroutines in the order they were paused. The same
+	// coroutine may pause again or there may be other coroutines added. This continues
+	// until all coroutines complete or the context ends.
+	for pend := range eCtx.pendingCoroutines.all() {
+		if err := ctx.Err(); err != nil {
+			pend.co.stop()
+			// Continue looping through all the coroutines to stop them. Each iteration checks
+			// the context but that's fine.
+			continue
+		}
+		st := time.Now()
+		coSt := pend.co.run()
+		pend.runtime += time.Since(st)
+		if coSt.done {
+			if coSt.err != nil {
+				panic(gqlerrors.FormatError(coSt.err))
+			}
+
+			completed := completeValueCatchingError(ctx, eCtx, pend.returnType, pend.fieldASTs, pend.info, coSt.res, pend.path)
+			pend.resMap[pend.resKey] = completed
+
+			if p.ExecutionContext.Tracer != nil {
+				eCtx.Tracer.Trace(ctx, pend.path, time.Since(st))
+			}
+		} else {
+			eCtx.pendingCoroutines.push(pend)
+		}
+	}
+	return res
 }
 
 // Extracts the root type of the operation from the schema.
@@ -261,12 +310,6 @@ type ExecuteFieldsParams struct {
 	Fields           map[string][]*ast.Field
 }
 
-type deferredResolve struct {
-	resultMap map[string]any
-	resultKey string
-	resultFn  func()
-}
-
 func executeFieldsSerially(ctx context.Context, p ExecuteFieldsParams, path []string) *Result {
 	if p.Source == nil {
 		p.Source = make(map[string]any)
@@ -284,6 +327,11 @@ func executeFieldsSerially(ctx context.Context, p ExecuteFieldsParams, path []st
 		resolved, state := resolveField(ctx, p.ExecutionContext, p.ParentType, p.Source, fieldASTs, append(path, name))
 		if state.hasNoFieldDefs {
 			continue
+		}
+		if pend, ok := resolved.(*pendingCoroutine); ok {
+			pend.resMap = finalResults
+			pend.resKey = responseName
+			p.ExecutionContext.pendingCoroutines.push(pend)
 		}
 		finalResults[responseName] = resolved
 	}
@@ -577,13 +625,46 @@ func resolveField(ctx context.Context, eCtx *ExecutionContext, parentType *Objec
 		if eCtx.Tracer != nil {
 			st = time.Now()
 		}
-		result, resolveFnError = resolveFn(ctx, ResolveParams{
-			Source: source,
-			Args:   args,
-			Info:   info,
-		})
-		if eCtx.Tracer != nil {
-			eCtx.Tracer.Trace(ctx, path, time.Since(st))
+		if eCtx.EnableCoroutines {
+			co := startCoroutine(ctx, func(ctx context.Context) (res any, err error) {
+				defer func() {
+					if r := recover(); r != nil {
+						err = gqlerrors.FormatPanic(r)
+					}
+				}()
+				return resolveFn(ctx, ResolveParams{
+					Source: source,
+					Args:   args,
+					Info:   info,
+				})
+			})
+			coSt := co.run()
+			if !coSt.done {
+				pendCo := &pendingCoroutine{
+					co:         co,
+					path:       slices.Clone(path),
+					returnType: returnType,
+					fieldASTs:  fieldASTs,
+					info:       info,
+				}
+				if eCtx.Tracer != nil {
+					pendCo.runtime = time.Since(st)
+				}
+				return pendCo, resultState
+			} else if eCtx.Tracer != nil {
+				eCtx.Tracer.Trace(ctx, path, time.Since(st))
+			}
+			result = coSt.res
+			resolveFnError = coSt.err
+		} else {
+			result, resolveFnError = resolveFn(ctx, ResolveParams{
+				Source: source,
+				Args:   args,
+				Info:   info,
+			})
+			if eCtx.Tracer != nil {
+				eCtx.Tracer.Trace(ctx, path, time.Since(st))
+			}
 		}
 	} else {
 		result, resolveFnError = resolveFn(ctx, ResolveParams{
