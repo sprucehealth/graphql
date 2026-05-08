@@ -80,7 +80,7 @@ func init() {
 		PrimaryFunction: "Astromech",
 	}
 	Luke.Friends = append(Luke.Friends, []StarWarsChar{Han, Leia, Threepio, Artoo}...)
-	Vader.Friends = append(Luke.Friends, []StarWarsChar{Tarkin}...)
+	Vader.Friends = append(Vader.Friends, []StarWarsChar{Tarkin}...)
 	Han.Friends = append(Han.Friends, []StarWarsChar{Luke, Leia, Artoo}...)
 	Leia.Friends = append(Leia.Friends, []StarWarsChar{Luke, Han, Threepio, Artoo}...)
 	Tarkin.Friends = append(Tarkin.Friends, []StarWarsChar{Vader}...)
@@ -238,13 +238,13 @@ func init() {
 				Description: "The friends of the droid, or an empty list if they have none.",
 				Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
 					if droid, ok := p.Source.(StarWarsChar); ok {
-						//friends := []map[string]any{}
-						//for _, friend := range droid.Friends {
+						// friends := []map[string]any{}
+						// for _, friend := range droid.Friends {
 						//	friends = append(friends, map[string]any{
 						//		"name": friend.Name,
 						//		"id":   friend.ID,
 						//	})
-						//}
+						// }
 						return droid.Friends, nil
 					}
 					return []any{}, nil

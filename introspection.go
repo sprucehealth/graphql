@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"slices"
 	"sort"
 	"strconv"
 
@@ -360,13 +361,7 @@ var DirectiveType = NewObject(ObjectConfig{
 			Type:              NewNonNull(Boolean),
 			Resolve: func(ctx context.Context, p ResolveParams) (any, error) {
 				if dir, ok := p.Source.(*Directive); ok {
-					res := false
-					for _, loc := range dir.Locations {
-						if loc == DirectiveLocationField {
-							res = true
-							break
-						}
-					}
+					res := slices.Contains(dir.Locations, DirectiveLocationField)
 					return res, nil
 				}
 				return false, nil
@@ -671,7 +666,7 @@ func astFromValue(value any, ttype Type) ast.Value {
 	if !valueVal.IsValid() {
 		return nil
 	}
-	if valueVal.Type().Kind() == reflect.Ptr {
+	if valueVal.Type().Kind() == reflect.Pointer {
 		valueVal = valueVal.Elem()
 	}
 	if !valueVal.IsValid() {

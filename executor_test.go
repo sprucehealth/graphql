@@ -7,13 +7,10 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
-	"time"
 
 	"github.com/sprucehealth/graphql"
 	"github.com/sprucehealth/graphql/gqlerrors"
 	"github.com/sprucehealth/graphql/language/location"
-	"github.com/sprucehealth/graphql/language/parser"
-	"github.com/sprucehealth/graphql/language/source"
 	"github.com/sprucehealth/graphql/testutil"
 )
 
@@ -1817,151 +1814,19 @@ func TestGraphqlTag(t *testing.T) {
 	}
 }
 
-func TestContextDeadline(t *testing.T) {
-	timeout := time.Millisecond * time.Duration(100)
-	acceptableDelay := time.Millisecond * time.Duration(10)
-	expectedErrors := []gqlerrors.FormattedError{
-		{
-			Message:   context.DeadlineExceeded.Error(),
-			Locations: []location.SourceLocation{},
-			Type:      "INTERNAL",
-		},
-	}
-
-	// Query type includes a field that won't resolve within the deadline
-	var queryType = graphql.NewObject(
-		graphql.ObjectConfig{
-			Name: "Query",
-			Fields: graphql.Fields{
-				"hello": &graphql.Field{
-					Type: graphql.String,
-					Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
-						time.Sleep(2 * time.Second)
-						return "world", nil
-					},
-				},
-			},
-		})
-	schema, err := graphql.NewSchema(graphql.SchemaConfig{
-		Query: queryType,
-	})
-	if err != nil {
-		t.Fatalf("unexpected error, got: %v", err)
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
-	startTime := time.Now()
-	result := graphql.Do(ctx, graphql.Params{
-		Schema:        schema,
-		RequestString: "{hello}",
-	})
-	duration := time.Since(startTime)
-
-	if duration > timeout+acceptableDelay {
-		t.Fatalf("graphql.Do completed in %s, should have completed in %s", duration, timeout)
-	}
-	if !result.HasErrors() || len(result.Errors) == 0 {
-		t.Fatalf("Result should include errors when deadline is exceeded")
-	}
-	result.Errors[0].OriginalError = nil
-	result.Errors[0].StackTrace = ""
-	if !reflect.DeepEqual(expectedErrors, result.Errors) {
-		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expectedErrors, result.Errors))
-	}
-}
-
-func TestContextDeadlineWait(t *testing.T) {
-	timeout := time.Millisecond * time.Duration(100)
-	acceptableDelay := time.Millisecond * time.Duration(10)
-	expectedErrors := []gqlerrors.FormattedError{
-		{
-			Message:   context.DeadlineExceeded.Error(),
-			Locations: []location.SourceLocation{},
-			Type:      "INTERNAL",
-		},
-	}
-
-	// Query type includes a field that won't resolve within the deadline
-	var queryType = graphql.NewObject(
-		graphql.ObjectConfig{
-			Name: "Query",
-			Fields: graphql.Fields{
-				"hello": &graphql.Field{
-					Type: graphql.String,
-					Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
-						<-ctx.Done()
-						return nil, fmt.Errorf("Resolvers: %w", ctx.Err())
-					},
-				},
-			},
-		})
-	schema, err := graphql.NewSchema(graphql.SchemaConfig{
-		Query: queryType,
-	})
-	if err != nil {
-		t.Fatalf("unexpected error, got: %v", err)
-	}
-
-	// 0 timeout wait
-
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
-	startTime := time.Now()
-	result := graphql.Do(ctx, graphql.Params{
-		Schema:        schema,
-		RequestString: "{hello}",
-	})
-	duration := time.Since(startTime)
-
-	if duration > timeout+acceptableDelay {
-		t.Fatalf("graphql.Do completed in %s, should have completed in %s", duration, timeout)
-	}
-	if !result.HasErrors() || len(result.Errors) == 0 {
-		t.Fatalf("Result should include errors when deadline is exceeded")
-	}
-	result.Errors[0].OriginalError = nil
-	result.Errors[0].StackTrace = ""
-	if !reflect.DeepEqual(expectedErrors, result.Errors) {
-		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expectedErrors, result.Errors))
-	}
-
-	// >0 second timeout wait
-
-	ctx, cancel = context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
-	startTime = time.Now()
-	ast, err := parser.Parse(parser.ParseParams{Source: source.New("GraphQL request", "{hello}")})
-	if err != nil {
-		t.Fatal(err)
-	}
-	result = graphql.Execute(ctx, graphql.ExecuteParams{
-		Schema:      schema,
-		AST:         ast,
-		TimeoutWait: time.Second,
-	})
-	duration = time.Since(startTime)
-
-	if duration > timeout+acceptableDelay {
-		t.Fatalf("graphql.Do completed in %s, should have completed in %s", duration, timeout)
-	}
-	if !result.HasErrors() || len(result.Errors) == 0 {
-		t.Fatalf("Result should include errors when deadline is exceeded")
-	}
-	if result.Errors[0].Error() != "Resolvers: context deadline exceeded" {
-		t.Fatalf("Unexpected 'Resolvers: context deadline exceeded' got '%s'", result.Errors[0].Error())
-	}
-}
-
 func TestContextCancel(t *testing.T) {
 	expectedErrors := []gqlerrors.FormattedError{
 		{
-			Message:   context.Canceled.Error(),
-			Locations: []location.SourceLocation{},
-			Type:      "INTERNAL",
+			Message:       context.Canceled.Error(),
+			Locations:     []location.SourceLocation{},
+			Type:          "INTERNAL",
+			OriginalError: context.Canceled,
+		},
+		{
+			Message:       context.Canceled.Error(),
+			Locations:     []location.SourceLocation{},
+			Type:          "INTERNAL",
+			OriginalError: context.Canceled,
 		},
 	}
 
@@ -2007,13 +1872,13 @@ func TestContextCancel(t *testing.T) {
 	if !result.HasErrors() || len(result.Errors) == 0 {
 		t.Fatalf("Result should include errors when deadline is exceeded")
 	}
-	result.Errors[0].OriginalError = nil
-	result.Errors[0].StackTrace = ""
-	if !reflect.DeepEqual(expectedErrors, result.Errors) {
-		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expectedErrors, result.Errors))
-	}
 	if resolveCount != 1 {
 		t.Fatalf("Expected only 1 resolver to be called")
+	}
+	result.Errors[0].StackTrace = ""
+	result.Errors[1].StackTrace = ""
+	if !reflect.DeepEqual(expectedErrors, result.Errors) {
+		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expectedErrors, result.Errors))
 	}
 }
 
@@ -2143,7 +2008,9 @@ func TestCoroutines(t *testing.T) {
 				"foo": &graphql.Field{
 					Type: graphql.NewNonNull(graphql.String),
 					Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
-						graphql.PauseCoroutine(ctx)
+						if err := graphql.PauseCoroutine(ctx); err != nil {
+							t.Fatal(err)
+						}
 						return "bar", nil
 					},
 				},

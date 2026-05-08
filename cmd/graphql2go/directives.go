@@ -39,6 +39,8 @@ parser:
 		case tokComma:
 		case tokIllegal:
 			return "", nil, fmt.Errorf("bad token at %d in %q", p, ds)
+		case tokString:
+			break parser
 		default:
 			break parser
 		}

@@ -45,7 +45,7 @@ func (w *walker) walkASTSlice(sl any) []string {
 	v := reflect.ValueOf(sl)
 	n := v.Len()
 	strs := make([]string, 0, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		s := w.walkAST(v.Index(i).Interface().(ast.Node))
 		if s != "" {
 			strs = append(strs, s)

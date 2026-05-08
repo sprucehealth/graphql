@@ -38,7 +38,7 @@ func generateClient(g *generator) {
 	g.printf(")\n\n")
 
 	clientTypes := make(map[string]struct{})
-	for _, t := range strings.Split(*flagClientTypes, ",") {
+	for t := range strings.SplitSeq(*flagClientTypes, ",") {
 		clientTypes[t] = struct{}{}
 	}
 

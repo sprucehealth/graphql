@@ -165,8 +165,7 @@ func IsAbstractType(ttype any) bool {
 }
 
 // Nullable interface for types that can accept null as a value.
-type Nullable interface {
-}
+type Nullable any
 
 var _ Nullable = (*Scalar)(nil)
 var _ Nullable = (*Object)(nil)

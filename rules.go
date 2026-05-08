@@ -3,6 +3,7 @@ package graphql
 import (
 	"fmt"
 	"math"
+	"slices"
 	"sort"
 	"strings"
 
@@ -495,13 +496,7 @@ func KnownDirectivesRule(context *ValidationContext) *ValidationRuleInstance {
 
 				candidateLocation := getDirectiveLocationForASTPath(p.Ancestors)
 
-				directiveHasLocation := false
-				for _, loc := range directiveDef.Locations {
-					if loc == candidateLocation {
-						directiveHasLocation = true
-						break
-					}
-				}
+				directiveHasLocation := slices.Contains(directiveDef.Locations, candidateLocation)
 
 				if candidateLocation == "" {
 					context.ReportError(newValidationError(

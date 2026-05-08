@@ -8,9 +8,11 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -138,7 +140,11 @@ func main() {
 		if err != nil {
 			log.Fatalf("Failed to create output file: %s", err)
 		}
-		defer fo.Close()
+		defer func() {
+			if err := fo.Close(); err != nil {
+				log.Fatalf("Failed to close output file: %s", err)
+			}
+		}()
 		outWriter = fo
 	}
 
@@ -286,9 +292,7 @@ func newGenerator(outWriter io.Writer, root *ast.Document) *generator {
 		if err := json.Unmarshal(b, &g.cfg); err != nil {
 			log.Fatalf("Failed to decode config file: %s", err)
 		}
-		for k, v := range g.cfg.Initialisms {
-			initialisms[k] = v
-		}
+		maps.Copy(initialisms, g.cfg.Initialisms)
 	}
 
 	// Generate index of type name to definition and make sure all names are unique
@@ -935,12 +939,7 @@ func (g *generator) genObjectModel(def *ast.ObjectDefinition) {
 }
 
 func (g *generator) hasCustomResolver(typeName, fieldName string) bool {
-	for _, f := range g.cfg.Resolvers[typeName] {
-		if f == fieldName {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(g.cfg.Resolvers[typeName], fieldName)
 }
 
 func isTopLevelObject(o string) bool {

@@ -26,13 +26,13 @@ func NewFormattedError(message string) FormattedError {
 }
 
 func FormatError(err error) FormattedError {
-	if e, ok := asType[FormattedError](err); ok {
+	if e, ok := errors.AsType[FormattedError](err); ok {
 		return e
 	}
-	if e, ok := asType[*FormattedError](err); ok {
+	if e, ok := errors.AsType[*FormattedError](err); ok {
 		return *e
 	}
-	if e, ok := asType[runtime.Error](err); ok {
+	if e, ok := errors.AsType[runtime.Error](err); ok {
 		return FormattedError{
 			Message:       e.Error(),
 			Type:          ErrorTypeInternal,
@@ -40,7 +40,7 @@ func FormatError(err error) FormattedError {
 			OriginalError: e,
 		}
 	}
-	if e, ok := asType[*Error](err); ok {
+	if e, ok := errors.AsType[*Error](err); ok {
 		return FormattedError{
 			Type:          e.Type,
 			Message:       e.Error(),
@@ -48,7 +48,7 @@ func FormatError(err error) FormattedError {
 			OriginalError: e.OriginalError,
 		}
 	}
-	if e, ok := asType[Error](err); ok {
+	if e, ok := errors.AsType[Error](err); ok {
 		return FormattedError{
 			Type:          e.Type,
 			Message:       e.Error(),
@@ -66,18 +66,22 @@ func FormatError(err error) FormattedError {
 }
 
 func FormatPanic(r any) FormattedError {
-	if e, ok := r.(FormattedError); ok {
-		return e
+	err, ok := r.(error)
+	if ok {
+		if e, ok := errors.AsType[FormattedError](err); ok {
+			return e
+		}
 	}
 	return FormattedError{
-		Message:    fmt.Sprintf("panic %v", r),
-		Type:       ErrorTypeInternal,
-		StackTrace: stackTrace(),
+		Message:       fmt.Sprintf("panic %v", r),
+		Type:          ErrorTypeInternal,
+		StackTrace:    stackTrace(),
+		OriginalError: err,
 	}
 }
 
 func FormatErrors(errs ...error) []FormattedError {
-	formattedErrors := []FormattedError{}
+	formattedErrors := make([]FormattedError, 0, len(errs))
 	for _, err := range errs {
 		formattedErrors = append(formattedErrors, FormatError(err))
 	}
