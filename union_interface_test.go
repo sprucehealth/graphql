@@ -9,10 +9,8 @@ import (
 	"github.com/sprucehealth/graphql/testutil"
 )
 
-type testNamedType interface {
-}
-type testPet interface {
-}
+type testNamedType any
+type testPet any
 type testDog2 struct {
 	Name  string `json:"name"`
 	Barks bool   `json:"barks"`

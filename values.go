@@ -240,7 +240,7 @@ func isValidInputValue(value any, ttype Input) (bool, []string) {
 	case *List:
 		itemType := ttype.OfType
 		valType := reflect.ValueOf(value)
-		if valType.Kind() == reflect.Ptr {
+		if valType.Kind() == reflect.Pointer {
 			valType = valType.Elem()
 		}
 		if valType.Kind() == reflect.Slice {
@@ -325,7 +325,7 @@ func isNullish(value any) bool {
 		return math.IsNaN(v)
 	}
 	// The any can hide an underlying nil ptr
-	if v := reflect.ValueOf(value); v.Kind() == reflect.Ptr {
+	if v := reflect.ValueOf(value); v.Kind() == reflect.Pointer {
 		return v.IsNil()
 	}
 	return false
@@ -343,7 +343,7 @@ func isEmptyValue(v reflect.Value) bool {
 		return v.Uint() == 0
 	case reflect.Float32, reflect.Float64:
 		return v.Float() == 0
-	case reflect.Interface, reflect.Ptr:
+	case reflect.Interface, reflect.Pointer:
 		return v.IsNil()
 	case reflect.Complex64, reflect.Complex128:
 		return v.Complex() == 0

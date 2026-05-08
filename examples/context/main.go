@@ -10,6 +10,8 @@ import (
 	"github.com/sprucehealth/graphql"
 )
 
+type currentUserCtxKey struct{}
+
 var Schema graphql.Schema
 
 var userType = graphql.NewObject(
@@ -33,7 +35,7 @@ var queryType = graphql.NewObject(
 			"me": &graphql.Field{
 				Type: userType,
 				Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
-					return ctx.Value("currentUser"), nil
+					return ctx.Value(currentUserCtxKey{}), nil
 				},
 			},
 		},
@@ -44,7 +46,7 @@ func graphqlHandler(w http.ResponseWriter, r *http.Request) {
 		ID   int    `json:"id"`
 		Name string `json:"name"`
 	}{1, "cool user"}
-	result := graphql.Do(context.WithValue(r.Context(), "currentUser", user), graphql.Params{
+	result := graphql.Do(context.WithValue(r.Context(), currentUserCtxKey{}, user), graphql.Params{
 		Schema:        Schema,
 		RequestString: r.URL.Query()["query"][0],
 	})
@@ -52,14 +54,14 @@ func graphqlHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("wrong result, unexpected errors: %v", result.Errors)
 		return
 	}
-	json.NewEncoder(w).Encode(result)
+	_ = json.NewEncoder(w).Encode(result)
 }
 
 func main() {
 	http.HandleFunc("/graphql", graphqlHandler)
 	fmt.Println("Now server is running on port 8080")
 	fmt.Println("Test with Get      : curl -g 'http://localhost:8080/graphql?query={me{id,name}}'")
-	http.ListenAndServe(":8080", nil)
+	_ = http.ListenAndServe(":8080", nil)
 }
 
 func init() {

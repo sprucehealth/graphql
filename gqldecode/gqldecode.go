@@ -46,7 +46,7 @@ func Decode(in map[string]any, out any) (err error) {
 		}
 	}()
 	outV := reflect.ValueOf(out)
-	if outV.Kind() != reflect.Ptr || outV.Type().Elem().Kind() != reflect.Struct {
+	if outV.Kind() != reflect.Pointer || outV.Type().Elem().Kind() != reflect.Struct {
 		return errors.New("gqldecode: Decode requires a pointer to a struct")
 	}
 	decodeStruct(in, outV.Elem())
@@ -67,7 +67,7 @@ func decodeStruct(in map[string]any, out reflect.Value) {
 
 func decodeValue(v any, out reflect.Value, fi *structFieldInfo) {
 	if fi.hasDecoderMethod || fi.hasNonPtrDecoderMethod {
-		if out.Kind() == reflect.Ptr && out.IsNil() {
+		if out.Kind() == reflect.Pointer && out.IsNil() {
 			out.Set(reflect.New(out.Type().Elem()))
 		}
 
@@ -82,6 +82,7 @@ func decodeValue(v any, out reflect.Value, fi *structFieldInfo) {
 		}
 		return
 	}
+	//nolint:exhaustive
 	switch out.Kind() {
 	case reflect.String:
 		s, ok := v.(string)
@@ -163,12 +164,12 @@ func decodeValue(v any, out reflect.Value, fi *structFieldInfo) {
 		switch {
 		case out.Type() == reflect.TypeOf(v):
 			out.Set(reflect.ValueOf(v))
-		case reflect.ValueOf(v).Kind() == reflect.Ptr && out.Type() == reflect.TypeOf(v).Elem():
+		case reflect.ValueOf(v).Kind() == reflect.Pointer && out.Type() == reflect.TypeOf(v).Elem():
 			out.Set(reflect.ValueOf(v).Elem())
 		default:
 			decodeStruct(v.(map[string]any), out)
 		}
-	case reflect.Ptr:
+	case reflect.Pointer:
 		if out.IsNil() {
 			out.Set(reflect.New(out.Type().Elem()))
 		}
@@ -220,7 +221,7 @@ func infoForStruct(structType reflect.Type) *structInfo {
 	sm = &structInfo{
 		fields: make(map[string]*structFieldInfo),
 	}
-	decoderType := reflect.TypeOf((*Decoder)(nil)).Elem()
+	decoderType := reflect.TypeFor[Decoder]()
 	for i := 0; i < structType.NumField(); i++ {
 		field := structType.Field(i)
 		if field.PkgPath != "" && !field.Anonymous {

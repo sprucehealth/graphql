@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"reflect"
@@ -994,9 +995,9 @@ func checkError(t *testing.T, err error, expectedError *gqlerrors.Error) {
 	if err.Error() != expectedError.Message {
 		t.Fatalf("unexpected error.\nexpected:\n%v\n\ngot:\n%v", expectedError, err.Error())
 	}
-	gErr := toError(err)
-	if gErr == nil {
-		t.Fatalf("unexpected nil Error")
+	gErr, ok := errors.AsType[*gqlerrors.Error](err)
+	if !ok {
+		t.Fatalf("unexpected *gqlerrors.Error got %T", err)
 	}
 	if len(expectedError.Positions) > 0 && !reflect.DeepEqual(gErr.Positions, expectedError.Positions) {
 		t.Fatalf("unexpected Error.Positions.\nexpected:\n%v\n\ngot:\n%v", expectedError.Positions, gErr.Positions)
@@ -1016,18 +1017,6 @@ func checkErrorMessage(t *testing.T, err error, expectedMessage string) {
 		if lines[0] != expectedMessage {
 			t.Fatalf("unexpected error.\nexpected:\n%v\n\ngot:\n%v", expectedMessage, lines[0])
 		}
-	}
-}
-
-func toError(err error) *gqlerrors.Error {
-	if err == nil {
-		return nil
-	}
-	switch err := err.(type) {
-	case *gqlerrors.Error:
-		return err
-	default:
-		return nil
 	}
 }
 

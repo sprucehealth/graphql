@@ -49,25 +49,25 @@ func highlightSourceAtLocation(s *source.Source, l location.SourceLocation) stri
 	nextLineNum := strconv.Itoa(line + 1)
 	padLen := len(nextLineNum)
 	lines := regexp.MustCompile("\r\n|[\n\r]").Split(s.Body(), -1)
-	var highlight string
+	var highlight strings.Builder
 	if line >= 2 {
-		highlight += fmt.Sprintf("%s: %s\n", lpad(padLen, prevLineNum), printLine(lines[line-2]))
+		_, _ = fmt.Fprintf(&highlight, "%s: %s\n", lpad(padLen, prevLineNum), printLine(lines[line-2]))
 	}
-	highlight += fmt.Sprintf("%s: %s\n", lpad(padLen, lineNum), printLine(lines[line-1]))
+	_, _ = fmt.Fprintf(&highlight, "%s: %s\n", lpad(padLen, lineNum), printLine(lines[line-1]))
 	for i := 1; i < (2 + padLen + l.Column); i++ {
-		highlight += " "
+		highlight.WriteString(" ")
 	}
-	highlight += "^\n"
+	highlight.WriteString("^\n")
 	if line < len(lines) {
-		highlight += fmt.Sprintf("%s: %s\n", lpad(padLen, nextLineNum), printLine(lines[line]))
+		_, _ = fmt.Fprintf(&highlight, "%s: %s\n", lpad(padLen, nextLineNum), printLine(lines[line]))
 	}
-	return highlight
+	return highlight.String()
 }
 
 func lpad(l int, s string) string {
-	var r string
+	var r strings.Builder
 	for i := 1; i < (l - len(s) + 1); i++ {
-		r += " "
+		r.WriteString(" ")
 	}
-	return r + s
+	return r.String() + s
 }

@@ -31,71 +31,39 @@ type ExecuteParams struct {
 	Tracer      Tracer
 }
 
-func Execute(ctx context.Context, p ExecuteParams) *Result {
-	resultChannel := make(chan *Result, 1)
-
-	go func(out chan<- *Result) {
-		result := &Result{}
-
-		exeContext, err := buildExecutionContext(BuildExecutionCtxParams{
-			Schema:                          p.Schema,
-			Root:                            p.Root,
-			AST:                             p.AST,
-			OperationName:                   p.OperationName,
-			Args:                            p.Args,
-			Errors:                          nil,
-			Result:                          result,
-			DeprecatedFieldFn:               p.DeprecatedFieldFn,
-			FieldDefinitionDirectiveHandler: p.FieldDefinitionDirectiveHandler,
-			DisallowIntrospection:           p.DisallowIntrospection,
-			Tracer:                          p.Tracer,
-			EnableCoroutines:                p.EnableCoroutines,
-		})
-
-		if err != nil {
-			result.Errors = append(result.Errors, gqlerrors.FormatError(err))
-			out <- result
-			return
-		}
-
-		defer func() {
-			if r := recover(); r != nil {
-				err := gqlerrors.FormatPanic(r)
-				exeContext.Errors = append(exeContext.Errors, gqlerrors.FormatError(err))
-				result.Errors = exeContext.Errors
-			}
-			out <- result
-		}()
-
-		result = executeOperation(ctx, ExecuteOperationParams{
-			ExecutionContext: exeContext,
-			Root:             p.Root,
-			Operation:        exeContext.Operation,
-		})
-	}(resultChannel)
-
-	var result *Result
-	select {
-	case r := <-resultChannel:
-		result = r
-	case <-ctx.Done():
-		err := ctx.Err()
-		// Give the executor some extra time to complete. Hopefully, we can
-		// get a better error showing where the execution timed out.
-		if errors.Is(err, context.DeadlineExceeded) && p.TimeoutWait != 0 {
-			select {
-			case r := <-resultChannel:
-				result = r
-			case <-time.After(p.TimeoutWait):
-			}
-		}
-		if result == nil {
-			result = &Result{
-				Errors: []gqlerrors.FormattedError{gqlerrors.FormatError(err)},
-			}
-		}
+func Execute(ctx context.Context, p ExecuteParams) (result *Result) {
+	exeContext, err := buildExecutionContext(BuildExecutionCtxParams{
+		Schema:                          p.Schema,
+		Root:                            p.Root,
+		AST:                             p.AST,
+		OperationName:                   p.OperationName,
+		Args:                            p.Args,
+		Errors:                          nil,
+		Result:                          result,
+		DeprecatedFieldFn:               p.DeprecatedFieldFn,
+		FieldDefinitionDirectiveHandler: p.FieldDefinitionDirectiveHandler,
+		DisallowIntrospection:           p.DisallowIntrospection,
+		Tracer:                          p.Tracer,
+		EnableCoroutines:                p.EnableCoroutines,
+	})
+	if err != nil {
+		return &Result{Errors: []gqlerrors.FormattedError{gqlerrors.FormatError(err)}}
 	}
-	return result
+
+	result = &Result{}
+	defer func() {
+		if r := recover(); r != nil {
+			err := gqlerrors.FormatPanic(r)
+			exeContext.Errors = append(exeContext.Errors, gqlerrors.FormatError(err))
+			result.Errors = exeContext.Errors
+		}
+	}()
+
+	return executeOperation(ctx, ExecuteOperationParams{
+		ExecutionContext: exeContext,
+		Root:             p.Root,
+		Operation:        exeContext.Operation,
+	})
 }
 
 type BuildExecutionCtxParams struct {
@@ -159,7 +127,7 @@ func buildExecutionContext(p BuildExecutionCtxParams) (*ExecutionContext, error)
 				operation = definition
 			}
 		case *ast.FragmentDefinition:
-			key := ""
+			var key string
 			if definition.GetName() != nil && definition.GetName().Value != "" {
 				key = definition.GetName().Value
 			}
@@ -954,7 +922,7 @@ func defaultResolveFn(ctx context.Context, p ResolveParams) (any, error) {
 
 	// try to resolve p.Source as a struct first
 	sourceVal := reflect.ValueOf(p.Source)
-	if sourceVal.IsValid() && sourceVal.Type().Kind() == reflect.Ptr {
+	if sourceVal.IsValid() && sourceVal.Type().Kind() == reflect.Pointer {
 		sourceVal = sourceVal.Elem()
 	}
 	if !sourceVal.IsValid() {

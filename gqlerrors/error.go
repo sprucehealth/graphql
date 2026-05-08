@@ -1,8 +1,6 @@
 package gqlerrors
 
 import (
-	"errors"
-
 	"github.com/sprucehealth/graphql/language/ast"
 	"github.com/sprucehealth/graphql/language/location"
 	"github.com/sprucehealth/graphql/language/source"
@@ -55,7 +53,7 @@ func NewError(typ ErrorType, message string, nodes []ast.Node, stack string, sou
 			positions = append(positions, node.GetLoc().Start)
 		}
 	}
-	locations := []location.SourceLocation{}
+	locations := make([]location.SourceLocation, 0, len(positions))
 	for _, pos := range positions {
 		loc := location.GetLocation(source, pos)
 		locations = append(locations, loc)
@@ -70,10 +68,4 @@ func NewError(typ ErrorType, message string, nodes []ast.Node, stack string, sou
 		Locations:     locations,
 		OriginalError: origError,
 	}
-}
-
-func asType[T error](err error) (T, bool) {
-	var tp T
-	ok := errors.As(err, &tp)
-	return tp, ok
 }
