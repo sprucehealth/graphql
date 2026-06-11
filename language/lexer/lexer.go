@@ -209,7 +209,10 @@ func (l *Lexer) readDigits() error {
 func (l *Lexer) readString() (Token, error) {
 	start := l.offset
 	chunkStart := l.rdOffset
-	value := make([]string, 0, 16)
+	// b is only used once an escape sequence is seen; the common case (no
+	// escapes) returns a direct slice of the source with no extra allocation.
+	var b strings.Builder
+	var hasEscape bool
 	for {
 		l.nextRune()
 
@@ -220,25 +223,26 @@ func (l *Lexer) readString() (Token, error) {
 			return Token{}, gqlerrors.NewSyntaxError(l.src, l.offset.runes, fmt.Sprintf(`Invalid character within String: %v.`, printCharCode(l.ch)))
 		}
 		if l.ch == '\\' {
-			value = append(value, l.sliceBody(chunkStart, l.offset))
+			hasEscape = true
+			b.WriteString(l.sliceBody(chunkStart, l.offset))
 			l.nextRune()
 			switch l.ch {
 			case '"':
-				value = append(value, "\"")
+				b.WriteByte('"')
 			case '/':
-				value = append(value, "/")
+				b.WriteByte('/')
 			case '\\':
-				value = append(value, "\\")
+				b.WriteByte('\\')
 			case 'b':
-				value = append(value, "\b")
+				b.WriteByte('\b')
 			case 'f':
-				value = append(value, "\f")
+				b.WriteByte('\f')
 			case 'n':
-				value = append(value, "\n")
+				b.WriteByte('\n')
 			case 'r':
-				value = append(value, "\r")
+				b.WriteByte('\r')
 			case 't':
-				value = append(value, "\t")
+				b.WriteByte('\t')
 			case 'u':
 				offs := l.rdOffset
 				l.nextRune()
@@ -253,7 +257,7 @@ func (l *Lexer) readString() (Token, error) {
 				if charCode < 0 {
 					return Token{}, gqlerrors.NewSyntaxError(l.src, offs.runes-1, fmt.Sprintf(`Invalid character escape sequence: \u%s`, l.sliceBody(offs, l.rdOffset)))
 				}
-				value = append(value, string(charCode))
+				b.WriteRune(charCode)
 			default:
 				return Token{}, gqlerrors.NewSyntaxError(l.src, l.offset.runes, fmt.Sprintf(`Invalid character escape sequence: \%c.`, l.ch))
 			}
@@ -263,36 +267,43 @@ func (l *Lexer) readString() (Token, error) {
 	if l.ch != '"' {
 		return Token{}, gqlerrors.NewSyntaxError(l.src, l.offset.runes, "Unterminated string.")
 	}
-	if chunkStart.bytes != l.offset.bytes {
-		value = append(value, l.sliceBody(chunkStart, l.offset))
-	}
+	// The final chunk between the last escape (or the start) and the closing quote.
+	tail := l.sliceBody(chunkStart, l.offset)
 	l.nextRune()
-	// Check if this is a block string.
-	if len(value) == 0 && l.ch == '"' {
-		l.nextRune()
-		blockStart := l.offset
-		blockEnd := l.offset
-	blockStringLoop:
-		for {
-			// TODO: handle embedded double quotes
+
+	if !hasEscape {
+		// A block string ("""...""") is signalled by an empty "" followed
+		// immediately by another quote: no content and no escapes consumed.
+		if len(tail) == 0 && l.ch == '"' {
+			l.nextRune()
+			blockStart := l.offset
+			var blockEnd offset
+		blockStringLoop:
 			for {
-				l.nextRune()
-				if l.ch == '"' {
-					break
+				// TODO: handle embedded double quotes
+				for {
+					l.nextRune()
+					if l.ch == '"' {
+						break
+					}
 				}
-			}
-			blockEnd = l.offset
-			for range 3 {
-				if l.ch != '"' {
-					continue blockStringLoop
+				blockEnd = l.offset
+				for range 3 {
+					if l.ch != '"' {
+						continue blockStringLoop
+					}
+					l.nextRune()
 				}
-				l.nextRune()
+				break
 			}
-			break
+			return makeToken(STRING, start, l.offset, l.sliceBody(blockStart, blockEnd)), nil
 		}
-		return makeToken(STRING, start, l.offset, l.sliceBody(blockStart, blockEnd)), nil
+		// Common case: no escapes, so the body is a single contiguous slice.
+		return makeToken(STRING, start, l.offset, tail), nil
 	}
-	return makeToken(STRING, start, l.offset, strings.Join(value, "")), nil
+
+	b.WriteString(tail)
+	return makeToken(STRING, start, l.offset, b.String()), nil
 }
 
 // Converts four hexadecimal chars to the integer that the

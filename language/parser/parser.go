@@ -9,8 +9,6 @@ import (
 	"github.com/sprucehealth/graphql/language/source"
 )
 
-type parseFn func() (any, error)
-
 type ParseOptions struct {
 	NoSource     bool
 	KeepComments bool
@@ -259,20 +257,10 @@ func (p *Parser) parseVariableDefinitions() ([]*ast.VariableDefinition, error) {
 	if !p.peek(lexer.PAREN_L) {
 		return nil, nil
 	}
-	vdefs, err := p.many(lexer.PAREN_L, p.parseVariableDefinition, lexer.PAREN_R)
-	if err != nil {
-		return nil, err
-	}
-	variableDefinitions := make([]*ast.VariableDefinition, 0, len(vdefs))
-	for _, vdef := range vdefs {
-		if vdef != nil {
-			variableDefinitions = append(variableDefinitions, vdef.(*ast.VariableDefinition))
-		}
-	}
-	return variableDefinitions, nil
+	return parseMany(p, lexer.PAREN_L, p.parseVariableDefinition, lexer.PAREN_R)
 }
 
-func (p *Parser) parseVariableDefinition() (any, error) {
+func (p *Parser) parseVariableDefinition() (*ast.VariableDefinition, error) {
 	start := p.tok.Start
 	variable, err := p.parseVariable()
 	if err != nil {
@@ -322,16 +310,9 @@ func (p *Parser) parseVariable() (*ast.Variable, error) {
 
 func (p *Parser) parseSelectionSet() (*ast.SelectionSet, error) {
 	start := p.tok.Start
-	iSelections, err := p.many(lexer.BRACE_L, p.parseSelection, lexer.BRACE_R)
+	selections, err := parseMany(p, lexer.BRACE_L, p.parseSelection, lexer.BRACE_R)
 	if err != nil {
 		return nil, err
-	}
-	selections := make([]ast.Selection, 0, len(iSelections))
-	for _, iSelection := range iSelections {
-		if iSelection != nil {
-			// type assert any into Selection interface
-			selections = append(selections, iSelection.(ast.Selection))
-		}
 	}
 
 	return &ast.SelectionSet{
@@ -340,10 +321,9 @@ func (p *Parser) parseSelectionSet() (*ast.SelectionSet, error) {
 	}, nil
 }
 
-func (p *Parser) parseSelection() (any, error) {
+func (p *Parser) parseSelection() (ast.Selection, error) {
 	if p.peek(lexer.SPREAD) {
-		r, err := p.parseFragment()
-		return r, err
+		return p.parseFragment()
 	}
 	return p.parseField()
 }
@@ -401,20 +381,10 @@ func (p *Parser) parseArguments() ([]*ast.Argument, error) {
 	if !p.peek(lexer.PAREN_L) {
 		return nil, nil
 	}
-	iArguments, err := p.many(lexer.PAREN_L, p.parseArgument, lexer.PAREN_R)
-	if err != nil {
-		return nil, err
-	}
-	arguments := make([]*ast.Argument, 0, len(iArguments))
-	for _, iArgument := range iArguments {
-		if iArgument != nil {
-			arguments = append(arguments, iArgument.(*ast.Argument))
-		}
-	}
-	return arguments, nil
+	return parseMany(p, lexer.PAREN_L, p.parseArgument, lexer.PAREN_R)
 }
 
-func (p *Parser) parseArgument() (any, error) {
+func (p *Parser) parseArgument() (*ast.Argument, error) {
 	start := p.tok.Start
 	name, err := p.parseName()
 	if err != nil {
@@ -442,7 +412,7 @@ func (p *Parser) parseArgument() (any, error) {
 // FragmentSpread : ... FragmentName Directives?
 //
 // InlineFragment : ... TypeCondition? Directives? SelectionSet
-func (p *Parser) parseFragment() (any, error) {
+func (p *Parser) parseFragment() (ast.Selection, error) {
 	start := p.tok.Start
 	if _, err := p.expect(lexer.SPREAD); err != nil {
 		return nil, err
@@ -592,29 +562,23 @@ func (p *Parser) parseValueLiteral(isConst bool) (ast.Value, error) {
 	return nil, p.unexpected(lexer.Token{})
 }
 
-func (p *Parser) parseConstValue() (any, error) {
+func (p *Parser) parseConstValue() (ast.Value, error) {
 	return p.parseValueLiteral(true)
 }
 
-func (p *Parser) parseValueValue() (any, error) {
+func (p *Parser) parseValueValue() (ast.Value, error) {
 	return p.parseValueLiteral(false)
 }
 
 func (p *Parser) parseList(isConst bool) (*ast.ListValue, error) {
 	start := p.tok.Start
-	var item parseFn
+	item := p.parseValueValue
 	if isConst {
 		item = p.parseConstValue
-	} else {
-		item = p.parseValueValue
 	}
-	iValues, err := p.any(lexer.BRACKET_L, item, lexer.BRACKET_R)
+	values, err := parseAny(p, lexer.BRACKET_L, item, lexer.BRACKET_R)
 	if err != nil {
 		return nil, err
-	}
-	values := make([]ast.Value, len(iValues))
-	for i, v := range iValues {
-		values[i] = v.(ast.Value)
 	}
 	return &ast.ListValue{
 		Values: values,
@@ -766,15 +730,9 @@ func (p *Parser) parseSchemaDefinition() (*ast.SchemaDefinition, error) {
 	if err != nil {
 		return nil, err
 	}
-	operationTypesI, err := p.many(lexer.BRACE_L, p.parseOperationTypeDefinition, lexer.BRACE_R)
+	operationTypes, err := parseMany(p, lexer.BRACE_L, p.parseOperationTypeDefinition, lexer.BRACE_R)
 	if err != nil {
 		return nil, err
-	}
-	operationTypes := make([]*ast.OperationTypeDefinition, 0, len(operationTypesI))
-	for _, op := range operationTypesI {
-		if op, ok := op.(*ast.OperationTypeDefinition); ok {
-			operationTypes = append(operationTypes, op)
-		}
 	}
 	return &ast.SchemaDefinition{
 		OperationTypes: operationTypes,
@@ -783,7 +741,7 @@ func (p *Parser) parseSchemaDefinition() (*ast.SchemaDefinition, error) {
 	}, nil
 }
 
-func (p *Parser) parseOperationTypeDefinition() (any, error) {
+func (p *Parser) parseOperationTypeDefinition() (*ast.OperationTypeDefinition, error) {
 	start := p.tok.Start
 	operation, err := p.parseOperationType()
 	if err != nil {
@@ -857,15 +815,9 @@ func (p *Parser) parseObjectTypeDefinition() (*ast.ObjectDefinition, error) {
 	if err != nil {
 		return nil, err
 	}
-	iFields, err := p.any(lexer.BRACE_L, p.parseFieldDefinition, lexer.BRACE_R)
+	fields, err := parseAny(p, lexer.BRACE_L, p.parseFieldDefinition, lexer.BRACE_R)
 	if err != nil {
 		return nil, err
-	}
-	fields := make([]*ast.FieldDefinition, 0, len(iFields))
-	for _, iField := range iFields {
-		if iField != nil {
-			fields = append(fields, iField.(*ast.FieldDefinition))
-		}
 	}
 	return &ast.ObjectDefinition{
 		Name:        name,
@@ -905,7 +857,7 @@ func (p *Parser) parseImplementsInterfaces() ([]*ast.Named, error) {
 }
 
 // FieldDefinition : Name ArgumentsDefinition? : Type Directives?
-func (p *Parser) parseFieldDefinition() (any, error) {
+func (p *Parser) parseFieldDefinition() (*ast.FieldDefinition, error) {
 	docComment := p.leadComment
 
 	start := p.tok.Start
@@ -963,23 +915,13 @@ func (p *Parser) parseArgumentDefs() ([]*ast.InputValueDefinition, error) {
 	if !p.peek(lexer.PAREN_L) {
 		return nil, nil
 	}
-	iInputValueDefinitions, err := p.many(lexer.PAREN_L, p.parseInputValueDef, lexer.PAREN_R)
-	if err != nil {
-		return nil, err
-	}
-	inputValueDefinitions := make([]*ast.InputValueDefinition, 0, len(iInputValueDefinitions))
-	for _, iInputValueDefinition := range iInputValueDefinitions {
-		if iInputValueDefinition != nil {
-			inputValueDefinitions = append(inputValueDefinitions, iInputValueDefinition.(*ast.InputValueDefinition))
-		}
-	}
-	return inputValueDefinitions, err
+	return parseMany(p, lexer.PAREN_L, p.parseInputValueDef, lexer.PAREN_R)
 }
 
 /**
  * InputValueDefinition : Name : Type DefaultValue? Directives?
  */
-func (p *Parser) parseInputValueDef() (any, error) {
+func (p *Parser) parseInputValueDef() (*ast.InputValueDefinition, error) {
 	docComment := p.leadComment
 	start := p.tok.Start
 	desc, err := p.maybeParseDescription()
@@ -1002,12 +944,9 @@ func (p *Parser) parseInputValueDef() (any, error) {
 	if skp, err := p.skip(lexer.EQUALS); err != nil {
 		return nil, err
 	} else if skp {
-		val, err := p.parseConstValue()
+		defaultValue, err = p.parseConstValue()
 		if err != nil {
 			return nil, err
-		}
-		if val, ok := val.(ast.Value); ok {
-			defaultValue = val
 		}
 	}
 	directives, err := p.parseDirectives()
@@ -1041,15 +980,9 @@ func (p *Parser) parseInterfaceTypeDefinition() (*ast.InterfaceDefinition, error
 	if err != nil {
 		return nil, err
 	}
-	iFields, err := p.any(lexer.BRACE_L, p.parseFieldDefinition, lexer.BRACE_R)
+	fields, err := parseAny(p, lexer.BRACE_L, p.parseFieldDefinition, lexer.BRACE_R)
 	if err != nil {
 		return nil, err
-	}
-	fields := make([]*ast.FieldDefinition, 0, len(iFields))
-	for _, iField := range iFields {
-		if iField != nil {
-			fields = append(fields, iField.(*ast.FieldDefinition))
-		}
 	}
 	return &ast.InterfaceDefinition{
 		Name:        name,
@@ -1128,15 +1061,9 @@ func (p *Parser) parseEnumTypeDefinition() (*ast.EnumDefinition, error) {
 	if err != nil {
 		return nil, err
 	}
-	iEnumValueDefs, err := p.any(lexer.BRACE_L, p.parseEnumValueDefinition, lexer.BRACE_R)
+	values, err := parseAny(p, lexer.BRACE_L, p.parseEnumValueDefinition, lexer.BRACE_R)
 	if err != nil {
 		return nil, err
-	}
-	values := make([]*ast.EnumValueDefinition, 0, len(iEnumValueDefs))
-	for _, iEnumValueDef := range iEnumValueDefs {
-		if iEnumValueDef != nil {
-			values = append(values, iEnumValueDef.(*ast.EnumValueDefinition))
-		}
 	}
 	return &ast.EnumDefinition{
 		Name:        name,
@@ -1148,7 +1075,7 @@ func (p *Parser) parseEnumTypeDefinition() (*ast.EnumDefinition, error) {
 	}, nil
 }
 
-func (p *Parser) parseEnumValueDefinition() (any, error) {
+func (p *Parser) parseEnumValueDefinition() (*ast.EnumValueDefinition, error) {
 	docComment := p.leadComment
 	start := p.tok.Start
 	desc, err := p.maybeParseDescription()
@@ -1188,15 +1115,9 @@ func (p *Parser) parseInputObjectTypeDefinition() (*ast.InputObjectDefinition, e
 	if err != nil {
 		return nil, err
 	}
-	iInputValueDefinitions, err := p.any(lexer.BRACE_L, p.parseInputValueDef, lexer.BRACE_R)
+	fields, err := parseAny(p, lexer.BRACE_L, p.parseInputValueDef, lexer.BRACE_R)
 	if err != nil {
 		return nil, err
-	}
-	fields := make([]*ast.InputValueDefinition, 0, len(iInputValueDefinitions))
-	for _, iInputValueDefinition := range iInputValueDefinitions {
-		if iInputValueDefinition != nil {
-			fields = append(fields, iInputValueDefinition.(*ast.InputValueDefinition))
-		}
 	}
 	return &ast.InputObjectDefinition{
 		Name:        name,
@@ -1462,15 +1383,20 @@ func (p *Parser) unexpected(atToken lexer.Token) error {
 	return gqlerrors.NewSyntaxError(p.Source, token.Start, description)
 }
 
-// any returns a possibly empty list of parse nodes, determined by
+// parseAny returns a possibly empty list of parse nodes, determined by
 // the parseFn. This list begins with a lex token of openKind
 // and ends with a lex token of closeKind. Advances the parser
-// to the next lex token after the closing token.
-func (p *Parser) any(openKind int, parseFn parseFn, closeKind int) ([]any, error) {
+// to the next lex token after the closing token. It returns a typed slice
+// directly, avoiding the []any boxing and per-element conversion the callers
+// would otherwise need.
+func parseAny[T any](p *Parser, openKind int, parseFn func() (T, error), closeKind int) ([]T, error) {
 	if _, err := p.expect(openKind); err != nil {
 		return nil, err
 	}
-	var nodes []any
+	// Non-nil empty start so an empty list returns []T{} rather than nil,
+	// matching the previous behavior callers (and tests) rely on. The empty
+	// literal does not allocate.
+	nodes := []T{}
 	for {
 		if skp, err := p.skip(closeKind); err != nil {
 			return nil, err
@@ -1486,20 +1412,19 @@ func (p *Parser) any(openKind int, parseFn parseFn, closeKind int) ([]any, error
 	return nodes, nil
 }
 
-// many returns a non-empty list of parse nodes, determined by
+// parseMany returns a non-empty list of parse nodes, determined by
 // the parseFn. This list begins with a lex token of openKind
 // and ends with a lex token of closeKind. Advances the parser
 // to the next lex token after the closing token.
-func (p *Parser) many(openKind int, parseFn parseFn, closeKind int) ([]any, error) {
-	_, err := p.expect(openKind)
-	if err != nil {
+func parseMany[T any](p *Parser, openKind int, parseFn func() (T, error), closeKind int) ([]T, error) {
+	if _, err := p.expect(openKind); err != nil {
 		return nil, err
 	}
 	node, err := parseFn()
 	if err != nil {
 		return nil, err
 	}
-	var nodes []any
+	var nodes []T
 	nodes = append(nodes, node)
 	for {
 		if skp, err := p.skip(closeKind); err != nil {

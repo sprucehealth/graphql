@@ -126,8 +126,9 @@ func decodeValue(v any, out reflect.Value, fi *structFieldInfo) {
 			out.Set(vv)
 		}
 	case reflect.Struct:
-		_, isTime := out.Interface().(time.Time)
-		_, isTimePtr := out.Interface().(*time.Time)
+		outIface := out.Interface()
+		_, isTime := outIface.(time.Time)
+		_, isTimePtr := outIface.(*time.Time)
 		if isTime || isTimePtr {
 			var t time.Time
 			switch v := v.(type) {
@@ -161,11 +162,13 @@ func decodeValue(v any, out reflect.Value, fi *structFieldInfo) {
 		// in the event that the type is the same, or a pointer of the same type, set the value of
 		// out to the value of v instead of assuming that v is a map[string]any that can be
 		// decoded into a struct.
+		vv := reflect.ValueOf(v)
+		vt := vv.Type()
 		switch {
-		case out.Type() == reflect.TypeOf(v):
-			out.Set(reflect.ValueOf(v))
-		case reflect.ValueOf(v).Kind() == reflect.Pointer && out.Type() == reflect.TypeOf(v).Elem():
-			out.Set(reflect.ValueOf(v).Elem())
+		case out.Type() == vt:
+			out.Set(vv)
+		case vt.Kind() == reflect.Pointer && out.Type() == vt.Elem():
+			out.Set(vv.Elem())
 		default:
 			decodeStruct(v.(map[string]any), out)
 		}
@@ -236,7 +239,7 @@ func infoForStruct(structType reflect.Type) *structInfo {
 				name:                   name,
 				index:                  i,
 				hasDecoderMethod:       field.Type.Implements(decoderType),
-				hasNonPtrDecoderMethod: reflect.New(field.Type).Type().Implements(decoderType),
+				hasNonPtrDecoderMethod: reflect.PointerTo(field.Type).Implements(decoderType),
 			}
 			for _, opt := range tagOptions[1:] {
 				switch opt {

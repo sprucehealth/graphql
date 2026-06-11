@@ -176,7 +176,7 @@ func executeOperation(ctx context.Context, p ExecuteOperationParams) *Result {
 		return &Result{Errors: gqlerrors.FormatErrors(err)}
 	}
 
-	fields := collectFields(CollectFieldsParams{
+	fields, _ := collectFields(CollectFieldsParams{
 		ExeContext:   p.ExecutionContext,
 		RuntimeType:  operationType,
 		SelectionSet: p.Operation.GetSelectionSet(),
@@ -286,7 +286,7 @@ func executeFieldsSerially(ctx context.Context, p ExecuteFieldsParams, path []st
 		p.Fields = make(map[string][]*ast.Field)
 	}
 
-	finalResults := make(map[string]any)
+	finalResults := make(map[string]any, len(p.Fields))
 	for responseName, fieldASTs := range p.Fields {
 		name := responseName
 		if len(fieldASTs) != 0 && fieldASTs[0].Name != nil {
@@ -323,16 +323,17 @@ type CollectFieldsParams struct {
 // CollectFields requires the "runtime type" of an object. For a field which
 // returns and Interface or Union type, the "runtime type" will be the actual
 // Object type returned by that field.
-func collectFields(p CollectFieldsParams) map[string][]*ast.Field {
+// collectFields returns the collected fields and the set of visited fragment
+// names. The visited set is allocated lazily and is only non-nil once a fragment
+// spread has been seen, so spread-free queries allocate no set.
+func collectFields(p CollectFieldsParams) (map[string][]*ast.Field, map[string]struct{}) {
 	fields := p.Fields
 	if fields == nil {
 		fields = make(map[string][]*ast.Field)
 	}
-	if p.VisitedFragmentNames == nil {
-		p.VisitedFragmentNames = make(map[string]struct{})
-	}
+	visited := p.VisitedFragmentNames
 	if p.SelectionSet == nil {
-		return fields
+		return fields, visited
 	}
 	for _, iSelection := range p.SelectionSet.Selections {
 		switch selection := iSelection.(type) {
@@ -352,19 +353,22 @@ func collectFields(p CollectFieldsParams) map[string][]*ast.Field {
 				RuntimeType:          p.RuntimeType,
 				SelectionSet:         selection.SelectionSet,
 				Fields:               fields,
-				VisitedFragmentNames: p.VisitedFragmentNames,
+				VisitedFragmentNames: visited,
 			}
-			collectFields(innerParams)
+			fields, visited = collectFields(innerParams)
 		case *ast.FragmentSpread:
 			fragName := ""
 			if selection.Name != nil {
 				fragName = selection.Name.Value
 			}
-			if _, ok := p.VisitedFragmentNames[fragName]; ok ||
+			if _, ok := visited[fragName]; ok ||
 				!shouldIncludeNode(p.ExeContext, selection.Directives) {
 				continue
 			}
-			p.VisitedFragmentNames[fragName] = struct{}{}
+			if visited == nil {
+				visited = make(map[string]struct{})
+			}
+			visited[fragName] = struct{}{}
 			fragment, hasFragment := p.ExeContext.Fragments[fragName]
 			if !hasFragment {
 				continue
@@ -378,12 +382,12 @@ func collectFields(p CollectFieldsParams) map[string][]*ast.Field {
 				RuntimeType:          p.RuntimeType,
 				SelectionSet:         fragment.GetSelectionSet(),
 				Fields:               fields,
-				VisitedFragmentNames: p.VisitedFragmentNames,
+				VisitedFragmentNames: visited,
 			}
-			collectFields(innerParams)
+			fields, visited = collectFields(innerParams)
 		}
 	}
-	return fields
+	return fields, visited
 }
 
 // Determines if a field should be included based on the @include and @skip
@@ -787,9 +791,11 @@ func completeObjectValue(ctx context.Context, eCtx *ExecutionContext, returnType
 		}
 	}
 
-	// Collect sub-fields to execute to complete this value.
-	subFieldASTs := make(map[string][]*ast.Field)
-	visitedFragmentNames := make(map[string]struct{})
+	// Collect sub-fields to execute to complete this value. visitedFragmentNames
+	// is left nil and allocated lazily by collectFields only when a fragment
+	// spread is encountered (most queries have none).
+	subFieldASTs := make(map[string][]*ast.Field, len(fieldASTs))
+	var visitedFragmentNames map[string]struct{}
 	for _, fieldAST := range fieldASTs {
 		if fieldAST == nil {
 			continue
@@ -803,7 +809,7 @@ func completeObjectValue(ctx context.Context, eCtx *ExecutionContext, returnType
 				Fields:               subFieldASTs,
 				VisitedFragmentNames: visitedFragmentNames,
 			}
-			subFieldASTs = collectFields(innerParams)
+			subFieldASTs, visitedFragmentNames = collectFields(innerParams)
 		}
 	}
 	executeFieldsParams := ExecuteFieldsParams{
