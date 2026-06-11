@@ -524,6 +524,40 @@ type resolveFieldResultState struct {
 	hasNoFieldDefs bool
 }
 
+// raiseFieldError handles a field-level error. For a nullable field it records
+// the error and the field resolves to null. For a NonNull field it panics to
+// bubble the null up to the nearest nullable ancestor, where it is recovered by
+// completeValueCatchingError. panic is used here solely as that cross-frame
+// null-propagation mechanism.
+func raiseFieldError(eCtx *ExecutionContext, returnType Type, err error) {
+	fe := gqlerrors.FormatError(err)
+	if _, ok := returnType.(*NonNull); ok {
+		panic(fe)
+	}
+	eCtx.Errors = append(eCtx.Errors, fe)
+}
+
+// recoverFieldPanic converts a value recovered from a resolver panic into an
+// error. A raw string panic is turned into a located error; anything else is
+// formatted as a panic.
+func recoverFieldPanic(r any, fieldASTs []*ast.Field) error {
+	if s, ok := r.(string); ok {
+		return NewLocatedError(s, FieldASTsToNodeASTs(fieldASTs))
+	}
+	return gqlerrors.FormatPanic(r)
+}
+
+// callResolver invokes a resolver, recovering any panic from the (untrusted)
+// resolver code and returning it as an error.
+func callResolver(ctx context.Context, resolveFn FieldResolveFn, fieldASTs []*ast.Field, params ResolveParams) (result any, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = recoverFieldPanic(r, fieldASTs)
+		}
+	}()
+	return resolveFn(ctx, params)
+}
+
 // Resolves the field on the given source object. In particular, this
 // figures out the value that the field returns by calling its resolve function,
 // then calls completeValue to complete promises, serialize scalars, or execute
@@ -533,26 +567,6 @@ func resolveField(ctx context.Context, eCtx *ExecutionContext, parentType *Objec
 		// Jump straight to the top-level recover to void anymore work.
 		panic(gqlerrors.FormatError(err))
 	}
-
-	// catch panic from resolveFn
-	var returnType Output
-	defer func() (any, resolveFieldResultState) {
-		if r := recover(); r != nil {
-			var err error
-			if s, ok := r.(string); ok {
-				err = NewLocatedError(s, FieldASTsToNodeASTs(fieldASTs))
-			} else {
-				err = gqlerrors.FormatPanic(r)
-			}
-			// send panic upstream
-			if _, ok := returnType.(*NonNull); ok {
-				panic(gqlerrors.FormatError(err))
-			}
-			eCtx.Errors = append(eCtx.Errors, gqlerrors.FormatError(err))
-			return result, resultState
-		}
-		return result, resultState
-	}()
 
 	fieldAST := fieldASTs[0]
 
@@ -567,23 +581,25 @@ func resolveField(ctx context.Context, eCtx *ExecutionContext, parentType *Objec
 		resultState.hasNoFieldDefs = true
 		return nil, resultState
 	}
+	returnType := fieldDef.Type
 
 	if fieldDef.DeprecationReason != "" && eCtx.DeprecatedFieldFn != nil {
 		if err := eCtx.DeprecatedFieldFn(ctx, parentType, fieldDef); err != nil {
-			panic(gqlerrors.FormatError(err))
+			raiseFieldError(eCtx, returnType, err)
+			return nil, resultState
 		}
 	}
 
 	if len(fieldDef.Directives) != 0 && eCtx.FieldDefinitionDirectiveHandler != nil {
 		for _, d := range fieldDef.Directives {
 			if err := eCtx.FieldDefinitionDirectiveHandler(ctx, d, fieldDef); err != nil {
-				panic(gqlerrors.FormatError(err))
+				raiseFieldError(eCtx, returnType, err)
+				return nil, resultState
 			}
 		}
 	}
 
 	var customResolver bool
-	returnType = fieldDef.Type
 	resolveFn := fieldDef.Resolve
 	if resolveFn == nil {
 		resolveFn = defaultResolveFn
@@ -596,7 +612,8 @@ func resolveField(ctx context.Context, eCtx *ExecutionContext, parentType *Objec
 	// TODO: find a way to memoize, in case this field is within a List type.
 	args, err := getArgumentValues(fieldDef.Args, fieldAST.Arguments, eCtx.VariableValues)
 	if err != nil {
-		panic(gqlerrors.FormatError(err))
+		raiseFieldError(eCtx, returnType, err)
+		return nil, resultState
 	}
 
 	info := ResolveInfo{
@@ -628,7 +645,7 @@ func resolveField(ctx context.Context, eCtx *ExecutionContext, parentType *Objec
 			co := startCoroutine(ctx, func(ctx context.Context) (res any, err error) {
 				defer func() {
 					if r := recover(); r != nil {
-						err = gqlerrors.FormatPanic(r)
+						err = recoverFieldPanic(r, fieldASTs)
 					}
 				}()
 				return resolveFn(ctx, ResolveParams{
@@ -656,23 +673,30 @@ func resolveField(ctx context.Context, eCtx *ExecutionContext, parentType *Objec
 			result = coSt.res
 			resolveFnError = coSt.err
 		} else {
-			result, resolveFnError = resolveFn(ctx, params)
+			result, resolveFnError = callResolver(ctx, resolveFn, fieldASTs, params)
 			if eCtx.Tracer != nil {
 				eCtx.Tracer.Trace(ctx, path, time.Since(st))
 			}
 		}
 	} else {
-		result, resolveFnError = resolveFn(ctx, params)
+		result, resolveFnError = callResolver(ctx, resolveFn, fieldASTs, params)
 	}
 
 	if resolveFnError != nil {
-		panic(gqlerrors.FormatError(resolveFnError))
+		raiseFieldError(eCtx, returnType, resolveFnError)
+		return nil, resultState
 	}
 
 	completed := completeValueCatchingError(ctx, eCtx, returnType, fieldASTs, info, result, path)
 	return completed, resultState
 }
 
+// completeValueCatchingError is the recover boundary for GraphQL null
+// propagation. A field error panics from deeper in completeValue (or from
+// raiseFieldError); this catches it and, for a nullable field, records the error
+// and resolves the field to null. For a NonNull field it re-panics to bubble the
+// null up to the nearest nullable ancestor. This is the only place execution
+// errors are intended to be recovered.
 func completeValueCatchingError(ctx context.Context, eCtx *ExecutionContext, returnType Type, fieldASTs []*ast.Field, info ResolveInfo, result any, path []string) (completed any) {
 	defer func() any {
 		if r := recover(); r != nil {
@@ -722,11 +746,14 @@ func completeValue(ctx context.Context, eCtx *ExecutionContext, returnType Type,
 	case *List:
 		// Complete each item in the list with the inner type.
 		return completeListValue(ctx, eCtx, returnType, fieldASTs, info, result, path)
-	case *Scalar:
+	case *Scalar, *Enum:
 		// Leaf type: serialize to a valid value, returning null if not possible.
-		return completeLeafValue(returnType, result)
-	case *Enum:
-		return completeLeafValue(returnType, result)
+		serialized, err := completeLeafValue(returnType.(Leaf), result)
+		if err != nil {
+			// Bubble the serialization error via completeValueCatchingError.
+			panic(err)
+		}
+		return serialized
 	case *Union:
 		// Abstract type: determine the runtime Object type and complete for it.
 		return completeAbstractValue(ctx, eCtx, returnType, fieldASTs, info, result, path)
@@ -823,16 +850,18 @@ func completeObjectValue(ctx context.Context, eCtx *ExecutionContext, returnType
 	return results.Data
 }
 
-// completeLeafValue complete a leaf value (Scalar / Enum) by serializing to a valid value, returning nil if serialization is not possible.
-func completeLeafValue(returnType Leaf, result any) any {
+// completeLeafValue completes a leaf value (Scalar / Enum) by serializing it to
+// a valid value, returning nil if serialization yields a null-ish value. A
+// serialization failure is returned as an error for the caller to propagate.
+func completeLeafValue(returnType Leaf, result any) (any, error) {
 	serializedResult, err := returnType.Serialize(result)
 	if err != nil {
-		panic(gqlerrors.FormatError(err))
+		return nil, gqlerrors.FormatError(err)
 	}
 	if isNullish(serializedResult) {
-		return nil
+		return nil, nil
 	}
-	return serializedResult
+	return serializedResult, nil
 }
 
 // completeListValue complete a list value by completing each item in the list with the inner type
