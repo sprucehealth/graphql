@@ -127,6 +127,7 @@ type DirectiveDefinition struct {
 	Loc         Location
 	Name        *Name
 	Arguments   []*InputValueDefinition
+	Repeatable  bool
 	Locations   []*Name
 	Doc         *CommentGroup
 	Description *Description

@@ -63,6 +63,10 @@ type config struct {
 	Initialisms        map[string]string
 	CustomScalarTypes  map[string]string // Type.Field -> go type
 	NullableInputTypes map[string]bool
+	// NullOmittable makes every nullable field on inputs and output models omittable
+	// (pointer-wrapped) by default. Overridable per model with
+	// @goModelCompatibility(nullOmittable:) and per field with @goField(omittable:).
+	NullOmittable bool
 }
 
 func main() {
@@ -229,23 +233,27 @@ func generateServer(g *generator) {
 			}
 			if len(field.Arguments) == 0 {
 				g.printf("\t%s(ctx context.Context, parent %s, p graphql.ResolveParams) (%s, error)\n",
-					exportedName(field.Name.Value), assertionType, g.goType(field.Type, objDef.Name.Value+"."+field.Name.Value))
+					exportedName(field.Name.Value), assertionType, g.goOutputFieldType(field.Type, objDef.Name.Value, field.Name.Value))
 			} else {
 				g.printf("\t%s(ctx context.Context, parent %s, args *%s%sArgs, p graphql.ResolveParams) (%s, error)\n",
-					exportedName(field.Name.Value), assertionType, exportedName(objDef.Name.Value), exportedName(field.Name.Value), g.goType(field.Type, objDef.Name.Value+"."+field.Name.Value))
+					exportedName(field.Name.Value), assertionType, exportedName(objDef.Name.Value), exportedName(field.Name.Value), g.goOutputFieldType(field.Type, objDef.Name.Value, field.Name.Value))
 			}
 		}
 		g.printf("}\n\n")
 	}
 	g.printf("var Directives = []*graphql.Directive{\n")
 	for _, def := range g.doc.Definitions {
-		if def, ok := def.(*ast.DirectiveDefinition); ok {
+		if def, ok := def.(*ast.DirectiveDefinition); ok && !codegenDirectives[def.Name.Value] {
 			g.printf("\t%s,\n", goDirectiveDefName(def.Name.Value))
 		}
 	}
 	g.printf("}\n\n")
 	// Generate types
 	for _, def := range g.doc.Definitions {
+		if def, ok := def.(*ast.DirectiveDefinition); ok && codegenDirectives[def.Name.Value] {
+			// Codegen-only directive; not part of the runtime schema.
+			continue
+		}
 		g.genNode(def)
 	}
 	// Generate a list of all the types
@@ -294,6 +302,35 @@ func newGenerator(outWriter io.Writer, root *ast.Document) *generator {
 		}
 		maps.Copy(initialisms, g.cfg.Initialisms)
 	}
+
+	// Initialise the config and directive maps that the lookups and the directive
+	// pass write to.
+	if g.cfg.Resolvers == nil {
+		g.cfg.Resolvers = make(map[string][]string)
+	}
+	if g.cfg.CustomFieldTypes == nil {
+		g.cfg.CustomFieldTypes = make(map[string]string)
+	}
+	if g.cfg.CustomScalarTypes == nil {
+		g.cfg.CustomScalarTypes = make(map[string]string)
+	}
+	g.goFieldNames = make(map[string]string)
+	g.goTags = make(map[string][]structTag)
+	g.omittableFields = make(map[string]bool)
+	g.modelNullOmittable = make(map[string]bool)
+	g.boundEnums = make(map[string]string)
+	// Seed extraFields from the JSON config; directives override by name below.
+	g.extraFields = make(map[string]map[string]extraFieldSpec)
+	for typeName, fields := range g.cfg.ExtraFields {
+		m := make(map[string]extraFieldSpec, len(fields))
+		for name, goType := range fields {
+			m[name] = extraFieldSpec{name: name, goType: goType}
+		}
+		g.extraFields[typeName] = m
+	}
+	// Fold gqlgen-style schema directives into the configuration. Runs after the JSON
+	// config is loaded so directive values take precedence on conflict.
+	g.applySchemaDirectives()
 
 	// Generate index of type name to definition and make sure all names are unique
 	for _, def := range root.Definitions {
@@ -356,10 +393,6 @@ func newGenerator(outWriter io.Writer, root *ast.Document) *generator {
 		if *flagVerbose {
 			log.Printf("Cycle: %s [breaking with %s]\n", strings.Join(path, " → "), name)
 		}
-	}
-
-	if g.cfg.Resolvers == nil {
-		g.cfg.Resolvers = make(map[string][]string)
 	}
 
 	// Look for top level types to enforce resolvers
@@ -498,6 +531,14 @@ type generator struct {
 	cycles       map[string][]string
 	typeUseCount map[string]int
 	cycleBreaks  map[string]map[string]struct{} // names of types to break cycles (least used type in a cycle) → types for fields to use placeholders
+
+	// State populated from gqlgen-style schema directives (see gqlgendirectives.go).
+	goFieldNames       map[string]string                    // "Type.Field" → Go struct field name (@goField name)
+	goTags             map[string][]structTag               // "Type.Field" → struct tags (@goTag)
+	omittableFields    map[string]bool                      // "Type.Field" → explicit @goField(omittable:) value (presence = set)
+	modelNullOmittable map[string]bool                      // type name → explicit @goModelCompatibility(nullOmittable:) value (presence = set)
+	boundEnums         map[string]string                    // enum name → external Go type (@goModel)
+	extraFields        map[string]map[string]extraFieldSpec // type name → field name → synthetic field (cfg.ExtraFields + @goExtraField)
 }
 
 func stringsIndex(sl []string, s string) int {
@@ -787,11 +828,19 @@ func (g *generator) genEnumDefinition(def *ast.EnumDefinition) {
 	if def.Description != nil {
 		g.printf("\tDescription: %s,\n", renderQuotedDescription(def.Description))
 	}
+	boundType, bound := g.boundEnums[def.Name.Value]
 	g.printf("\tValues: graphql.EnumValueConfigMap{\n")
 	for _, v := range def.Values {
-		goConstName := goName + exportedCamelCase(v.Name.Value)
-		g.printf("\t\tstring(%s): &graphql.EnumValueConfig{\n", goConstName)
-		g.printf("\t\t\tValue: %s,\n", goConstName)
+		if bound {
+			// The Go enum type is external (@goModel); reference values by their string
+			// literal converted to the bound type rather than a generated constant.
+			g.printf("\t\t%q: &graphql.EnumValueConfig{\n", v.Name.Value)
+			g.printf("\t\t\tValue: %s(%q),\n", boundType, v.Name.Value)
+		} else {
+			goConstName := goName + exportedCamelCase(v.Name.Value)
+			g.printf("\t\tstring(%s): &graphql.EnumValueConfig{\n", goConstName)
+			g.printf("\t\t\tValue: %s,\n", goConstName)
+		}
 		if v.Description != nil {
 			g.printf("\t\t\tDescription: %s,\n", renderQuotedDescription(v.Description))
 		}
@@ -805,6 +854,11 @@ func (g *generator) genEnumDefinition(def *ast.EnumDefinition) {
 }
 
 func (g *generator) genEnumConstants(def *ast.EnumDefinition) {
+	// A @goModel-bound enum uses an external Go type, so skip generating the type and
+	// constants here.
+	if _, ok := g.boundEnums[def.Name.Value]; ok {
+		return
+	}
 	goName := exportedName(def.Name.Value)
 	goDefName := goEnumDefName(def.Name.Value)
 
@@ -897,22 +951,16 @@ func (g *generator) genObjectModel(def *ast.ObjectDefinition) {
 	g.printf("type %s struct {\n", goName)
 	for _, f := range def.Fields {
 		if !g.hasCustomResolver(def.Name.Value, f.Name.Value) {
+			fieldKey := def.Name.Value + "." + f.Name.Value
 			opts := []string{f.Name.Value}
 			if _, ok := f.Type.(*ast.NonNull); !ok {
 				opts = append(opts, "omitempty")
 			}
-			g.printf("\t%s %s `json:%q`\n", exportedName(f.Name.Value), g.goType(f.Type, def.Name.Value+"."+f.Name.Value), strings.Join(opts, ","))
+			defaults := []structTag{{key: "json", value: strings.Join(opts, ",")}}
+			g.printf("\t%s %s `%s`\n", g.goFieldName(fieldKey, f.Name.Value), g.goOutputFieldType(f.Type, def.Name.Value, f.Name.Value), renderStructTag(mergeTags(defaults, g.goTags[fieldKey])))
 		}
 	}
-	// Turn the ExtraFields map into a slice to make the ordering consistent
-	extraFields := make([][2]string, 0, len(g.cfg.ExtraFields[def.Name.Value]))
-	for name, goType := range g.cfg.ExtraFields[def.Name.Value] {
-		extraFields = append(extraFields, [2]string{name, goType})
-	}
-	sort.Slice(extraFields, func(i, j int) bool { return extraFields[i][0] < extraFields[j][0] })
-	for _, nameAndGoType := range extraFields {
-		g.printf("\t%s %s `json:\"-\"`\n", nameAndGoType[0], nameAndGoType[1])
-	}
+	g.renderExtraFields(def.Name.Value)
 	g.printf("}\n")
 
 	if len(def.Interfaces) != 0 {
@@ -940,6 +988,45 @@ func (g *generator) genObjectModel(def *ast.ObjectDefinition) {
 
 func (g *generator) hasCustomResolver(typeName, fieldName string) bool {
 	return slices.Contains(g.cfg.Resolvers[typeName], fieldName)
+}
+
+// isRuntimeDirective reports whether an applied directive should be emitted into the
+// generated runtime schema. "deprecated" is handled separately (via DeprecationReason) and
+// the gqlgen-style codegen directives are consumed at generation time, so neither is
+// emitted.
+func isRuntimeDirective(name string) bool {
+	return name != "deprecated" && !codegenDirectives[name]
+}
+
+// goFieldName returns the Go struct field name for a GraphQL field, honoring a
+// @goField(name:) override ("Type.Field" → name) and otherwise exporting the GraphQL name.
+func (g *generator) goFieldName(fieldKey, gqlName string) string {
+	if n := g.goFieldNames[fieldKey]; n != "" {
+		return n
+	}
+	return exportedName(gqlName)
+}
+
+// renderExtraFields renders the synthetic Go struct fields for a type (sourced from the
+// JSON config's ExtraFields and @goExtraField directives) in a stable, name-sorted order.
+func (g *generator) renderExtraFields(typeName string) {
+	fields := g.extraFields[typeName]
+	names := make([]string, 0, len(fields))
+	for name := range fields {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		f := fields[name]
+		if f.description != "" {
+			g.printf("\t// %s\n", f.description)
+		}
+		tags := f.tags
+		if tags == "" {
+			tags = `json:"-"`
+		}
+		g.printf("\t%s %s `%s`\n", f.name, f.goType, tags)
+	}
 }
 
 func isTopLevelObject(o string) bool {
@@ -977,20 +1064,18 @@ func (g *generator) deprecationReasonFromDirectives(dirs []*ast.Directive, paren
 func (g *generator) renderFieldDefinition(objName string, def *ast.FieldDefinition, indent string, noName bool) string {
 	deprecationReason := g.deprecationReasonFromDirectives(def.Directives, fmt.Sprintf("%s.%s", objName, derefName(def.Name, "")))
 	customResolve := g.hasCustomResolver(objName, def.Name.Value)
-	nonDeprecatedDirectives := make([]*ast.Directive, 0, len(def.Directives))
+	runtimeDirectives := make([]*ast.Directive, 0, len(def.Directives))
 	for _, d := range def.Directives {
-		if d.Name.Value != "deprecated" {
-			nonDeprecatedDirectives = append(nonDeprecatedDirectives, d)
+		if isRuntimeDirective(d.Name.Value) {
+			runtimeDirectives = append(runtimeDirectives, d)
 		}
 	}
 	var directivesDef string
-	if len(nonDeprecatedDirectives) != 0 {
+	if len(runtimeDirectives) != 0 {
 		var directiveLines []string
 		directiveLines = append(directiveLines, indent+"\tDirectives: []*ast.Directive{")
-		for _, d := range def.Directives {
-			if d.Name.Value != "deprecated" {
-				directiveLines = append(directiveLines, g.renderASTDirective(d, indent+"\t\t", true)+",")
-			}
+		for _, d := range runtimeDirectives {
+			directiveLines = append(directiveLines, g.renderASTDirective(d, indent+"\t\t", true)+",")
 		}
 		directiveLines = append(directiveLines, indent+"\t},")
 		directivesDef = strings.Join(directiveLines, "\n")
@@ -1114,12 +1199,15 @@ func (g *generator) genInputModel(def *ast.InputObjectDefinition) {
 	}
 	g.printf("type %s struct {\n", exportedName(def.Name.Value))
 	for _, f := range def.Fields {
-		iType := g.goType(f.Type, def.Name.Value+"."+f.Name.Value)
-		if n, ok := g.cfg.NullableInputTypes[def.Name.Value]; (ok && n) || (!ok && *flagNullableInputs) {
-			iType = g.goInputType(f.Type, def.Name.Value+"."+f.Name.Value, true)
+		fieldKey := def.Name.Value + "." + f.Name.Value
+		iType := g.goType(f.Type, fieldKey)
+		if g.fieldOmittable(def.Name.Value, f.Name.Value, true) {
+			iType = g.goInputType(f.Type, fieldKey, true)
 		}
-		g.printf("\t%s %s `gql:%q json:%q`\n", exportedName(f.Name.Value), iType, f.Name.Value, f.Name.Value)
+		defaults := []structTag{{key: "gql", value: f.Name.Value}, {key: "json", value: f.Name.Value}}
+		g.printf("\t%s %s `%s`\n", g.goFieldName(fieldKey, f.Name.Value), iType, renderStructTag(mergeTags(defaults, g.goTags[fieldKey])))
 	}
+	g.renderExtraFields(def.Name.Value)
 	g.printf("}\n")
 }
 
@@ -1312,10 +1400,18 @@ func (g *generator) goInputType(t ast.Type, fieldName string, nullable bool) str
 			g.failf("Undefined type %q", t.Name.Value)
 		}
 		if _, ok := node.(*ast.EnumDefinition); ok {
+			if bt := g.boundEnums[t.Name.Value]; bt != "" {
+				return p + bt
+			}
 			return p + exportedName(t.Name.Value)
 		}
 		if _, ok := node.(*ast.InterfaceDefinition); ok {
 			return exportedName(t.Name.Value)
+		}
+		if _, ok := node.(*ast.ScalarDefinition); ok {
+			// Reached only when the scalar has no mapping (the CustomScalarTypes check
+			// above returns early otherwise). Without a Go type there is nothing to emit.
+			g.failf("scalar %q used by field %q has no Go type mapping; set it with @goModel(model: \"...\") or the CustomScalarTypes config", t.Name.Value, fieldName)
 		}
 		return "*" + exportedName(t.Name.Value)
 	}
@@ -1356,6 +1452,9 @@ func (g *generator) goType(t ast.Type, fieldName string) string {
 			g.failf("Undefined type %q", t.Name.Value)
 		}
 		if _, ok := node.(*ast.EnumDefinition); ok {
+			if bt := g.boundEnums[t.Name.Value]; bt != "" {
+				return bt
+			}
 			return exportedName(t.Name.Value)
 		}
 		if _, ok := node.(*ast.InterfaceDefinition); ok {
@@ -1364,10 +1463,63 @@ func (g *generator) goType(t ast.Type, fieldName string) string {
 		if _, ok := node.(*ast.UnionDefinition); ok {
 			return exportedName(t.Name.Value)
 		}
+		if _, ok := node.(*ast.ScalarDefinition); ok {
+			// Reached only when the scalar has no mapping (the CustomScalarTypes check
+			// above returns early otherwise). Without a Go type there is nothing to emit.
+			g.failf("scalar %q used by field %q has no Go type mapping; set it with @goModel(model: \"...\") or the CustomScalarTypes config", t.Name.Value, fieldName)
+		}
 		return "*" + exportedName(t.Name.Value)
 	}
 	log.Fatalf("Unhandled type %T", t)
 	return ""
+}
+
+// fieldOmittable reports whether a nullable field should be rendered as a pointer
+// ("omittable"). The decision resolves most-specific-first: a per-field
+// @goField(omittable:) wins, then a per-model @goModelCompatibility(nullOmittable:), then
+// (for inputs only) the legacy NullableInputTypes/-nullable_inputs knobs, and finally the
+// global NullOmittable config (false by default, preserving the original behavior).
+func (g *generator) fieldOmittable(typeName, fieldName string, isInput bool) bool {
+	fieldKey := typeName + "." + fieldName
+	if v, ok := g.omittableFields[fieldKey]; ok {
+		return v
+	}
+	if v, ok := g.modelNullOmittable[typeName]; ok {
+		return v
+	}
+	if isInput {
+		if v, ok := g.cfg.NullableInputTypes[typeName]; ok {
+			return v
+		}
+		if *flagNullableInputs {
+			return true
+		}
+	}
+	return g.cfg.NullOmittable
+}
+
+// goOutputFieldType returns the Go type for an output model struct field. It is goType
+// plus omittable behavior: a value type (builtin/custom scalar or enum) on a nullable
+// omittable field gains a pointer so its absence is distinguishable. Non-null fields,
+// reference types (objects are already *T, interfaces and unions are nilable), lists, and
+// fields with an explicit @goField(type:) override are returned unchanged — mirroring how
+// nullable input fields are rendered.
+func (g *generator) goOutputFieldType(t ast.Type, typeName, fieldName string) string {
+	fieldKey := typeName + "." + fieldName
+	base := g.goType(t, fieldKey)
+	if !g.fieldOmittable(typeName, fieldName, false) || g.cfg.CustomFieldTypes[fieldKey] != "" {
+		return base
+	}
+	if _, nonNull := t.(*ast.NonNull); nonNull {
+		return base
+	}
+	switch g.defForType(t).(type) {
+	case *ast.Named, *ast.ScalarDefinition, *ast.EnumDefinition:
+		if !strings.HasPrefix(base, "*") && !strings.HasPrefix(base, "[]") {
+			return "*" + base
+		}
+	}
+	return base
 }
 
 func renderLineComments(cg *ast.CommentGroup, indent string) string {

@@ -844,6 +844,56 @@ input Hello {
 	}
 }
 
+func TestSchemaParser_DirectiveDefinition(t *testing.T) {
+	cases := []struct {
+		name           string
+		body           string
+		wantName       string
+		wantRepeatable bool
+		wantLocations  []string
+	}{
+		{
+			name:           "non-repeatable",
+			body:           `directive @skip(if: Boolean!) on FIELD | FRAGMENT_SPREAD`,
+			wantName:       "skip",
+			wantRepeatable: false,
+			wantLocations:  []string{"FIELD", "FRAGMENT_SPREAD"},
+		},
+		{
+			name:           "repeatable",
+			body:           `directive @goTag(key: String!, value: String) repeatable on INPUT_FIELD_DEFINITION | FIELD_DEFINITION`,
+			wantName:       "goTag",
+			wantRepeatable: true,
+			wantLocations:  []string{"INPUT_FIELD_DEFINITION", "FIELD_DEFINITION"},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			astDoc := parse(t, c.body)
+			if len(astDoc.Definitions) != 1 {
+				t.Fatalf("expected 1 definition, got %d", len(astDoc.Definitions))
+			}
+			def, ok := astDoc.Definitions[0].(*ast.DirectiveDefinition)
+			if !ok {
+				t.Fatalf("expected *ast.DirectiveDefinition, got %T", astDoc.Definitions[0])
+			}
+			if def.Name.Value != c.wantName {
+				t.Errorf("name = %q, want %q", def.Name.Value, c.wantName)
+			}
+			if def.Repeatable != c.wantRepeatable {
+				t.Errorf("repeatable = %t, want %t", def.Repeatable, c.wantRepeatable)
+			}
+			var locations []string
+			for _, l := range def.Locations {
+				locations = append(locations, l.Value)
+			}
+			if !reflect.DeepEqual(locations, c.wantLocations) {
+				t.Errorf("locations = %v, want %v", locations, c.wantLocations)
+			}
+		})
+	}
+}
+
 func jsonString(v any) string {
 	b, _ := json.MarshalIndent(v, "", "  ")
 	return string(b)

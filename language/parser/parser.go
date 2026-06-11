@@ -1170,6 +1170,15 @@ func (p *Parser) parseDirectiveDefinition() (*ast.DirectiveDefinition, error) {
 	if err != nil {
 		return nil, err
 	}
+	// "repeatable" is an optional keyword that may appear between the arguments
+	// and the "on" keyword (https://spec.graphql.org/draft/#DirectiveDefinition).
+	var repeatable bool
+	if p.tok.Kind == lexer.NAME && p.tok.Value == "repeatable" {
+		repeatable = true
+		if err := p.advance(); err != nil {
+			return nil, err
+		}
+	}
 	_, err = p.expectKeyWord("on")
 	if err != nil {
 		return nil, err
@@ -1183,6 +1192,7 @@ func (p *Parser) parseDirectiveDefinition() (*ast.DirectiveDefinition, error) {
 		Loc:         p.loc(start),
 		Name:        name,
 		Arguments:   args,
+		Repeatable:  repeatable,
 		Locations:   locations,
 		Doc:         p.leadComment,
 		Description: p.leadDescription,

@@ -140,3 +140,12 @@ directive @include(if: Boolean!) on FIELD | FRAGMENT_SPREAD | INLINE_FRAGMENT
 		t.Fatalf("Unexpected result")
 	}
 }
+
+func TestSchemaPrinter_RepeatableDirective(t *testing.T) {
+	query := `directive @goTag(key: String!, value: String) repeatable on FIELD_DEFINITION | INPUT_FIELD_DEFINITION`
+	astDoc := parse(t, query)
+	results := strings.TrimSpace(printer.Print(astDoc))
+	if !reflect.DeepEqual(query, results) {
+		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(query, results))
+	}
+}

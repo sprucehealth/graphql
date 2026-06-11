@@ -1,0 +1,67 @@
+directive @goModel(
+  model: String
+  models: [String!]
+  forceGenerate: Boolean
+) on OBJECT | INPUT_OBJECT | SCALAR | ENUM | INTERFACE | UNION
+
+directive @goField(
+  forceResolver: Boolean
+  name: String
+  omittable: Boolean
+  type: String
+  autoBindGetterHaser: Boolean
+  forceGenerate: Boolean
+  batch: Boolean
+) on INPUT_FIELD_DEFINITION | FIELD_DEFINITION
+
+directive @goTag(key: String!, value: String) repeatable on INPUT_FIELD_DEFINITION | FIELD_DEFINITION
+
+directive @goExtraField(
+  name: String
+  type: String!
+  overrideTags: String
+  description: String
+) repeatable on OBJECT | INPUT_OBJECT
+
+directive @inlineArguments on ARGUMENT_DEFINITION
+
+directive @goModelCompatibility(nullOmittable: Boolean) on OBJECT | INPUT_OBJECT
+
+scalar DateTime @goModel(model: "time.Time")
+
+enum Status @goModel(model: "statuspkg.Status") {
+  ACTIVE
+  INACTIVE
+}
+
+type User
+  @goExtraField(name: "Internal", type: "int64", description: "internal database id")
+  @goExtraField(name: "Raw", type: "[]byte", overrideTags: "json:\"raw,omitempty\"") {
+  id: ID!
+  status: Status!
+  createdAt: DateTime!
+  displayName: String @goField(name: "FullName") @goTag(key: "json", value: "full_name") @goTag(key: "db", value: "full_name")
+  computed: String @goField(forceResolver: true)
+  externalRef: String @goField(type: "refpkg.Ref")
+  lastSeen: Int @goField(omittable: true)
+  lastActive: DateTime @goField(forceResolver: true, omittable: true)
+}
+
+input UserInput @goExtraField(name: "TraceID", type: "string") {
+  id: ID!
+  nickname: String @goField(name: "Nick", omittable: true)
+  tags: [String!] @goTag(key: "json", value: "labels")
+}
+
+type Account @goModelCompatibility(nullOmittable: true) {
+  id: ID!
+  nickname: String
+  age: Int @goField(omittable: false)
+  status: Status
+}
+
+input AccountInput @goModelCompatibility(nullOmittable: true) {
+  id: ID!
+  nickname: String
+  age: Int @goField(omittable: false)
+}

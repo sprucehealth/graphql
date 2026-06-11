@@ -1,0 +1,190 @@
+package schema
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/sprucehealth/graphql"
+	"github.com/sprucehealth/graphql/gqldecode"
+	"github.com/sprucehealth/graphql/gqlerrors"
+	"github.com/sprucehealth/graphql/language/location"
+)
+
+const UserResolversKey = "UserResolvers"
+
+type UserResolvers interface {
+	Computed(ctx context.Context, parent *User, p graphql.ResolveParams) (string, error)
+	LastActive(ctx context.Context, parent *User, p graphql.ResolveParams) (*time.Time, error)
+}
+
+var Directives = []*graphql.Directive{}
+
+var DateTimeDef = graphql.NewScalar(graphql.ScalarConfig{
+	Name:         "DateTime",
+	Serialize:    serializeScalarDateTime,
+	ParseValue:   parseScalarDateTime,
+	ParseLiteral: parseLiteralScalarDateTime,
+})
+
+var StatusDef = graphql.NewEnum(graphql.EnumConfig{
+	Name: "Status",
+	Values: graphql.EnumValueConfigMap{
+		"ACTIVE": &graphql.EnumValueConfig{
+			Value: statuspkg.Status("ACTIVE"),
+		},
+		"INACTIVE": &graphql.EnumValueConfig{
+			Value: statuspkg.Status("INACTIVE"),
+		},
+	},
+})
+
+var userDefFieldID = &graphql.Field{
+	Type: graphql.NewNonNull(graphql.ID),
+}
+
+var userDefFieldStatus = &graphql.Field{
+	Type: graphql.NewNonNull(StatusDef),
+}
+
+var userDefFieldCreatedAt = &graphql.Field{
+	Type: graphql.NewNonNull(DateTimeDef),
+}
+
+var userDefFieldDisplayName = &graphql.Field{
+	Type: graphql.String,
+}
+
+var userDefFieldComputed = &graphql.Field{
+	Type: graphql.String,
+	Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
+		r := p.Info.RootValue.(map[string]any)[UserResolversKey].(UserResolvers)
+		return r.Computed(ctx, p.Source.(*User), p)
+	},
+}
+
+var userDefFieldExternalRef = &graphql.Field{
+	Type: graphql.String,
+}
+
+var userDefFieldLastSeen = &graphql.Field{
+	Type: graphql.Int,
+}
+
+var userDefFieldLastActive = &graphql.Field{
+	Type: DateTimeDef,
+	Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
+		r := p.Info.RootValue.(map[string]any)[UserResolversKey].(UserResolvers)
+		return r.LastActive(ctx, p.Source.(*User), p)
+	},
+}
+
+var UserDef = graphql.NewObject(graphql.ObjectConfig{
+	Name: "User",
+	Fields: graphql.Fields{
+		"id":          userDefFieldID,
+		"status":      userDefFieldStatus,
+		"createdAt":   userDefFieldCreatedAt,
+		"displayName": userDefFieldDisplayName,
+		"computed":    userDefFieldComputed,
+		"externalRef": userDefFieldExternalRef,
+		"lastSeen":    userDefFieldLastSeen,
+		"lastActive":  userDefFieldLastActive,
+	},
+	IsTypeOf: func(p graphql.IsTypeOfParams) bool {
+		_, ok := p.Value.(*User)
+		return ok
+	},
+})
+
+type User struct {
+	ID          string           `json:"id"`
+	Status      statuspkg.Status `json:"status"`
+	CreatedAt   time.Time        `json:"createdAt"`
+	FullName    string           `json:"full_name" db:"full_name"`
+	ExternalRef refpkg.Ref       `json:"externalRef,omitempty"`
+	LastSeen    *int             `json:"lastSeen,omitempty"`
+	// internal database id
+	Internal int64  `json:"-"`
+	Raw      []byte `json:"raw,omitempty"`
+}
+
+// UserInputDef is the input type for the user mutation.
+var UserInputDef = graphql.NewInputObject(graphql.InputObjectConfig{
+	Name: "UserInput",
+	Fields: graphql.InputObjectConfigFieldMap{
+		"id":       &graphql.InputObjectFieldConfig{Type: graphql.NewNonNull(graphql.ID)},
+		"nickname": &graphql.InputObjectFieldConfig{Type: graphql.String},
+		"tags":     &graphql.InputObjectFieldConfig{Type: graphql.NewList(graphql.NewNonNull(graphql.String))},
+	},
+})
+
+// UserInput is the input type for the user mutation.
+type UserInput struct {
+	ID      string   `gql:"id" json:"id"`
+	Nick    *string  `gql:"nickname" json:"nickname"`
+	Tags    []string `gql:"tags" json:"labels"`
+	TraceID string   `json:"-"`
+}
+
+var accountDefFieldID = &graphql.Field{
+	Type: graphql.NewNonNull(graphql.ID),
+}
+
+var accountDefFieldNickname = &graphql.Field{
+	Type: graphql.String,
+}
+
+var accountDefFieldAge = &graphql.Field{
+	Type: graphql.Int,
+}
+
+var accountDefFieldStatus = &graphql.Field{
+	Type: StatusDef,
+}
+
+var AccountDef = graphql.NewObject(graphql.ObjectConfig{
+	Name: "Account",
+	Fields: graphql.Fields{
+		"id":       accountDefFieldID,
+		"nickname": accountDefFieldNickname,
+		"age":      accountDefFieldAge,
+		"status":   accountDefFieldStatus,
+	},
+	IsTypeOf: func(p graphql.IsTypeOfParams) bool {
+		_, ok := p.Value.(*Account)
+		return ok
+	},
+})
+
+type Account struct {
+	ID       string            `json:"id"`
+	Nickname *string           `json:"nickname,omitempty"`
+	Age      int               `json:"age,omitempty"`
+	Status   *statuspkg.Status `json:"status,omitempty"`
+}
+
+// AccountInputDef is the input type for the account mutation.
+var AccountInputDef = graphql.NewInputObject(graphql.InputObjectConfig{
+	Name: "AccountInput",
+	Fields: graphql.InputObjectConfigFieldMap{
+		"id":       &graphql.InputObjectFieldConfig{Type: graphql.NewNonNull(graphql.ID)},
+		"nickname": &graphql.InputObjectFieldConfig{Type: graphql.String},
+		"age":      &graphql.InputObjectFieldConfig{Type: graphql.Int},
+	},
+})
+
+// AccountInput is the input type for the account mutation.
+type AccountInput struct {
+	ID       string  `gql:"id" json:"id"`
+	Nickname *string `gql:"nickname" json:"nickname"`
+	Age      int     `gql:"age" json:"age"`
+}
+
+var TypeDefs = []graphql.Type{
+	DateTimeDef,
+	StatusDef,
+	UserDef,
+	UserInputDef,
+	AccountDef,
+	AccountInputDef,
+}

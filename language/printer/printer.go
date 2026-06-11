@@ -244,7 +244,11 @@ func (w *walker) walkAST(root ast.Node) string {
 	case *ast.DirectiveDefinition:
 		name := w.walkAST(node.Name)
 		args := wrap("(", w.walkASTSliceAndJoin(node.Arguments, ", "), ")")
-		return fmt.Sprintf("directive @%v%v on %v", name, args, w.walkASTSliceAndJoin(node.Locations, " | "))
+		var repeatable string
+		if node.Repeatable {
+			repeatable = " repeatable"
+		}
+		return fmt.Sprintf("directive @%v%v%v on %v", name, args, repeatable, w.walkASTSliceAndJoin(node.Locations, " | "))
 	case ast.Type:
 		return node.String()
 	case ast.Value:

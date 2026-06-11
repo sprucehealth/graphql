@@ -1,0 +1,6 @@
+input InputTest {
+  deprecatedField: Boolean! @deprecated(reason: "is this deprecated")
+  "test combination of description and deprecation"
+  deprecatedFieldWithDescription: Boolean!
+    @deprecated(reason: "this really is deprecated")
+}
