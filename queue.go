@@ -11,11 +11,6 @@ type queue[T any] struct {
 	i int
 }
 
-//nolint:unused
-func (q *queue[T]) empty() bool {
-	return q.i >= len(q.primary) && len(q.secondary) == 0
-}
-
 func (q *queue[T]) all() iter.Seq[T] {
 	return func(yield func(v T) bool) {
 		for {

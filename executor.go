@@ -278,6 +278,18 @@ type ExecuteFieldsParams struct {
 	Fields           map[string][]*ast.Field
 }
 
+// childPath returns the path extended with name for use by the Tracer. The
+// path is only ever read by eCtx.Tracer.Trace, so when no tracer is configured
+// it returns the parent path unchanged to avoid a per-field slice allocation.
+// When a tracer is set it clips before appending so sibling fields don't share
+// a backing-array slot.
+func childPath(eCtx *ExecutionContext, path []string, name string) []string {
+	if eCtx.Tracer == nil {
+		return path
+	}
+	return append(slices.Clip(path), name)
+}
+
 func executeFieldsSerially(ctx context.Context, p ExecuteFieldsParams, path []string) *Result {
 	if p.Source == nil {
 		p.Source = make(map[string]any)
@@ -292,7 +304,7 @@ func executeFieldsSerially(ctx context.Context, p ExecuteFieldsParams, path []st
 		if len(fieldASTs) != 0 && fieldASTs[0].Name != nil {
 			name = fieldASTs[0].Name.Value
 		}
-		resolved, state := resolveField(ctx, p.ExecutionContext, p.ParentType, p.Source, fieldASTs, append(path, name))
+		resolved, state := resolveField(ctx, p.ExecutionContext, p.ParentType, p.Source, fieldASTs, childPath(p.ExecutionContext, path, name))
 		if state.hasNoFieldDefs {
 			continue
 		}
@@ -599,6 +611,12 @@ func resolveField(ctx context.Context, eCtx *ExecutionContext, parentType *Objec
 		VariableValues: eCtx.VariableValues,
 	}
 
+	params := ResolveParams{
+		Source: source,
+		Args:   args,
+		Info:   info,
+	}
+
 	var resolveFnError error
 
 	if customResolver {
@@ -638,21 +656,13 @@ func resolveField(ctx context.Context, eCtx *ExecutionContext, parentType *Objec
 			result = coSt.res
 			resolveFnError = coSt.err
 		} else {
-			result, resolveFnError = resolveFn(ctx, ResolveParams{
-				Source: source,
-				Args:   args,
-				Info:   info,
-			})
+			result, resolveFnError = resolveFn(ctx, params)
 			if eCtx.Tracer != nil {
 				eCtx.Tracer.Trace(ctx, path, time.Since(st))
 			}
 		}
 	} else {
-		result, resolveFnError = resolveFn(ctx, ResolveParams{
-			Source: source,
-			Args:   args,
-			Info:   info,
-		})
+		result, resolveFnError = resolveFn(ctx, params)
 	}
 
 	if resolveFnError != nil {
@@ -691,8 +701,8 @@ func completeValue(ctx context.Context, eCtx *ExecutionContext, returnType Type,
 
 	// If field type is NonNull, complete for inner type, and throw field error
 	// if result is null.
-	if returnType, ok := returnType.(*NonNull); ok {
-		completed := completeValue(ctx, eCtx, returnType.OfType, fieldASTs, info, result, path)
+	if nonNull, ok := returnType.(*NonNull); ok {
+		completed := completeValue(ctx, eCtx, nonNull.OfType, fieldASTs, info, result, path)
 		if completed == nil {
 			err := NewLocatedError(
 				fmt.Sprintf("Cannot return null for non-nullable field %v.%v.", info.ParentType, info.FieldName),
@@ -708,31 +718,22 @@ func completeValue(ctx context.Context, eCtx *ExecutionContext, returnType Type,
 		return nil
 	}
 
-	// If field type is List, complete each item in the list with the inner type
-	if returnType, ok := returnType.(*List); ok {
+	switch returnType := returnType.(type) {
+	case *List:
+		// Complete each item in the list with the inner type.
 		return completeListValue(ctx, eCtx, returnType, fieldASTs, info, result, path)
-	}
-
-	// If field type is a leaf type, Scalar or Enum, serialize to a valid value,
-	// returning null if serialization is not possible.
-	if returnType, ok := returnType.(*Scalar); ok {
+	case *Scalar:
+		// Leaf type: serialize to a valid value, returning null if not possible.
 		return completeLeafValue(returnType, result)
-	}
-	if returnType, ok := returnType.(*Enum); ok {
+	case *Enum:
 		return completeLeafValue(returnType, result)
-	}
-
-	// If field type is an abstract type, Interface or Union, determine the
-	// runtime Object type and complete for that type.
-	if returnType, ok := returnType.(*Union); ok {
+	case *Union:
+		// Abstract type: determine the runtime Object type and complete for it.
 		return completeAbstractValue(ctx, eCtx, returnType, fieldASTs, info, result, path)
-	}
-	if returnType, ok := returnType.(*Interface); ok {
+	case *Interface:
 		return completeAbstractValue(ctx, eCtx, returnType, fieldASTs, info, result, path)
-	}
-
-	// If field type is Object, execute and complete all sub-selections.
-	if returnType, ok := returnType.(*Object); ok {
+	case *Object:
+		// Execute and complete all sub-selections.
 		return completeObjectValue(ctx, eCtx, returnType, fieldASTs, info, result, path)
 	}
 
@@ -847,7 +848,7 @@ func completeListValue(ctx context.Context, eCtx *ExecutionContext, returnType *
 
 	itemType := returnType.OfType
 	completedResults := make([]any, 0, resultVal.Len())
-	for i := 0; i < resultVal.Len(); i++ {
+	for i := range resultVal.Len() {
 		val := resultVal.Index(i).Interface()
 		completedItem := completeValueCatchingError(ctx, eCtx, itemType, fieldASTs, info, val, path)
 		completedResults = append(completedResults, completedItem)
@@ -885,7 +886,7 @@ func fieldInfoForStruct(structType reflect.Type) map[string]structFieldInfo {
 	}
 
 	sm = make(map[string]structFieldInfo)
-	for i := 0; i < structType.NumField(); i++ {
+	for i := range structType.NumField() {
 		field := structType.Field(i)
 		if field.PkgPath != "" && !field.Anonymous {
 			continue
