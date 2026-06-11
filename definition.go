@@ -86,7 +86,7 @@ type Leaf interface {
 	Description() string
 	String() string
 	Error() error
-	Serialize(value any) any
+	Serialize(value any) (any, error)
 }
 
 var _ Leaf = (*Scalar)(nil)
@@ -235,13 +235,15 @@ type Scalar struct {
 }
 
 // SerializeFn is a function type for serializing a GraphQLScalar type value
-type SerializeFn func(value any) any
+type SerializeFn func(value any) (any, error)
 
-// ParseValueFn is a function type for parsing the value of a GraphQLScalar type
-type ParseValueFn func(value any) any
+// ParseValueFn is a function type for parsing the value of a GraphQLScalar type.
+// It may return an error to reject the value with a client-facing message.
+type ParseValueFn func(value any) (any, error)
 
-// ParseLiteralFn is a function type for parsing the literal value of a GraphQLScalar type
-type ParseLiteralFn func(valueAST ast.Value) any
+// ParseLiteralFn is a function type for parsing the literal value of a GraphQLScalar type.
+// It may return an error to reject the value with a client-facing message.
+type ParseLiteralFn func(valueAST ast.Value) (any, error)
 
 // ScalarConfig options for creating a new GraphQLScalar
 type ScalarConfig struct {
@@ -284,21 +286,21 @@ func NewScalar(config ScalarConfig) *Scalar {
 	st.scalarConfig = config
 	return st
 }
-func (st *Scalar) Serialize(value any) any {
+func (st *Scalar) Serialize(value any) (any, error) {
 	if st.scalarConfig.Serialize == nil {
-		return value
+		return value, nil
 	}
 	return st.scalarConfig.Serialize(value)
 }
-func (st *Scalar) ParseValue(value any) any {
+func (st *Scalar) ParseValue(value any) (any, error) {
 	if st.scalarConfig.ParseValue == nil {
-		return value
+		return value, nil
 	}
 	return st.scalarConfig.ParseValue(value)
 }
-func (st *Scalar) ParseLiteral(valueAST ast.Value) any {
+func (st *Scalar) ParseLiteral(valueAST ast.Value) (any, error) {
 	if st.scalarConfig.ParseLiteral == nil {
-		return nil
+		return nil, nil
 	}
 	return st.scalarConfig.ParseLiteral(valueAST)
 }
@@ -969,29 +971,29 @@ func (gt *Enum) defineEnumValues(valueMap EnumValueConfigMap) ([]*EnumValueDefin
 func (gt *Enum) Values() []*EnumValueDefinition {
 	return gt.values
 }
-func (gt *Enum) Serialize(value any) any {
+func (gt *Enum) Serialize(value any) (any, error) {
 	if enumValue, ok := gt.getValueLookup()[value]; ok {
-		return enumValue.Name
+		return enumValue.Name, nil
 	}
-	return nil
+	return nil, nil
 }
-func (gt *Enum) ParseValue(value any) any {
+func (gt *Enum) ParseValue(value any) (any, error) {
 	valueStr, ok := value.(string)
 	if !ok {
-		return nil
+		return nil, nil
 	}
 	if enumValue, ok := gt.getNameLookup()[valueStr]; ok {
-		return enumValue.Value
+		return enumValue.Value, nil
 	}
-	return nil
+	return nil, nil
 }
-func (gt *Enum) ParseLiteral(valueAST ast.Value) any {
+func (gt *Enum) ParseLiteral(valueAST ast.Value) (any, error) {
 	if valueAST, ok := valueAST.(*ast.EnumValue); ok {
 		if enumValue, ok := gt.getNameLookup()[valueAST.Value]; ok {
-			return enumValue.Value
+			return enumValue.Value, nil
 		}
 	}
-	return nil
+	return nil, nil
 }
 func (gt *Enum) Name() string {
 	return gt.PrivateName

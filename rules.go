@@ -1938,12 +1938,20 @@ func isValidLiteralValue(ttype Input, valueAST ast.Value) (bool, []string) {
 	}
 
 	if ttype, ok := ttype.(*Scalar); ok {
-		if isNullish(ttype.ParseLiteral(valueAST)) {
+		parsed, err := ttype.ParseLiteral(valueAST)
+		if err != nil {
+			return false, []string{err.Error()}
+		}
+		if isNullish(parsed) {
 			return false, []string{fmt.Sprintf(`Expected type "%v", found %v.`, ttype.Name(), printer.Print(valueAST))}
 		}
 	}
 	if ttype, ok := ttype.(*Enum); ok {
-		if isNullish(ttype.ParseLiteral(valueAST)) {
+		parsed, err := ttype.ParseLiteral(valueAST)
+		if err != nil {
+			return false, []string{err.Error()}
+		}
+		if isNullish(parsed) {
 			return false, []string{fmt.Sprintf(`Expected type "%v", found %v.`, ttype.Name(), printer.Print(valueAST))}
 		}
 	}

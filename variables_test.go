@@ -15,24 +15,24 @@ import (
 
 var testComplexScalar *graphql.Scalar = graphql.NewScalar(graphql.ScalarConfig{
 	Name: "ComplexScalar",
-	Serialize: func(value any) any {
+	Serialize: func(value any) (any, error) {
 		if value == "DeserializedValue" {
-			return "SerializedValue"
+			return "SerializedValue", nil
 		}
-		return nil
+		return nil, nil
 	},
-	ParseValue: func(value any) any {
+	ParseValue: func(value any) (any, error) {
 		if value == "SerializedValue" {
-			return "DeserializedValue"
+			return "DeserializedValue", nil
 		}
-		return nil
+		return nil, nil
 	},
-	ParseLiteral: func(valueAST ast.Value) any {
+	ParseLiteral: func(valueAST ast.Value) (any, error) {
 		astValue := valueAST.GetValue()
 		if astValue, ok := astValue.(string); ok && astValue == "SerializedValue" {
-			return "DeserializedValue"
+			return "DeserializedValue", nil
 		}
-		return nil
+		return nil, nil
 	},
 })
 

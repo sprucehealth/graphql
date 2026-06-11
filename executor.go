@@ -403,11 +403,14 @@ func shouldIncludeNode(eCtx *ExecutionContext, directives []*ast.Directive) bool
 		}
 	}
 	if skipAST != nil {
-		argValues := getArgumentValues(
+		argValues, err := getArgumentValues(
 			SkipDirective.Args,
 			skipAST.Arguments,
 			eCtx.VariableValues,
 		)
+		if err != nil {
+			panic(gqlerrors.FormatError(err))
+		}
 		if skipIf, ok := argValues["if"].(bool); ok {
 			if skipIf {
 				return false
@@ -424,11 +427,14 @@ func shouldIncludeNode(eCtx *ExecutionContext, directives []*ast.Directive) bool
 		}
 	}
 	if includeAST != nil {
-		argValues := getArgumentValues(
+		argValues, err := getArgumentValues(
 			IncludeDirective.Args,
 			includeAST.Arguments,
 			eCtx.VariableValues,
 		)
+		if err != nil {
+			panic(gqlerrors.FormatError(err))
+		}
 		if includeIf, ok := argValues["if"].(bool); ok {
 			if !includeIf {
 				return false
@@ -572,7 +578,10 @@ func resolveField(ctx context.Context, eCtx *ExecutionContext, parentType *Objec
 	// Build a map of arguments from the field.arguments AST, using the
 	// variables scope to fulfill any variable references.
 	// TODO: find a way to memoize, in case this field is within a List type.
-	args := getArgumentValues(fieldDef.Args, fieldAST.Arguments, eCtx.VariableValues)
+	args, err := getArgumentValues(fieldDef.Args, fieldAST.Arguments, eCtx.VariableValues)
+	if err != nil {
+		panic(gqlerrors.FormatError(err))
+	}
 
 	info := ResolveInfo{
 		FieldName:      fieldName,
@@ -809,7 +818,10 @@ func completeObjectValue(ctx context.Context, eCtx *ExecutionContext, returnType
 
 // completeLeafValue complete a leaf value (Scalar / Enum) by serializing to a valid value, returning nil if serialization is not possible.
 func completeLeafValue(returnType Leaf, result any) any {
-	serializedResult := returnType.Serialize(result)
+	serializedResult, err := returnType.Serialize(result)
+	if err != nil {
+		panic(gqlerrors.FormatError(err))
+	}
 	if isNullish(serializedResult) {
 		return nil
 	}
