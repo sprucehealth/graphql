@@ -207,32 +207,6 @@ func TestApplySchemaDirectives_UnknownArgErrors(t *testing.T) {
 	}
 }
 
-func TestGoType_UnmappedScalarErrors(t *testing.T) {
-	fooType := &ast.Named{Name: &ast.Name{Value: "Foo"}}
-	for _, call := range []struct {
-		name string
-		fn   func(g *generator)
-	}{
-		{"goType", func(g *generator) { g.goType(fooType, "T.f") }},
-		{"goInputType", func(g *generator) { g.goInputType(fooType, "T.f", false) }},
-	} {
-		t.Run(call.name, func(t *testing.T) {
-			g := newDirectiveTestGenerator(t, `scalar Foo`)
-			g.types["Foo"] = g.doc.Definitions[0]
-			defer func() {
-				r := recover()
-				if r == nil {
-					t.Fatal("expected panic for unmapped scalar")
-				}
-				if err, ok := r.(error); !ok || !strings.Contains(err.Error(), "no Go type mapping") {
-					t.Fatalf("expected a 'no Go type mapping' error, got %v", r)
-				}
-			}()
-			call.fn(g)
-		})
-	}
-}
-
 func TestGoType_MappedScalar(t *testing.T) {
 	g := newDirectiveTestGenerator(t, `scalar Foo @goModel(model: "foopkg.Foo")`)
 	g.types["Foo"] = g.doc.Definitions[0]

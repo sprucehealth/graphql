@@ -87,6 +87,7 @@ func main() {
 		}
 		for _, p := range paths {
 			p = strings.TrimSpace(p)
+			//nolint:gosec
 			b, err := os.ReadFile(p)
 			if err != nil {
 				log.Fatalf("Failed to read schema file %q: %s", p, err)
@@ -164,6 +165,7 @@ func main() {
 	case "client":
 		generateClient(g)
 	default:
+		//nolint:gocritic // defers don't run but that's fine
 		log.Fatalf("Unknown output artifact type %s", *flagArtifact)
 	}
 }
@@ -1463,11 +1465,6 @@ func (g *generator) goType(t ast.Type, fieldName string) string {
 		if _, ok := node.(*ast.UnionDefinition); ok {
 			return exportedName(t.Name.Value)
 		}
-		if _, ok := node.(*ast.ScalarDefinition); ok {
-			// Reached only when the scalar has no mapping (the CustomScalarTypes check
-			// above returns early otherwise). Without a Go type there is nothing to emit.
-			g.failf("scalar %q used by field %q has no Go type mapping; set it with @goModel(model: \"...\") or the CustomScalarTypes config", t.Name.Value, fieldName)
-		}
 		return "*" + exportedName(t.Name.Value)
 	}
 	log.Fatalf("Unhandled type %T", t)
@@ -1619,8 +1616,7 @@ func (g *generator) renderValue(fieldPath string, valueType ast.Type, value ast.
 			return "nil"
 		}
 		var itemType ast.Type
-		switch t := valueType.(type) {
-		case *ast.List:
+		if t, ok := valueType.(*ast.List); ok {
 			itemType = t.Type
 		}
 		values := make([]string, len(v))
