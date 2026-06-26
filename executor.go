@@ -854,6 +854,15 @@ func completeObjectValue(ctx context.Context, eCtx *ExecutionContext, returnType
 // a valid value, returning nil if serialization yields a null-ish value. A
 // serialization failure is returned as an error for the caller to propagate.
 func completeLeafValue(returnType Leaf, result any) (any, error) {
+	// Unwrap pointer values so scalars are serialized by value, matching the
+	// behavior when resolvers return plain values (e.g. via a map) rather than
+	// pointer struct fields.
+	if rv := reflect.ValueOf(result); rv.Kind() == reflect.Pointer {
+		if rv.IsNil() {
+			return nil, nil
+		}
+		result = rv.Elem().Interface()
+	}
 	serializedResult, err := returnType.Serialize(result)
 	if err != nil {
 		return nil, gqlerrors.FormatError(err)
@@ -993,7 +1002,7 @@ func defaultResolveFn(ctx context.Context, p ResolveParams) (any, error) {
 	return nil, nil
 }
 
-// This method looks up the field on the given type definition.
+// getFieldDef looks up the field on the given type definition.
 // It has special casing for the two introspection fields, __schema
 // and __typename. __typename is special because it can always be
 // queried as a field, even in situations where no other fields

@@ -1,10 +1,9 @@
 package graphql_test
 
 import (
+	"context"
 	"reflect"
 	"testing"
-
-	"context"
 
 	"github.com/sprucehealth/graphql"
 	"github.com/sprucehealth/graphql/testutil"
@@ -258,6 +257,151 @@ func TestBoolPointer(t *testing.T) {
 		}
 		if !reflect.DeepEqual(result.Data, expected) {
 			t.Fatalf("wrong result, query: %v, graphql result diff: %v", query, testutil.Diff(expected, result.Data))
+		}
+	}
+}
+
+func TestNullScalarsMap(t *testing.T) {
+	objType := graphql.NewObject(graphql.ObjectConfig{
+		Name: "ReturnObj",
+		Fields: graphql.Fields{
+			"string": &graphql.Field{Type: graphql.String},
+			"int":    &graphql.Field{Type: graphql.Int},
+			"bool":   &graphql.Field{Type: graphql.Boolean},
+		},
+	})
+	schema, err := graphql.NewSchema(graphql.SchemaConfig{
+		Query: graphql.NewObject(graphql.ObjectConfig{
+			Name: "Query",
+			Fields: graphql.Fields{
+				"returnNull": &graphql.Field{
+					Type: objType,
+					Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
+						return map[string]any{
+							"string": nil,
+							"int":    nil,
+							"bool":   nil,
+						}, nil
+					},
+				},
+				"returnZero": &graphql.Field{
+					Type: objType,
+					Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
+						return map[string]any{
+							"string": "",
+							"int":    0,
+							"bool":   false,
+						}, nil
+					},
+				},
+				"returnSomething": &graphql.Field{
+					Type: objType,
+					Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
+						return map[string]any{
+							"string": "hello",
+							"int":    1,
+							"bool":   true,
+						}, nil
+					},
+				},
+			},
+		}),
+	})
+	if err != nil {
+		t.Fatalf("wrong result, unexpected errors: %v", err.Error())
+	}
+
+	cases := map[string]any{
+		`{ returnNull { string int bool } }`:      map[string]any{"returnNull": map[string]any{"string": nil, "int": nil, "bool": nil}},
+		`{ returnZero { string int bool } }`:      map[string]any{"returnZero": map[string]any{"string": "", "int": 0, "bool": false}},
+		`{ returnSomething { string int bool } }`: map[string]any{"returnSomething": map[string]any{"string": "hello", "int": 1, "bool": true}},
+	}
+
+	for query, expected := range cases {
+		result := graphql.Do(context.Background(), graphql.Params{
+			Schema:        schema,
+			RequestString: query,
+		})
+		if len(result.Errors) > 0 {
+			t.Fatalf("wrong result, unexpected errors: %v", result.Errors)
+		}
+		if !reflect.DeepEqual(result.Data, expected) {
+			t.Errorf("wrong result, query: %v, graphql result diff: %v", query, testutil.Diff(expected, result))
+		}
+	}
+}
+
+func TestNullScalarsStruct(t *testing.T) {
+	objType := graphql.NewObject(graphql.ObjectConfig{
+		Name: "ReturnObj",
+		Fields: graphql.Fields{
+			"string": &graphql.Field{Type: graphql.String},
+			"int":    &graphql.Field{Type: graphql.Int},
+			"bool":   &graphql.Field{Type: graphql.Boolean},
+		},
+	})
+	type resObject struct {
+		String *string `json:"string,omitempty"`
+		Int    *int    `json:"int,omitempty"`
+		Bool   *bool   `json:"bool,omitempty"`
+	}
+	schema, err := graphql.NewSchema(graphql.SchemaConfig{
+		Query: graphql.NewObject(graphql.ObjectConfig{
+			Name: "Query",
+			Fields: graphql.Fields{
+				"returnNull": &graphql.Field{
+					Type: objType,
+					Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
+						return &resObject{
+							String: nil,
+							Int:    nil,
+							Bool:   nil,
+						}, nil
+					},
+				},
+				"returnZero": &graphql.Field{
+					Type: objType,
+					Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
+						return &resObject{
+							String: new(""),
+							Int:    new(0),
+							Bool:   new(false),
+						}, nil
+					},
+				},
+				"returnSomething": &graphql.Field{
+					Type: objType,
+					Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
+						return &resObject{
+							String: new("hello"),
+							Int:    new(1),
+							Bool:   new(true),
+						}, nil
+					},
+				},
+			},
+		}),
+	})
+	if err != nil {
+		t.Fatalf("wrong result, unexpected errors: %v", err.Error())
+	}
+
+	cases := map[string]any{
+		`{ returnNull { string int bool } }`:      map[string]any{"returnNull": map[string]any{"string": nil, "int": nil, "bool": nil}},
+		`{ returnZero { string int bool } }`:      map[string]any{"returnZero": map[string]any{"string": "", "int": 0, "bool": false}},
+		`{ returnSomething { string int bool } }`: map[string]any{"returnSomething": map[string]any{"string": "hello", "int": 1, "bool": true}},
+	}
+
+	for query, expected := range cases {
+		result := graphql.Do(context.Background(), graphql.Params{
+			Schema:        schema,
+			RequestString: query,
+		})
+		if len(result.Errors) > 0 {
+			t.Fatalf("wrong result, unexpected errors: %v", result.Errors)
+		}
+		if !reflect.DeepEqual(result.Data, expected) {
+			t.Errorf("wrong result, query: %v, graphql result diff: %v", query, testutil.Diff(expected, result))
 		}
 	}
 }

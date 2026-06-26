@@ -181,11 +181,6 @@ var String = NewScalar(ScalarConfig{
 
 func coerceBool(value any) (any, error) {
 	switch v := value.(type) {
-	case *bool:
-		if v == nil {
-			return false, nil
-		}
-		return *v, nil
 	case bool:
 		return value, nil
 	case string:
