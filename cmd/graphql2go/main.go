@@ -1411,9 +1411,10 @@ func (g *generator) goInputType(t ast.Type, fieldName string, nullable bool) str
 			return exportedName(t.Name.Value)
 		}
 		if _, ok := node.(*ast.ScalarDefinition); ok {
-			// Reached only when the scalar has no mapping (the CustomScalarTypes check
-			// above returns early otherwise). Without a Go type there is nothing to emit.
-			g.failf("scalar %q used by field %q has no Go type mapping; set it with @goModel(model: \"...\") or the CustomScalarTypes config", t.Name.Value, fieldName)
+			// A scalar without a @goModel binding defaults to using the scalar name as the
+			// Go type (valid when the generated code lives in the type's package), with the
+			// nullable pointer prefix applied like any other value type.
+			return p + exportedName(t.Name.Value)
 		}
 		return "*" + exportedName(t.Name.Value)
 	}
@@ -1463,6 +1464,13 @@ func (g *generator) goType(t ast.Type, fieldName string) string {
 			return exportedName(t.Name.Value)
 		}
 		if _, ok := node.(*ast.UnionDefinition); ok {
+			return exportedName(t.Name.Value)
+		}
+		if _, ok := node.(*ast.ScalarDefinition); ok {
+			// A scalar without a @goModel binding defaults to using the scalar name as the
+			// Go type (valid when the generated code lives in the type's package). It is a
+			// value type, so nullability/omittable pointer-wrapping is left to the caller —
+			// matching the explicit @goModel(model: "Name") behavior.
 			return exportedName(t.Name.Value)
 		}
 		return "*" + exportedName(t.Name.Value)
