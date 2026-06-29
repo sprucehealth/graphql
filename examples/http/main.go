@@ -97,12 +97,14 @@ func main() {
 
 	fmt.Println("Now server is running on port 8080")
 	fmt.Println("Test with Get      : curl -g 'http://localhost:8080/graphql?query={user(id:\"1\"){name}}'")
+	//nolint:gosec // this is just an example
 	_ = http.ListenAndServe(":8080", nil)
 }
 
 // Helper function to import json from file to map
 func importJSONDataFromFile(fileName string, result any) (isOK bool) {
 	isOK = true
+	//nolint:gosec // this is just an example
 	content, err := os.ReadFile(fileName)
 	if err != nil {
 		fmt.Print("Error:", err)

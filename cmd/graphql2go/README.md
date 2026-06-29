@@ -26,9 +26,12 @@ never emits them into the generated runtime schema.
 
 An **unknown argument** on any of these directives is a hard error (e.g.
 `@goModel(type: "...")` fails — `@goModel` takes `model:`, the `type:` argument belongs to
-`@goField`). A **scalar used as a field type must have a Go type mapping** via
-`@goModel(model: "...")` or the `CustomScalarTypes` config; an unmapped scalar is a hard
-error rather than a silently broken reference.
+`@goField`). A **scalar used as a field type** may be given a Go type mapping via
+`@goModel(model: "...")` or the `CustomScalarTypes` config; without one it defaults to using
+the scalar's own name as the Go type (valid when the generated code lives in that type's
+package). Either way the scalar is a value type, so pointer-wrapping follows
+nullability/omittable — a non-null field is unwrapped, a nullable (omittable) field is a
+pointer.
 
 ### Supported directives
 

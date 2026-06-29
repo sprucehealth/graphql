@@ -313,7 +313,7 @@ func (l *Lexer) readString() (Token, error) {
 // This is implemented by noting that char2hex() returns -1 on error,
 // which means the result of ORing the char2hex() will also be negative.
 func uniCharCode(a, b, c, d rune) rune {
-	return rune(char2hex(a)<<12 | char2hex(b)<<8 | char2hex(c)<<4 | char2hex(d))
+	return char2hex(a)<<12 | char2hex(b)<<8 | char2hex(c)<<4 | char2hex(d)
 }
 
 // Converts a hex character to its integer value.
@@ -321,14 +321,14 @@ func uniCharCode(a, b, c, d rune) rune {
 // 'A' becomes 10, 'F' becomes 15
 // 'a' becomes 10, 'f' becomes 15
 // Returns -1 on error.
-func char2hex(a rune) int {
+func char2hex(a rune) rune {
 	switch {
 	case a >= '0' && a <= '9': // 0-9
-		return int(a) - '0'
+		return rune(a) - '0'
 	case a >= 'A' && a <= 'F': // A-F
-		return int(a) + 10 - 'A'
+		return rune(a) + 10 - 'A'
 	case a >= 'a' && a <= 'f': // a-f
-		return int(a) + 10 - 'a'
+		return rune(a) + 10 - 'a'
 	}
 	return -1
 }

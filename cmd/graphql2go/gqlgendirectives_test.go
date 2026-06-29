@@ -217,6 +217,155 @@ func TestGoType_MappedScalar(t *testing.T) {
 	}
 }
 
+// TestNullOmittableGlobalCustomScalar verifies the global NullOmittable config pointer-wraps
+// nullable custom-scalar fields (here DateTime bound to time.Time) on both output and input
+// models, while leaving non-null custom-scalar fields and list fields as values.
+func TestNullOmittableGlobalCustomScalar(t *testing.T) {
+	g := newDirectiveTestGenerator(t, `scalar DateTime @goModel(model: "time.Time")
+type Thing { id: ID! createdAt: DateTime! updatedAt: DateTime seenAt: [DateTime!] }
+input ThingInput { id: ID! createdAt: DateTime! updatedAt: DateTime }`)
+	g.cfg.NullOmittable = true
+	for _, def := range g.doc.Definitions {
+		switch d := def.(type) {
+		case *ast.ScalarDefinition:
+			g.types[d.Name.Value] = d
+		case *ast.ObjectDefinition:
+			g.types[d.Name.Value] = d
+		case *ast.InputObjectDefinition:
+			g.types[d.Name.Value] = d
+		}
+	}
+	g.applySchemaDirectives()
+	if got := g.cfg.CustomScalarTypes["DateTime"]; got != "time.Time" {
+		t.Fatalf(`CustomScalarTypes["DateTime"] = %q, want "time.Time"`, got)
+	}
+	var buf bytes.Buffer
+	g.w = &buf
+	for _, def := range g.doc.Definitions {
+		switch d := def.(type) {
+		case *ast.ObjectDefinition:
+			g.genObjectModel(d)
+		case *ast.InputObjectDefinition:
+			g.genInputModel(d)
+		}
+	}
+	out := buf.String()
+	for _, want := range []string{"CreatedAt time.Time", "UpdatedAt *time.Time", "SeenAt []time.Time"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("expected %q in generated output:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "CreatedAt *time.Time") {
+		t.Errorf("non-null custom scalar should not be a pointer:\n%s", out)
+	}
+}
+
+// TestNullOmittableGlobalUnmappedScalar verifies that a scalar without a @goModel binding
+// defaults to using the scalar name itself as the Go type (valid when the generated code
+// lives in the same package that defines the scalar's Go type). It is treated as a value
+// type, so pointer-wrapping follows nullability/omittable just like an explicit
+// @goModel(model: "DateTime") binding: a non-null field renders as DateTime and a nullable
+// (omittable) field as *DateTime.
+func TestNullOmittableGlobalUnmappedScalar(t *testing.T) {
+	g := newDirectiveTestGenerator(t, `scalar DateTime
+type Thing { id: ID! createdAt: DateTime! updatedAt: DateTime seenAt: [DateTime!] }
+input ThingInput { id: ID! createdAt: DateTime! updatedAt: DateTime }`)
+	g.cfg.NullOmittable = true
+	for _, def := range g.doc.Definitions {
+		switch d := def.(type) {
+		case *ast.ScalarDefinition:
+			g.types[d.Name.Value] = d
+		case *ast.ObjectDefinition:
+			g.types[d.Name.Value] = d
+		case *ast.InputObjectDefinition:
+			g.types[d.Name.Value] = d
+		}
+	}
+	g.applySchemaDirectives()
+	if got := g.cfg.CustomScalarTypes["DateTime"]; got != "" {
+		t.Fatalf(`CustomScalarTypes["DateTime"] = %q, want "" (unmapped)`, got)
+	}
+	var outBuf, inBuf bytes.Buffer
+	for _, def := range g.doc.Definitions {
+		switch d := def.(type) {
+		case *ast.ObjectDefinition:
+			g.w = &outBuf
+			g.genObjectModel(d)
+		case *ast.InputObjectDefinition:
+			g.w = &inBuf
+			g.genInputModel(d)
+		}
+	}
+	out := outBuf.String()
+	for _, want := range []string{"CreatedAt DateTime", "UpdatedAt *DateTime", "SeenAt []DateTime"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("expected %q in output model:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "CreatedAt *DateTime") {
+		t.Errorf("non-null unmapped scalar should not be a pointer:\n%s", out)
+	}
+	in := inBuf.String()
+	for _, want := range []string{"CreatedAt DateTime", "UpdatedAt *DateTime"} {
+		if !strings.Contains(in, want) {
+			t.Errorf("expected %q in input model:\n%s", want, in)
+		}
+	}
+}
+
+// TestNullOmittableGlobalPointerScalar verifies behavior when a custom scalar is bound via
+// @goModel to a pointer Go type (e.g. "*DateTime"). On output models the omittable
+// pointer-wrapping is suppressed because the base type already starts with "*", so both
+// non-null and nullable fields render as *DateTime (never **DateTime) and lists as
+// []*DateTime. On input models a nullable field still gains the leading nullable "*",
+// yielding **DateTime, while a non-null field stays *DateTime.
+func TestNullOmittableGlobalPointerScalar(t *testing.T) {
+	g := newDirectiveTestGenerator(t, `scalar DateTime @goModel(model: "*DateTime")
+type Thing { id: ID! createdAt: DateTime! updatedAt: DateTime seenAt: [DateTime!] }
+input ThingInput { id: ID! createdAt: DateTime! updatedAt: DateTime }`)
+	g.cfg.NullOmittable = true
+	for _, def := range g.doc.Definitions {
+		switch d := def.(type) {
+		case *ast.ScalarDefinition:
+			g.types[d.Name.Value] = d
+		case *ast.ObjectDefinition:
+			g.types[d.Name.Value] = d
+		case *ast.InputObjectDefinition:
+			g.types[d.Name.Value] = d
+		}
+	}
+	g.applySchemaDirectives()
+	if got := g.cfg.CustomScalarTypes["DateTime"]; got != "*DateTime" {
+		t.Fatalf(`CustomScalarTypes["DateTime"] = %q, want "*DateTime"`, got)
+	}
+	var outBuf, inBuf bytes.Buffer
+	for _, def := range g.doc.Definitions {
+		switch d := def.(type) {
+		case *ast.ObjectDefinition:
+			g.w = &outBuf
+			g.genObjectModel(d)
+		case *ast.InputObjectDefinition:
+			g.w = &inBuf
+			g.genInputModel(d)
+		}
+	}
+	out := outBuf.String()
+	for _, want := range []string{"CreatedAt *DateTime", "UpdatedAt *DateTime", "SeenAt []*DateTime"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("expected %q in output model:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "**DateTime") {
+		t.Errorf("output model should not double-wrap a pointer scalar:\n%s", out)
+	}
+	in := inBuf.String()
+	for _, want := range []string{"CreatedAt *DateTime", "UpdatedAt **DateTime"} {
+		if !strings.Contains(in, want) {
+			t.Errorf("expected %q in input model:\n%s", want, in)
+		}
+	}
+}
+
 // TestNullOmittableGlobal verifies the global NullOmittable config pointer-wraps nullable
 // fields (but not non-null fields) on both output and input models.
 func TestNullOmittableGlobal(t *testing.T) {
