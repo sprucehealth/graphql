@@ -168,7 +168,7 @@ func TestMutations_ExecutionOrdering_EvaluatesMutationsSerially(t *testing.T) {
 		AST:    ast,
 		Root:   root,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
@@ -240,7 +240,7 @@ func TestMutations_EvaluatesMutationsCorrectlyInThePresenceOfAFailedMutation(t *
 		AST:    ast,
 		Root:   root,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}

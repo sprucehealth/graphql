@@ -142,7 +142,7 @@ func TestNonNull_NullsANullableFieldThatThrowsSynchronously(t *testing.T) {
 		AST:    ast,
 		Root:   throwingData,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
@@ -182,7 +182,7 @@ func TestNonNull_NullsANullableFieldThatThrowsInAPromise(t *testing.T) {
 		AST:    ast,
 		Root:   throwingData,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
@@ -224,7 +224,7 @@ func TestNonNull_NullsASynchronouslyReturnedObjectThatContainsANullableFieldThat
 		AST:    ast,
 		Root:   throwingData,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
@@ -266,7 +266,7 @@ func TestNonNull_NullsASynchronouslyReturnedObjectThatContainsANonNullableFieldT
 		AST:    ast,
 		Root:   throwingData,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
@@ -308,7 +308,7 @@ func TestNonNull_NullsAnObjectReturnedInAPromiseThatContainsANonNullableFieldTha
 		AST:    ast,
 		Root:   throwingData,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
@@ -350,7 +350,7 @@ func TestNonNull_NullsAnObjectReturnedInAPromiseThatContainsANonNullableFieldTha
 		AST:    ast,
 		Root:   throwingData,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
@@ -512,7 +512,7 @@ func TestNonNull_NullsAComplexTreeOfNullableFieldsThatThrow(t *testing.T) {
 		AST:    ast,
 		Root:   throwingData,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
@@ -624,7 +624,7 @@ func TestNonNull_NullsTheFirstNullableObjectAfterAFieldThrowsInALongChainOfField
 		AST:    ast,
 		Root:   throwingData,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
@@ -661,7 +661,7 @@ func TestNonNull_NullsANullableFieldThatSynchronouslyReturnsNull(t *testing.T) {
 		AST:    ast,
 		Root:   nullingData,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
@@ -692,7 +692,7 @@ func TestNonNull_NullsANullableFieldThatSynchronouslyReturnsNullInAPromise(t *te
 		AST:    ast,
 		Root:   nullingData,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
@@ -734,7 +734,7 @@ func TestNonNull_NullsASynchronouslyReturnedObjectThatContainsANonNullableFieldT
 		AST:    ast,
 		Root:   nullingData,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
@@ -774,7 +774,7 @@ func TestNonNull_NullsASynchronouslyReturnedObjectThatContainsANonNullableFieldT
 		AST:    ast,
 		Root:   nullingData,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
@@ -815,7 +815,7 @@ func TestNonNull_NullsAnObjectReturnedInAPromiseThatContainsANonNullableFieldTha
 		AST:    ast,
 		Root:   nullingData,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
@@ -855,7 +855,7 @@ func TestNonNull_NullsAnObjectReturnedInAPromiseThatContainsANonNullableFieldTha
 		AST:    ast,
 		Root:   nullingData,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
@@ -930,7 +930,7 @@ func TestNonNull_NullsAComplexTreeOfNullableFieldsThatReturnNull(t *testing.T) {
 		AST:    ast,
 		Root:   nullingData,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
@@ -1037,7 +1037,7 @@ func TestNonNull_NullsTheFirstNullableObjectAfterAFieldReturnsNullInALongChainOf
 		AST:    ast,
 		Root:   nullingData,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
@@ -1079,7 +1079,7 @@ func TestNonNull_NullsTheTopLevelIfSyncNonNullableFieldThrows(t *testing.T) {
 		AST:    ast,
 		Root:   throwingData,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
@@ -1113,7 +1113,7 @@ func TestNonNull_NullsTheTopLevelIfSyncNonNullableFieldErrors(t *testing.T) {
 		AST:    ast,
 		Root:   throwingData,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
@@ -1147,7 +1147,7 @@ func TestNonNull_NullsTheTopLevelIfSyncNonNullableFieldReturnsNull(t *testing.T)
 		AST:    ast,
 		Root:   nullingData,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
@@ -1181,7 +1181,7 @@ func TestNonNull_NullsTheTopLevelIfSyncNonNullableFieldResolvesNull(t *testing.T
 		AST:    ast,
 		Root:   nullingData,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}

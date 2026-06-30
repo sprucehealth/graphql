@@ -305,7 +305,7 @@ func TestExecutesUsingAComplexSchema(t *testing.T) {
 		Schema: blogSchema,
 		AST:    ast,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) > 0 {
 		t.Fatalf("wrong result, unexpected errors: %v", result.Errors)
 	}

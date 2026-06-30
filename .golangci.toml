@@ -7,6 +7,7 @@ go = '1.26'
 enable = [
     'bodyclose',
     'copyloopvar',
+    'depguard',
     'errname',
     'errorlint',
     'exhaustive',
@@ -46,3 +47,15 @@ text = "(unused-parameter|error-strings|exported|package-comments)"
 linters = ["revive"]
 text = "(var-naming|context-as-argument|context-keys-type)"
 path = "_test.go"
+
+[[linters.settings.depguard.rules.main.deny]]
+pkg = 'math/rand$'
+desc = 'use math/rand/v2'
+
+[[linters.settings.depguard.rules.main.deny]]
+pkg = 'golang.org/x/net/context$'
+desc = 'use context'
+
+[[linters.settings.depguard.rules.main.deny]]
+pkg = 'github.com/pkg/errors$'
+desc = 'use github.com/sprucehealth/backend/libs/error'

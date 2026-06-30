@@ -358,7 +358,7 @@ func TestParse(t testing.TB, query string) *ast.Document {
 	return astDoc
 }
 
-func TestExecute(t testing.TB, ctx context.Context, ep graphql.ExecuteParams) *graphql.Result {
+func TestExecute(ctx context.Context, t testing.TB, ep graphql.ExecuteParams) *graphql.Result {
 	return graphql.Execute(ctx, ep)
 }
 

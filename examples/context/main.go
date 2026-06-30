@@ -61,6 +61,7 @@ func main() {
 	http.HandleFunc("/graphql", graphqlHandler)
 	fmt.Println("Now server is running on port 8080")
 	fmt.Println("Test with Get      : curl -g 'http://localhost:8080/graphql?query={me{id,name}}'")
+	//nolint:gosec // this is just an example
 	_ = http.ListenAndServe(":8080", nil)
 }
 

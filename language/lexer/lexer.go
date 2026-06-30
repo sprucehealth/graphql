@@ -10,6 +10,7 @@ import (
 	"github.com/sprucehealth/graphql/language/source"
 )
 
+//nolint:revive,staticcheck
 const (
 	EOF = iota + 1
 	BANG
@@ -130,6 +131,7 @@ func (l *Lexer) nextRune() {
 func (l *Lexer) readName() (Token, error) {
 	start := l.offset
 	for {
+		//nolint:staticcheck
 		if !(l.ch != 0 && (l.ch == 95 || // _
 			l.ch >= 48 && l.ch <= 57 || // 0-9
 			l.ch >= 65 && l.ch <= 90 || // A-Z
@@ -255,7 +257,7 @@ func (l *Lexer) readString() (Token, error) {
 				u4 := l.ch
 				charCode := uniCharCode(u1, u2, u3, u4)
 				if charCode < 0 {
-					return Token{}, gqlerrors.NewSyntaxError(l.src, offs.runes-1, fmt.Sprintf(`Invalid character escape sequence: \u%s`, l.sliceBody(offs, l.rdOffset)))
+					return Token{}, gqlerrors.NewSyntaxError(l.src, offs.runes-1, `Invalid character escape sequence: \u`+l.sliceBody(offs, l.rdOffset))
 				}
 				b.WriteRune(charCode)
 			default:
@@ -324,11 +326,11 @@ func uniCharCode(a, b, c, d rune) rune {
 func char2hex(a rune) rune {
 	switch {
 	case a >= '0' && a <= '9': // 0-9
-		return rune(a) - '0'
+		return a - '0'
 	case a >= 'A' && a <= 'F': // A-F
-		return rune(a) + 10 - 'A'
+		return a + 10 - 'A'
 	case a >= 'a' && a <= 'f': // a-f
-		return rune(a) + 10 - 'a'
+		return a + 10 - 'a'
 	}
 	return -1
 }

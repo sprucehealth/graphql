@@ -202,7 +202,7 @@ func TestUnionIntersectionTypes_CanIntrospectOnUnionAndIntersectionTypes(t *test
 		Schema: unionInterfaceTestSchema,
 		AST:    ast,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
@@ -251,7 +251,7 @@ func TestUnionIntersectionTypes_ExecutesUsingUnionTypes(t *testing.T) {
 		AST:    ast,
 		Root:   john,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
@@ -305,7 +305,7 @@ func TestUnionIntersectionTypes_ExecutesUnionTypesWithInlineFragments(t *testing
 		AST:    ast,
 		Root:   john,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
@@ -353,7 +353,7 @@ func TestUnionIntersectionTypes_ExecutesUsingInterfaceTypes(t *testing.T) {
 		AST:    ast,
 		Root:   john,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
@@ -405,7 +405,7 @@ func TestUnionIntersectionTypes_ExecutesInterfaceTypesWithInlineFragments(t *tes
 		AST:    ast,
 		Root:   john,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
@@ -484,7 +484,7 @@ func TestUnionIntersectionTypes_AllowsFragmentConditionsToBeAbstractTypes(t *tes
 		AST:    ast,
 		Root:   john,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) != len(expected.Errors) {
 		t.Fatalf("Unexpected errors, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}
@@ -564,7 +564,7 @@ func TestUnionIntersectionTypes_GetsExecutionInfoInResolver(t *testing.T) {
 		AST:    ast,
 		Root:   john2,
 	}
-	result := testutil.TestExecute(t, ctx, ep)
+	result := testutil.TestExecute(ctx, t, ep)
 
 	if !reflect.DeepEqual(expected, result) {
 		t.Fatalf("Unexpected result, Diff: %v", testutil.Diff(expected, result))

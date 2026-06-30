@@ -23,6 +23,7 @@ var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 func RandStringRunes(n int) string {
 	b := make([]rune, n)
 	for i := range b {
+		//nolint:gosec // this is just an example
 		b[i] = letterRunes[rand.IntN(len(letterRunes))]
 	}
 	return string(b)
@@ -209,5 +210,6 @@ func main() {
 	fmt.Println("Create new todo: curl -g 'http://localhost:8080/graphql?query=mutation+_{createTodo(text:\"My+new+todo\"){id,text,done}}'")
 	fmt.Println("Update a todo: curl -g 'http://localhost:8080/graphql?query=mutation+_{updateTodo(id:\"b\",text:\"My+new+todo+updated\",done:true){id,text,done}}'")
 	fmt.Println("Load todo list: curl -g 'http://localhost:8080/graphql?query={todoList{id,text,done}}'")
+	//nolint:gosec // this is just an example
 	_ = http.ListenAndServe(":8080", nil)
 }

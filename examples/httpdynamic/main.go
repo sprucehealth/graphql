@@ -59,6 +59,7 @@ func executeQuery(ctx context.Context, query string, schema graphql.Schema) *gra
 }
 
 func importJSONDataFromFile(fileName string) error {
+	//nolint:gosec // this is just an example
 	content, err := os.ReadFile(fileName)
 	if err != nil {
 		return err
@@ -134,5 +135,6 @@ func main() {
 	fmt.Println("Now server is running on port 8080")
 	fmt.Println("Test with Get      : curl -g 'http://localhost:8080/graphql?query={user(name:\"Dan\"){id,surname}}'")
 	fmt.Printf("Reload json file   : kill -SIGUSR1 %s\n", strconv.Itoa(os.Getpid()))
+	//nolint:gosec // this is just an example
 	_ = http.ListenAndServe(":8080", nil)
 }

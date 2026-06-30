@@ -199,7 +199,7 @@ func TestExecutesArbitraryCode(t *testing.T) {
 		OperationName: operationName,
 		Args:          args,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) > 0 {
 		t.Fatalf("wrong result, unexpected errors: %v", result.Errors)
 	}
@@ -266,7 +266,7 @@ func TestAliasedString(t *testing.T) {
 		Schema: schema,
 		AST:    astDoc,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) > 0 {
 		t.Fatalf("wrong result, unexpected errors: %v", result.Errors)
 	}
@@ -352,7 +352,7 @@ func TestMergesParallelFragments(t *testing.T) {
 		Schema: schema,
 		AST:    ast,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) > 0 {
 		t.Fatalf("wrong result, unexpected errors: %v", result.Errors)
 	}
@@ -399,7 +399,7 @@ func TestThreadsSourceCorrectly(t *testing.T) {
 		Root:   data,
 		AST:    ast,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) > 0 {
 		t.Fatalf("wrong result, unexpected errors: %v", result.Errors)
 	}
@@ -450,7 +450,7 @@ func TestOmitEmpty(t *testing.T) {
 		Schema: schema,
 		AST:    ast,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) > 0 {
 		t.Fatalf("wrong result, unexpected errors: %v", result.Errors)
 	}
@@ -512,7 +512,7 @@ func TestCorrectlyThreadsArguments(t *testing.T) {
 		Schema: schema,
 		AST:    ast,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) > 0 {
 		t.Fatalf("wrong result, unexpected errors: %v", result.Errors)
 	}
@@ -561,7 +561,7 @@ func TestThreadsRootValueContextCorrectly(t *testing.T) {
 			"stringKey": "stringValue",
 		},
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) > 0 {
 		t.Fatalf("wrong result, unexpected errors: %v", result.Errors)
 	}
@@ -607,7 +607,7 @@ func TestThreadsContextCorrectly(t *testing.T) {
 		AST:    ast,
 	}
 	//nolint:staticcheck
-	result := testutil.TestExecute(t, context.WithValue(context.Background(), "foo", "bar"), ep)
+	result := testutil.TestExecute(context.WithValue(context.Background(), "foo", "bar"), t, ep)
 	if len(result.Errors) > 0 {
 		t.Fatalf("wrong result, unexpected errors: %v", result.Errors)
 	}
@@ -679,7 +679,7 @@ func TestNullsOutErrorSubtrees(t *testing.T) {
 		AST:    ast,
 		Root:   data,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) == 0 {
 		t.Fatalf("wrong result, expected errors, got %v", len(result.Errors))
 	}
@@ -727,7 +727,7 @@ func TestUsesTheInlineOperationIfNoOperationNameIsProvided(t *testing.T) {
 		AST:    ast,
 		Root:   data,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) > 0 {
 		t.Fatalf("wrong result, unexpected errors: %v", result.Errors)
 	}
@@ -771,7 +771,7 @@ func TestUsesTheOnlyOperationIfNoOperationNameIsProvided(t *testing.T) {
 		AST:    ast,
 		Root:   data,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) > 0 {
 		t.Fatalf("wrong result, unexpected errors: %v", result.Errors)
 	}
@@ -815,7 +815,7 @@ func TestUsesTheNamedOperationIfOperationNameIsProvided(t *testing.T) {
 		Root:          data,
 		OperationName: "OtherExample",
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) > 0 {
 		t.Fatalf("wrong result, unexpected errors: %v", result.Errors)
 	}
@@ -861,7 +861,7 @@ func TestThrowsIfNoOperationIsProvided(t *testing.T) {
 		AST:    ast,
 		Root:   data,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) != 1 {
 		t.Fatalf("wrong result, expected len(1) unexpected len: %v", len(result.Errors))
 	}
@@ -912,7 +912,7 @@ func TestThrowsIfNoOperationNameIsProvidedWithMultipleOperations(t *testing.T) {
 		AST:    ast,
 		Root:   data,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) != 1 {
 		t.Fatalf("wrong result, expected len(1) unexpected len: %v", len(result.Errors))
 	}
@@ -964,7 +964,7 @@ func TestThrowsIfUnknownOperationNameIsProvided(t *testing.T) {
 		Root:          data,
 		OperationName: "UnknownExample",
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if result.Data != nil {
 		t.Fatalf("wrong result, expected nil result.Data, got %v", result.Data)
 	}
@@ -1027,7 +1027,7 @@ func TestUsesTheQuerySchemaForQueries(t *testing.T) {
 		Root:          data,
 		OperationName: "Q",
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) > 0 {
 		t.Fatalf("wrong result, unexpected errors: %v", result.Errors)
 	}
@@ -1081,7 +1081,7 @@ func TestUsesTheMutationSchemaForMutations(t *testing.T) {
 		Root:          data,
 		OperationName: "M",
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) > 0 {
 		t.Fatalf("wrong result, unexpected errors: %v", result.Errors)
 	}
@@ -1135,7 +1135,7 @@ func TestUsesTheSubscriptionSchemaForSubscriptions(t *testing.T) {
 		Root:          data,
 		OperationName: "S",
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) > 0 {
 		t.Fatalf("wrong result, unexpected errors: %v", result.Errors)
 	}
@@ -1207,7 +1207,7 @@ func TestCorrectFieldOrderingDespiteExecutionOrder(t *testing.T) {
 		AST:    ast,
 		Root:   data,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) > 0 {
 		t.Fatalf("wrong result, unexpected errors: %v", result.Errors)
 	}
@@ -1273,7 +1273,7 @@ func TestAvoidsRecursion(t *testing.T) {
 		Root:          data,
 		OperationName: "Q",
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) > 0 {
 		t.Fatalf("wrong result, unexpected errors: %v", result.Errors)
 	}
@@ -1321,7 +1321,7 @@ func TestDoesNotIncludeIllegalFieldsInOutput(t *testing.T) {
 		Schema: schema,
 		AST:    ast,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) != 0 {
 		t.Fatalf("wrong result, expected len(%v) errors, got len(%v)", len(expected.Errors), len(result.Errors))
 	}
@@ -1382,7 +1382,7 @@ func TestDoesNotIncludeArgumentsThatWereNotSet(t *testing.T) {
 		Schema: schema,
 		AST:    ast,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) > 0 {
 		t.Fatalf("wrong result, unexpected errors: %v", result.Errors)
 	}
@@ -1469,7 +1469,7 @@ func TestFailsWhenAnIsTypeOfCheckIsNotMet(t *testing.T) {
 		AST:    ast,
 		Root:   data,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) == 0 {
 		t.Fatalf("wrong result, unexpected errors: %v", result.Errors)
 	}
@@ -1519,7 +1519,7 @@ func TestFailsToExecuteQueryContainingATypeDefinition(t *testing.T) {
 		Schema: schema,
 		AST:    ast,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) != 1 {
 		t.Fatalf("wrong result, unexpected errors: %v", result.Errors)
 	}
@@ -1948,7 +1948,7 @@ func TestDeprecatedField(t *testing.T) {
 			return nil
 		},
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) > 0 {
 		t.Fatalf("wrong result, unexpected errors: %v", result.Errors)
 	}
@@ -1966,7 +1966,7 @@ func TestDeprecatedField(t *testing.T) {
 			return errors.New("deprecated field")
 		},
 	}
-	result = testutil.TestExecute(t, context.Background(), ep)
+	result = testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) == 0 {
 		t.Fatal("Expecte an error")
 	}
@@ -2035,7 +2035,7 @@ func TestCoroutines(t *testing.T) {
 		AST:              astDoc,
 		EnableCoroutines: true,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(result.Errors) > 0 {
 		t.Fatalf("wrong result, unexpected errors: %v", result.Errors)
 	}
