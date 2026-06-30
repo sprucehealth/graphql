@@ -3,9 +3,11 @@ package main
 // TODO: default values for input fields and arguments
 
 import (
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"go/format"
 	"io"
 	"log"
 	"maps"
@@ -16,6 +18,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"text/template"
 	"unicode"
 	"unicode/utf8"
 
@@ -153,7 +156,8 @@ func main() {
 		outWriter = fo
 	}
 
-	g := newGenerator(outWriter, root)
+	var buf bytes.Buffer
+	g := newGenerator(&buf, root)
 	if *flagAssertIdentityAssumption {
 		// Assert proper usage of identity assumption annotations
 		g.assertAllowIdentityAssumptionConditions(root)
@@ -167,6 +171,18 @@ func main() {
 	default:
 		//nolint:gocritic // defers don't run but that's fine
 		log.Fatalf("Unknown output artifact type %s", *flagArtifact)
+	}
+
+	// The render functions emit structurally-correct but loosely-indented Go; gofmt the
+	// complete file once here so individual fragments don't have to manage indentation.
+	out := buf.Bytes()
+	if formatted, err := format.Source(out); err != nil {
+		log.Printf("Warning: failed to gofmt generated code, writing unformatted output: %s", err)
+	} else {
+		out = formatted
+	}
+	if _, err := outWriter.Write(out); err != nil {
+		log.Fatalf("Failed to write output: %s", err)
 	}
 }
 
@@ -711,7 +727,7 @@ func (g *generator) genInterfaceDefinition(def *ast.InterfaceDefinition) {
 	}
 	g.printf("\tFields: graphql.Fields{\n")
 	for _, f := range def.Fields {
-		g.printf("%s,\n", g.renderFieldDefinition(def.Name.Value, f, "\t\t", false))
+		g.printf("%s,\n", g.renderFieldDefinition(def.Name.Value, f, false))
 	}
 	g.printf("\t},\n")
 	g.printf("})\n\n")
@@ -898,10 +914,10 @@ func (g *generator) genObjectDefinition(def *ast.ObjectDefinition) {
 				&ast.FieldDefinition{
 					Name: f.Name,
 					Type: &ast.Named{Name: &ast.Name{Value: "String"}},
-				}, "", true))
+				}, true))
 			stubFields = append(stubFields, f)
 		} else {
-			g.printf("var %s = %s\n", fieldDefName, g.renderFieldDefinition(def.Name.Value, f, "", true))
+			g.printf("var %s = %s\n", fieldDefName, g.renderFieldDefinition(def.Name.Value, f, true))
 		}
 		g.print("\n")
 	}
@@ -937,7 +953,7 @@ func (g *generator) genObjectDefinition(def *ast.ObjectDefinition) {
 		g.printf("func init() {\n")
 		g.printf("\t// Create actual types for fields that can't be created during declaration because they're recursive\n")
 		for _, f := range stubFields {
-			g.printf("\t%s.AddFieldConfig(%q, %s)\n", goName, f.Name.Value, g.renderFieldDefinition(def.Name.Value, f, "\t\t", true))
+			g.printf("\t%s.AddFieldConfig(%q, %s)\n", goName, f.Name.Value, g.renderFieldDefinition(def.Name.Value, f, true))
 		}
 		g.printf("}\n")
 	}
@@ -1062,92 +1078,136 @@ func (g *generator) deprecationReasonFromDirectives(dirs []*ast.Directive, paren
 	return deprecationReason
 }
 
-//nolint:unparam
-func (g *generator) renderFieldDefinition(objName string, def *ast.FieldDefinition, indent string, noName bool) string {
+// fieldDefData is the data passed to fieldDefTmpl to render a single graphql.Field literal.
+type fieldDefData struct {
+	G                 *generator
+	Type              string
+	Arguments         []*ast.InputValueDefinition
+	Description       string
+	DeprecationReason string
+	Directives        []*ast.Directive
+	CustomResolve     bool
+	HasArgs           bool
+	GoFieldName       string
+	GoObjName         string
+	AssertionType     string
+}
+
+var fieldDefTmpl = template.Must(template.New("fieldDef").Funcs(template.FuncMap{
+	"renderArg": func(g *generator, a *ast.InputValueDefinition) string {
+		return g.renderArgumentConfig(a, "")
+	},
+	"renderDir": func(g *generator, d *ast.Directive) string {
+		return g.renderASTDirective(d, "", true)
+	},
+}).Parse(fieldDefTmplText))
+
+// fieldDefTmplText renders the &graphql.Field{...} literal. The whole generated file is
+// gofmt'd before output, so the indentation here only needs to be readable; the trim
+// markers exist solely to avoid emitting blank lines (which gofmt would preserve).
+const fieldDefTmplText = `&graphql.Field{
+	Type: {{.Type}},
+	{{- if .Arguments}}
+	Args: graphql.FieldConfigArgument{
+		{{- range .Arguments}}
+		{{renderArg $.G .}},
+		{{- end}}
+	},
+	{{- end}}
+	{{- if .Description}}
+	Description: {{.Description}},
+	{{- end}}
+	{{- if .DeprecationReason}}
+	DeprecationReason: {{.DeprecationReason}},
+	{{- end}}
+	{{- if .Directives}}
+	Directives: []*ast.Directive{
+		{{- range .Directives}}
+		{{renderDir $.G .}},
+		{{- end}}
+	},
+	{{- end}}
+	{{- if .CustomResolve}}
+	Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
+		r := p.Info.RootValue.(map[string]any)[{{.GoObjName}}ResolversKey].({{.GoObjName}}Resolvers)
+		{{- if .HasArgs}}
+		var args {{.GoObjName}}{{.GoFieldName}}Args
+		if err := gqldecode.Decode(p.Args, &args); err != nil {
+			var validationError *gqldecode.ValidationFailedError
+			if errors.As(err, &validationError) {
+				return nil, gqlerrors.FormattedError{
+					Type:          gqlerrors.ErrorTypeInvalidInput,
+					Message:       fmt.Sprintf("%s is invalid: %s", validationError.Field, validationError.Reason),
+					Locations:     []location.SourceLocation{},
+					OriginalError: err,
+				}
+			}
+			return nil, err
+		}
+		return r.{{.GoFieldName}}(ctx, p.Source.({{.AssertionType}}), &args, p)
+		{{- else}}
+		return r.{{.GoFieldName}}(ctx, p.Source.({{.AssertionType}}), p)
+		{{- end}}
+	},
+	{{- end}}
+}`
+
+func (g *generator) renderFieldDefinition(objName string, def *ast.FieldDefinition, noName bool) string {
 	deprecationReason := g.deprecationReasonFromDirectives(def.Directives, fmt.Sprintf("%s.%s", objName, derefName(def.Name, "")))
-	customResolve := g.hasCustomResolver(objName, def.Name.Value)
+
 	runtimeDirectives := make([]*ast.Directive, 0, len(def.Directives))
 	for _, d := range def.Directives {
 		if isRuntimeDirective(d.Name.Value) {
 			runtimeDirectives = append(runtimeDirectives, d)
 		}
 	}
-	var directivesDef string
-	if len(runtimeDirectives) != 0 {
-		var directiveLines []string
-		directiveLines = append(directiveLines, indent+"\tDirectives: []*ast.Directive{")
-		for _, d := range runtimeDirectives {
-			directiveLines = append(directiveLines, g.renderASTDirective(d, indent+"\t\t", true)+",")
-		}
-		directiveLines = append(directiveLines, indent+"\t},")
-		directivesDef = strings.Join(directiveLines, "\n")
+
+	goObjName := exportedName(objName)
+	assertionType := "*" + goObjName
+	if isTopLevelObject(goObjName) {
+		assertionType = "map[string]any"
 	}
 
-	comment := renderLineComments(def.Doc, indent)
-	if comment == "" {
-		comment = renderLineComments(def.Comment, indent)
-	}
-
-	var lines []string
-	if !noName && comment != "" && deprecationReason == "" {
-		lines = append(lines, comment)
-	}
-	if noName {
-		lines = append(lines, "&graphql.Field{")
-	} else {
-		lines = append(lines, fmt.Sprintf("%s%q: &graphql.Field{", indent, def.Name.Value))
-	}
-	lines = append(lines, fmt.Sprintf("%s\tType: %s,", indent, g.renderType(def.Type, false)))
-
-	if len(def.Arguments) != 0 {
-		lines = append(lines, indent+"\tArgs: graphql.FieldConfigArgument{")
-		for _, a := range def.Arguments {
-			lines = append(lines, g.renderArgumentConfig(a, indent+"\t\t")+",")
-		}
-		lines = append(lines, indent+"\t},")
+	data := fieldDefData{
+		G:             g,
+		Type:          g.renderType(def.Type, false),
+		Arguments:     def.Arguments,
+		Directives:    runtimeDirectives,
+		CustomResolve: g.hasCustomResolver(objName, def.Name.Value),
+		HasArgs:       len(def.Arguments) != 0,
+		GoFieldName:   exportedName(def.Name.Value),
+		GoObjName:     goObjName,
+		AssertionType: assertionType,
 	}
 	if def.Description != nil {
-		lines = append(lines, fmt.Sprintf("%s\tDescription: %s,", indent, renderQuotedDescription(def.Description)))
+		data.Description = renderQuotedDescription(def.Description)
 	}
 	if deprecationReason != "" {
-		lines = append(lines, fmt.Sprintf("%s\tDeprecationReason: %s,", indent, renderDeprecationReason(deprecationReason)))
+		data.DeprecationReason = renderDeprecationReason(deprecationReason)
 	}
-	if directivesDef != "" {
-		lines = append(lines, directivesDef)
-	}
-	if customResolve {
-		goFieldName := exportedName(def.Name.Value)
-		goObjName := exportedName(objName)
-		assertionType := "*" + goObjName
-		if isTopLevelObject(goObjName) {
-			assertionType = "map[string]any"
+
+	var buf strings.Builder
+	// A named field is a map entry ("name": &graphql.Field{...}) and may carry a leading
+	// comment; an anonymous field is just the bare literal. Indentation is left to the
+	// final gofmt pass over the whole file.
+	if !noName {
+		comment := renderLineComments(def.Doc, "")
+		if comment == "" {
+			comment = renderLineComments(def.Comment, "")
 		}
-		lines = append(lines,
-			fmt.Sprintf("%s\tResolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {", indent),
-			fmt.Sprintf("%s\t\tr := p.Info.RootValue.(map[string]any)[%s].(%s)", indent, goObjName+"ResolversKey", goObjName+"Resolvers"))
-		if len(def.Arguments) == 0 {
-			lines = append(lines, fmt.Sprintf("%s\t\treturn r.%s(ctx, p.Source.(%s), p)", indent, goFieldName, assertionType))
-		} else {
-			lines = append(lines,
-				fmt.Sprintf("%s\t\tvar args %s%sArgs", indent, goObjName, goFieldName),
-				fmt.Sprintf("%s\t\tif err := gqldecode.Decode(p.Args, &args); err != nil {", indent),
-				fmt.Sprintf("%s\t\t\tvar validationError *gqldecode.ValidationFailedError", indent),
-				fmt.Sprintf("%s\t\t\tif errors.As(err, &validationError) {", indent),
-				fmt.Sprintf("%s\t\t\t\treturn nil, gqlerrors.FormattedError{", indent),
-				fmt.Sprintf("%s\t\t\t\t\tType: gqlerrors.ErrorTypeInvalidInput,", indent),
-				fmt.Sprintf("%s\t\t\t\t\tMessage: fmt.Sprintf(\"%%s is invalid: %%s\", validationError.Field, validationError.Reason),", indent),
-				fmt.Sprintf("%s\t\t\t\t\tLocations: []location.SourceLocation{},", indent),
-				fmt.Sprintf("%s\t\t\t\t\tOriginalError: err,", indent),
-				fmt.Sprintf("%s\t\t\t\t}", indent),
-				fmt.Sprintf("%s\t\t\t}", indent),
-				fmt.Sprintf("%s\t\t\treturn nil, err", indent),
-				fmt.Sprintf("%s\t\t}", indent),
-				fmt.Sprintf("%s\t\treturn r.%s(ctx, p.Source.(%s), &args, p)", indent, goFieldName, assertionType))
+		if comment != "" && deprecationReason == "" {
+			buf.WriteString(comment)
+			buf.WriteByte('\n')
 		}
-		lines = append(lines, fmt.Sprintf("%s\t},", indent))
+		buf.WriteString(strconv.Quote(def.Name.Value))
+		buf.WriteString(": ")
 	}
-	lines = append(lines, indent+"}")
-	return strings.Join(lines, "\n")
+	if err := fieldDefTmpl.Execute(&buf, data); err != nil {
+		// The template is static and the data types are all strings/slices, so an
+		// execution error indicates a programming error rather than bad input.
+		g.failf("rendering field definition for %s.%s: %s", objName, def.Name.Value, err)
+	}
+	return buf.String()
 }
 
 func (g *generator) genInputObjectDefinition(def *ast.InputObjectDefinition) {
@@ -1231,7 +1291,7 @@ func (g *generator) renderInputValueDefinition(objDef *ast.InputObjectDefinition
 	}
 	firstLine := fmt.Sprintf("%s%q: &graphql.InputObjectFieldConfig{", indent, def.Name.Value)
 	if noName {
-		firstLine = fmt.Sprintf("%s&graphql.InputObjectFieldConfig{", indent)
+		firstLine = indent + "&graphql.InputObjectFieldConfig{"
 	}
 	lines = append(lines,
 		firstLine,

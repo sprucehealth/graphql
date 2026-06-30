@@ -33,11 +33,8 @@ type Parser struct {
 }
 
 func Parse(p ParseParams) (*ast.Document, error) {
-	var sourceObj *source.Source
-	switch p.Source.(type) {
-	case *source.Source:
-		sourceObj = p.Source.(*source.Source)
-	default:
+	sourceObj, ok := p.Source.(*source.Source)
+	if !ok {
 		body, _ := p.Source.(string)
 		sourceObj = source.New("GraphQL", body)
 	}

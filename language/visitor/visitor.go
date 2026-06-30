@@ -231,8 +231,7 @@ func visit(root ast.Node, visitorOpts *VisitorOptions, ancestors []ast.Node, par
 	if visitorOpts.Leave != nil {
 		// TODO: ignoring result (i.e. error) for now
 		action, _ := visitorOpts.Leave(p)
-		switch action {
-		case ActionBreak:
+		if action == ActionBreak {
 			panic(actionBreak{})
 		}
 	}

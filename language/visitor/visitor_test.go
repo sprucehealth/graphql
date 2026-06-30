@@ -370,8 +370,8 @@ func TestVisitor_VisitsKitchenSink(t *testing.T) {
 
 	v := &visitor.VisitorOptions{
 		Enter: func(p visitor.VisitFuncParams) (string, any) {
-			switch node := p.Node.(type) {
-			case ast.Node:
+			node, ok := p.Node.(ast.Node)
+			if ok {
 				if p.Parent != nil {
 					visited = append(visited, []any{"enter", kind(node), kind(p.Parent)})
 				} else {
@@ -381,8 +381,8 @@ func TestVisitor_VisitsKitchenSink(t *testing.T) {
 			return visitor.ActionNoChange, nil
 		},
 		Leave: func(p visitor.VisitFuncParams) (string, any) {
-			switch node := p.Node.(type) {
-			case ast.Node:
+			node, ok := p.Node.(ast.Node)
+			if ok {
 				if p.Parent != nil {
 					visited = append(visited, []any{"leave", kind(node), kind(p.Parent)})
 				} else {

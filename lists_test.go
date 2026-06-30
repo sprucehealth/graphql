@@ -47,7 +47,7 @@ func checkList(t *testing.T, testType graphql.Type, testData any, expected *grap
 		AST:    ast,
 		Root:   data,
 	}
-	result := testutil.TestExecute(t, context.Background(), ep)
+	result := testutil.TestExecute(context.Background(), t, ep)
 	if len(expected.Errors) != len(result.Errors) {
 		t.Fatalf("wrong result, Diff: %v", testutil.Diff(expected.Errors, result.Errors))
 	}

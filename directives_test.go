@@ -39,7 +39,7 @@ func executeDirectivesTestQuery(t *testing.T, doc string) *graphql.Result {
 		AST:    ast,
 		Root:   directivesTestData,
 	}
-	return testutil.TestExecute(t, context.Background(), ep)
+	return testutil.TestExecute(context.Background(), t, ep)
 }
 
 func TestDirectives_DirectivesMustBeNamed(t *testing.T) {
@@ -666,7 +666,7 @@ func executeFieldDefinitionDirectivesTestQuery(t *testing.T, doc string, handler
 		Root:                            fieldDefinitionDirectivesTestData,
 		FieldDefinitionDirectiveHandler: handler,
 	}
-	return testutil.TestExecute(t, context.Background(), ep)
+	return testutil.TestExecute(context.Background(), t, ep)
 }
 
 func TestFieldDefinitionDirectiveHandler(t *testing.T) {

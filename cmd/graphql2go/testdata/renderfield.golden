@@ -1,0 +1,111 @@
+=== Node.id (noName=false) ===
+// the unique id
+"id": &graphql.Field{
+	Type: graphql.NewNonNull(graphql.ID),
+}
+
+=== User.name (noName=true) ===
+&graphql.Field{
+	Type: graphql.String,
+	Description: "The display name",
+}
+
+=== User.legacy (noName=true) ===
+&graphql.Field{
+	Type: graphql.String,
+	DeprecationReason: "use name",
+}
+
+=== User.flagged (noName=true) ===
+&graphql.Field{
+	Type: graphql.Boolean,
+	Directives: []*ast.Directive{
+		{
+	Name: &ast.Name{Value: "feature"},
+	Arguments: []*ast.Argument{
+		{
+			Name: &ast.Name{Value: "enabled"},
+			Value: &ast.BooleanValue{Value: true},
+		},
+	},
+},
+	},
+}
+
+=== User.avatar (noName=true) ===
+&graphql.Field{
+	Type: graphql.String,
+	Args: graphql.FieldConfigArgument{
+		"size": &graphql.ArgumentConfig{Type: graphql.Int},
+	},
+}
+
+=== User.bio (noName=true) ===
+&graphql.Field{
+	Type: graphql.String,
+	Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
+		r := p.Info.RootValue.(map[string]any)[UserResolversKey].(UserResolvers)
+		return r.Bio(ctx, p.Source.(*User), p)
+	},
+}
+
+=== User.fullProfile (noName=true) ===
+&graphql.Field{
+	Type: graphql.String,
+	Args: graphql.FieldConfigArgument{
+		"detailed": &graphql.ArgumentConfig{Type: graphql.Boolean},
+	},
+	Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
+		r := p.Info.RootValue.(map[string]any)[UserResolversKey].(UserResolvers)
+		var args UserFullProfileArgs
+		if err := gqldecode.Decode(p.Args, &args); err != nil {
+			var validationError *gqldecode.ValidationFailedError
+			if errors.As(err, &validationError) {
+				return nil, gqlerrors.FormattedError{
+					Type:          gqlerrors.ErrorTypeInvalidInput,
+					Message:       fmt.Sprintf("%s is invalid: %s", validationError.Field, validationError.Reason),
+					Locations:     []location.SourceLocation{},
+					OriginalError: err,
+				}
+			}
+			return nil, err
+		}
+		return r.FullProfile(ctx, p.Source.(*User), &args, p)
+	},
+}
+
+=== Query.me (noName=true) ===
+&graphql.Field{
+	Type: UserDef,
+	Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
+		r := p.Info.RootValue.(map[string]any)[QueryResolversKey].(QueryResolvers)
+		return r.Me(ctx, p.Source.(map[string]any), p)
+	},
+}
+
+=== Query.search (noName=true) ===
+&graphql.Field{
+	Type: UserDef,
+	Args: graphql.FieldConfigArgument{
+		"query": &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.String)},
+		"limit": &graphql.ArgumentConfig{Type: graphql.Int},
+	},
+	Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
+		r := p.Info.RootValue.(map[string]any)[QueryResolversKey].(QueryResolvers)
+		var args QuerySearchArgs
+		if err := gqldecode.Decode(p.Args, &args); err != nil {
+			var validationError *gqldecode.ValidationFailedError
+			if errors.As(err, &validationError) {
+				return nil, gqlerrors.FormattedError{
+					Type:          gqlerrors.ErrorTypeInvalidInput,
+					Message:       fmt.Sprintf("%s is invalid: %s", validationError.Field, validationError.Reason),
+					Locations:     []location.SourceLocation{},
+					OriginalError: err,
+				}
+			}
+			return nil, err
+		}
+		return r.Search(ctx, p.Source.(map[string]any), &args, p)
+	},
+}
+
