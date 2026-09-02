@@ -555,12 +555,9 @@ func init() {
 		Resolve: func(ctx context.Context, p ResolveParams) (any, error) {
 			includeDeprecated, _ := p.Args["includeDeprecated"].(bool)
 			if ttype, ok := p.Source.(*Enum); ok {
-				if includeDeprecated {
-					return ttype.Values(), nil
-				}
 				values := []*EnumValueDefinition{}
 				for _, value := range ttype.Values() {
-					if value.DeprecationReason != "" {
+					if !includeDeprecated && value.DeprecationReason != "" {
 						continue
 					}
 					values = append(values, value)
