@@ -65,3 +65,8 @@ input AccountInput @goModelCompatibility(nullOmittable: true) {
   nickname: String
   age: Int @goField(omittable: false)
 }
+
+type Subscription {
+  userUpdated(id: ID!): User!
+  heartbeat: Int
+}

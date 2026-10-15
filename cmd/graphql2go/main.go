@@ -249,12 +249,16 @@ func generateServer(g *generator) {
 			if field == nil {
 				log.Fatalf("Unknown field %q on object %q when generating resolvers", fieldName, typeName)
 			}
+			returnType := g.goOutputFieldType(field.Type, objDef.Name.Value, field.Name.Value)
+			if typeName == subscriptionTypeName {
+				returnType = "<-chan " + returnType
+			}
 			if len(field.Arguments) == 0 {
 				g.printf("\t%s(ctx context.Context, parent %s, p graphql.ResolveParams) (%s, error)\n",
-					exportedName(field.Name.Value), assertionType, g.goOutputFieldType(field.Type, objDef.Name.Value, field.Name.Value))
+					exportedName(field.Name.Value), assertionType, returnType)
 			} else {
 				g.printf("\t%s(ctx context.Context, parent %s, args *%s%sArgs, p graphql.ResolveParams) (%s, error)\n",
-					exportedName(field.Name.Value), assertionType, exportedName(objDef.Name.Value), exportedName(field.Name.Value), g.goOutputFieldType(field.Type, objDef.Name.Value, field.Name.Value))
+					exportedName(field.Name.Value), assertionType, exportedName(objDef.Name.Value), exportedName(field.Name.Value), returnType)
 			}
 		}
 		g.printf("}\n\n")
@@ -1049,11 +1053,16 @@ func (g *generator) renderExtraFields(typeName string) {
 
 func isTopLevelObject(o string) bool {
 	switch o {
-	case "Mutation", "Query":
+	case "Mutation", "Query", subscriptionTypeName:
 		return true
 	}
 	return false
 }
+
+// subscriptionTypeName is the root object whose fields produce event streams rather than
+// values: their resolver interface methods return a receive-only channel and the
+// generated field carries a Subscribe function.
+const subscriptionTypeName = "Subscription"
 
 func (g *generator) deprecationReasonFromDirectives(dirs []*ast.Directive, parent string) string {
 	var deprecationReason string
@@ -1087,6 +1096,7 @@ type fieldDefData struct {
 	DeprecationReason string
 	Directives        []*ast.Directive
 	CustomResolve     bool
+	Subscription      bool
 	HasArgs           bool
 	GoFieldName       string
 	GoObjName         string
@@ -1127,7 +1137,36 @@ const fieldDefTmplText = `&graphql.Field{
 		{{- end}}
 	},
 	{{- end}}
-	{{- if .CustomResolve}}
+	{{- if .Subscription}}
+	Resolve: func(_ context.Context, p graphql.ResolveParams) (any, error) {
+		return p.Source, nil
+	},
+	Subscribe: func(ctx context.Context, p graphql.ResolveParams) (<-chan any, error) {
+		r := p.Info.RootValue.(map[string]any)[{{.GoObjName}}ResolversKey].({{.GoObjName}}Resolvers)
+		{{- if .HasArgs}}
+		var args {{.GoObjName}}{{.GoFieldName}}Args
+		if err := gqldecode.Decode(p.Args, &args); err != nil {
+			var validationError *gqldecode.ValidationFailedError
+			if errors.As(err, &validationError) {
+				return nil, gqlerrors.FormattedError{
+					Type:          gqlerrors.ErrorTypeInvalidInput,
+					Message:       fmt.Sprintf("%s is invalid: %s", validationError.Field, validationError.Reason),
+					Locations:     []location.SourceLocation{},
+					OriginalError: err,
+				}
+			}
+			return nil, err
+		}
+		events, err := r.{{.GoFieldName}}(ctx, p.Source.({{.AssertionType}}), &args, p)
+		{{- else}}
+		events, err := r.{{.GoFieldName}}(ctx, p.Source.({{.AssertionType}}), p)
+		{{- end}}
+		if err != nil {
+			return nil, err
+		}
+		return graphql.EventStream(ctx, events), nil
+	},
+	{{- else if .CustomResolve}}
 	Resolve: func(ctx context.Context, p graphql.ResolveParams) (any, error) {
 		r := p.Info.RootValue.(map[string]any)[{{.GoObjName}}ResolversKey].({{.GoObjName}}Resolvers)
 		{{- if .HasArgs}}
@@ -1174,6 +1213,7 @@ func (g *generator) renderFieldDefinition(objName string, def *ast.FieldDefiniti
 		Arguments:     def.Arguments,
 		Directives:    runtimeDirectives,
 		CustomResolve: g.hasCustomResolver(objName, def.Name.Value),
+		Subscription:  goObjName == subscriptionTypeName,
 		HasArgs:       len(def.Arguments) != 0,
 		GoFieldName:   exportedName(def.Name.Value),
 		GoObjName:     goObjName,

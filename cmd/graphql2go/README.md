@@ -10,6 +10,15 @@ graphql2go -schema schema.graphql -artifact client -out client.go   # client met
 Run `graphql2go -h` for the full flag list (`-config`, `-schema`, `-out`,
 `-client_types`, `-nullable_inputs`, `-assert_identity`, `-v`).
 
+## Subscriptions
+
+A `type Subscription` is a root type like `Query` and `Mutation`: every field gets a
+resolver interface method, but the method returns a receive-only channel of the field's Go
+type (`<-chan *User`) instead of a value. The generated `graphql.Field` carries a
+`Subscribe` function that adapts the channel with `graphql.EventStream` and a `Resolve`
+that returns the event itself, so each event is executed as the root value of the
+selection set. Producers must stop and close the channel when the context is done.
+
 ## Customization
 
 Generation can be customized two ways, which coexist:

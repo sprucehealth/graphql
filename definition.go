@@ -544,6 +544,7 @@ func defineFieldMap(ttype Named, fields Fields) (FieldDefinitionMap, error) {
 			Description:       field.Description,
 			Type:              field.Type,
 			Resolve:           field.Resolve,
+			Subscribe:         field.Subscribe,
 			DeprecationReason: field.DeprecationReason,
 			Directives:        field.Directives,
 		}
@@ -589,6 +590,12 @@ type ResolveParams struct {
 
 type FieldResolveFn func(ctx context.Context, p ResolveParams) (any, error)
 
+// FieldSubscribeFn creates the source event stream for a subscription root field. It is
+// called once per subscription; each value received from the channel is then executed as
+// the root value of the operation's selection set. The producer must stop and close the
+// channel when ctx is done.
+type FieldSubscribeFn func(ctx context.Context, p ResolveParams) (<-chan any, error)
+
 type ResolveInfo struct {
 	FieldName      string
 	FieldASTs      []*ast.Field
@@ -608,6 +615,7 @@ type Field struct {
 	Type              Output              `json:"type"`
 	Args              FieldConfigArgument `json:"args"`
 	Resolve           FieldResolveFn
+	Subscribe         FieldSubscribeFn
 	DeprecationReason string           `json:"deprecationReason,omitempty"`
 	Description       string           `json:"description"`
 	Directives        []*ast.Directive `json:"directives,omitempty"`
@@ -628,6 +636,7 @@ type FieldDefinition struct {
 	Type              Output           `json:"type"`
 	Args              []*Argument      `json:"args"`
 	Resolve           FieldResolveFn   `json:"-"`
+	Subscribe         FieldSubscribeFn `json:"-"`
 	DeprecationReason string           `json:"deprecationReason,omitempty"`
 	Directives        []*ast.Directive `json:"directives,omitempty"`
 }

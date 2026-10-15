@@ -61,6 +61,19 @@ func TestGenerator(t *testing.T) {
 		t.Errorf("expected non-omittable resolver to keep value return:\n%s\nnot found in:\n%s", want, raw)
 	}
 
+	// Subscription root fields produce event streams: the resolver interface returns a
+	// channel and the generated field carries a Subscribe function.
+	for _, want := range []string{
+		"UserUpdated(ctx context.Context, parent map[string]any, args *SubscriptionUserUpdatedArgs, p graphql.ResolveParams) (<-chan *User, error)",
+		"Heartbeat(ctx context.Context, parent map[string]any, p graphql.ResolveParams) (<-chan int, error)",
+		"Subscribe: func(ctx context.Context, p graphql.ResolveParams) (<-chan any, error) {",
+		"return graphql.EventStream(ctx, events), nil",
+	} {
+		if !strings.Contains(raw, want) {
+			t.Errorf("expected subscription codegen output:\n%s\nnot found in:\n%s", want, raw)
+		}
+	}
+
 	formatted, err := format.Source([]byte(raw))
 	if err != nil {
 		t.Fatalf("generated output is not valid Go: %v\n%s", err, raw)

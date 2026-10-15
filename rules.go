@@ -32,6 +32,7 @@ var SpecifiedRules = []ValidationRuleFn{
 	PossibleFragmentSpreadsRule,
 	ProvidedNonNullArgumentsRule,
 	ScalarLeafsRule,
+	SingleFieldSubscriptionsRule,
 	UniqueArgumentNamesRule,
 	UniqueFragmentNamesRule,
 	UniqueInputFieldNamesRule,
@@ -2039,4 +2040,91 @@ func lexicalDistance(a, b string) float64 {
 	}
 
 	return d[aLen][bLen]
+}
+
+// SingleFieldSubscriptionsRule Subscriptions must select exactly one root field
+//
+// A GraphQL subscription is valid only if it selects exactly one top-level field,
+// counting fields reached through fragments, and that field is not an introspection field.
+func SingleFieldSubscriptionsRule(context *ValidationContext) *ValidationRuleInstance {
+	return &ValidationRuleInstance{
+		Enter: func(p visitor.VisitFuncParams) (string, any) {
+			node, ok := p.Node.(*ast.OperationDefinition)
+			if !ok || node.Operation != ast.OperationTypeSubscription {
+				return visitor.ActionNoChange, nil
+			}
+			fields := collectSubscriptionFields(context, node.SelectionSet, nil, map[string]struct{}{})
+			var operationName string
+			if node.Name != nil {
+				operationName = node.Name.Value
+			}
+			if len(fields) != 1 {
+				nodes := make([]ast.Node, 0, len(fields))
+				for _, f := range fields {
+					nodes = append(nodes, f)
+				}
+				if len(nodes) == 0 {
+					nodes = []ast.Node{node}
+				}
+				return reportErrorAndReturn(context, singleFieldSubscriptionsMessage(operationName), nodes)
+			}
+			field := fields[0]
+			if field.Name != nil && strings.HasPrefix(field.Name.Value, "__") {
+				return reportErrorAndReturn(context, introspectionSubscriptionFieldMessage(operationName), []ast.Node{field})
+			}
+			return visitor.ActionNoChange, nil
+		},
+	}
+}
+
+func singleFieldSubscriptionsMessage(operationName string) string {
+	if operationName == "" {
+		return "Anonymous Subscription must select only one top level field."
+	}
+	return fmt.Sprintf("Subscription %q must select only one top level field.", operationName)
+}
+
+func introspectionSubscriptionFieldMessage(operationName string) string {
+	if operationName == "" {
+		return "Anonymous Subscription must not select an introspection top level field."
+	}
+	return fmt.Sprintf("Subscription %q must not select an introspection top level field.", operationName)
+}
+
+// collectSubscriptionFields gathers the root fields of a subscription selection set,
+// following inline fragments and named fragment spreads. Each response key counts once, so
+// the same field selected twice is one root field.
+func collectSubscriptionFields(context *ValidationContext, ss *ast.SelectionSet, fields []*ast.Field, visitedFragments map[string]struct{}) []*ast.Field {
+	if ss == nil {
+		return fields
+	}
+	seen := make(map[string]struct{}, len(fields))
+	for _, f := range fields {
+		seen[getFieldEntryKey(f)] = struct{}{}
+	}
+	for _, sel := range ss.Selections {
+		switch sel := sel.(type) {
+		case *ast.Field:
+			key := getFieldEntryKey(sel)
+			if _, ok := seen[key]; ok {
+				continue
+			}
+			seen[key] = struct{}{}
+			fields = append(fields, sel)
+		case *ast.InlineFragment:
+			fields = collectSubscriptionFields(context, sel.SelectionSet, fields, visitedFragments)
+		case *ast.FragmentSpread:
+			if sel.Name == nil {
+				continue
+			}
+			if _, ok := visitedFragments[sel.Name.Value]; ok {
+				continue
+			}
+			visitedFragments[sel.Name.Value] = struct{}{}
+			if frag := context.Fragment(sel.Name.Value); frag != nil {
+				fields = collectSubscriptionFields(context, frag.SelectionSet, fields, visitedFragments)
+			}
+		}
+	}
+	return fields
 }

@@ -10,6 +10,13 @@ import (
 	"github.com/sprucehealth/graphql/language/location"
 )
 
+const SubscriptionResolversKey = "SubscriptionResolvers"
+
+type SubscriptionResolvers interface {
+	Heartbeat(ctx context.Context, parent map[string]any, p graphql.ResolveParams) (<-chan int, error)
+	UserUpdated(ctx context.Context, parent map[string]any, args *SubscriptionUserUpdatedArgs, p graphql.ResolveParams) (<-chan *User, error)
+}
+
 const UserResolversKey = "UserResolvers"
 
 type UserResolvers interface {
@@ -180,6 +187,71 @@ type AccountInput struct {
 	Age      int     `gql:"age" json:"age"`
 }
 
+var subscriptionDefFieldUserUpdated = &graphql.Field{
+	Type: graphql.NewNonNull(UserDef),
+	Args: graphql.FieldConfigArgument{
+		"id": &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.ID)},
+	},
+	Resolve: func(_ context.Context, p graphql.ResolveParams) (any, error) {
+		return p.Source, nil
+	},
+	Subscribe: func(ctx context.Context, p graphql.ResolveParams) (<-chan any, error) {
+		r := p.Info.RootValue.(map[string]any)[SubscriptionResolversKey].(SubscriptionResolvers)
+		var args SubscriptionUserUpdatedArgs
+		if err := gqldecode.Decode(p.Args, &args); err != nil {
+			var validationError *gqldecode.ValidationFailedError
+			if errors.As(err, &validationError) {
+				return nil, gqlerrors.FormattedError{
+					Type:          gqlerrors.ErrorTypeInvalidInput,
+					Message:       fmt.Sprintf("%s is invalid: %s", validationError.Field, validationError.Reason),
+					Locations:     []location.SourceLocation{},
+					OriginalError: err,
+				}
+			}
+			return nil, err
+		}
+		events, err := r.UserUpdated(ctx, p.Source.(map[string]any), &args, p)
+		if err != nil {
+			return nil, err
+		}
+		return graphql.EventStream(ctx, events), nil
+	},
+}
+
+var subscriptionDefFieldHeartbeat = &graphql.Field{
+	Type: graphql.Int,
+	Resolve: func(_ context.Context, p graphql.ResolveParams) (any, error) {
+		return p.Source, nil
+	},
+	Subscribe: func(ctx context.Context, p graphql.ResolveParams) (<-chan any, error) {
+		r := p.Info.RootValue.(map[string]any)[SubscriptionResolversKey].(SubscriptionResolvers)
+		events, err := r.Heartbeat(ctx, p.Source.(map[string]any), p)
+		if err != nil {
+			return nil, err
+		}
+		return graphql.EventStream(ctx, events), nil
+	},
+}
+
+var SubscriptionDef = graphql.NewObject(graphql.ObjectConfig{
+	Name: "Subscription",
+	Fields: graphql.Fields{
+		"userUpdated": subscriptionDefFieldUserUpdated,
+		"heartbeat":   subscriptionDefFieldHeartbeat,
+	},
+	IsTypeOf: func(p graphql.IsTypeOfParams) bool {
+		_, ok := p.Value.(*Subscription)
+		return ok
+	},
+})
+
+type Subscription struct {
+}
+
+type SubscriptionUserUpdatedArgs struct {
+	ID string `gql:"id,nonempty"`
+}
+
 var TypeDefs = []graphql.Type{
 	DateTimeDef,
 	StatusDef,
@@ -187,4 +259,5 @@ var TypeDefs = []graphql.Type{
 	UserInputDef,
 	AccountDef,
 	AccountInputDef,
+	SubscriptionDef,
 }
